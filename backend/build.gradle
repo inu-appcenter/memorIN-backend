@@ -26,6 +26,13 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'com.google.firebase:firebase-admin:9.4.2'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
 }
 
 tasks.named('test') {
