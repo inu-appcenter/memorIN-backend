@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><title>FCM 테스트</title></head>
+<body>
+<h2>FCM 토큰 받기</h2>
+<button onclick="getToken()">토큰 발급</button>
+<p id="token"></p>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js";
+    const firebaseConfig = {
+        apiKey: "AIzaSyBFw_Rqawiefd3PigXK40hJ1_TNzapmdes",
+        authDomain: "chat-test-b9025.firebaseapp.com",
+        projectId: "chat-test-b9025",
+        storageBucket: "chat-test-b9025.firebasestorage.app",
+        messagingSenderId: "570575560014",
+        appId: "1:570575560014:web:702f84f1116ad66408521f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    window.getToken = async () => {
+        // Service Worker 먼저 등록하고 준비 대기
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        await navigator.serviceWorker.ready;
+
+        const token = await getToken(messaging, {
+            vapidKey: "BI5-UdXIt1zDtrwjdj4mvwYXDYldvZ6AoGwe4HCuWInhB1tvverK1118unnH_4Fk_3IxGtGeu3zKG_RGF7yykNM",
+            serviceWorkerRegistration: registration
+        });
+
+        document.getElementById('token').innerText = token;
+        console.log('토큰:', token);
+    };
+</script>
+</body>
+</html>
