@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgres:18-alpine # alpine 80mb 초경량 리눅스 버전
-    container_name: sns_postgres
+    container_name: memorin_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sns_db}
-      POSTGRES_USER: ${POSTGRES_USER:-sns_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sns_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-memorin_db}
+      POSTGRES_USER: ${POSTGRES_USER:-memorin_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memorin_pass}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -15,16 +15,16 @@ services:
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:
-      - sns_network
+      - memorin_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sns_user} -d ${POSTGRES_DB:-sns_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memorin_user} -d ${POSTGRES_DB:-memorin_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   minio:
     image: minio/minio:latest
-    container_name: sns_minio
+    container_name: memorin_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -36,7 +36,7 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - sns_network
+      - memorin_network
     # postgresql 완전히 켜지는데 보통 10-30초 걸림. 그래서 5번 재시도 설정
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
@@ -46,19 +46,19 @@ services:
 
   backend:
     build:
-      context: ./demo
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: sns_backend
+    container_name: memorin_backend
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sns_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-sns_user}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-sns_pass}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-memorin_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-memorin_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-memorin_pass}
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-sns-media}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-memorin-media}
       # TODO: 건희님 작업 이후 채우기
       # 서비스 배포 시에는 랜덤 256비트 문자열 사용
       JWT_SECRET: ${JWT_SECRET:-changeme-in-production-use-256bit-secret}
@@ -73,22 +73,22 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - sns_network
+      - memorin_network
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: sns_pgadmin
+    container_name: memorin_pgadmin
     restart: unless-stopped
     profiles: ["tools"]   # docker compose --profile tools up 으로 선택적 실행
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sns.local}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@memorin.local}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     depends_on:
       - postgres
     networks:
-      - sns_network
+      - memorin_network
 
 
 # 컨테이너 삭제되더라도 postgres, minio 데이터 남아있음.
@@ -98,5 +98,5 @@ volumes:
   minio_data:
 
 networks:
-  sns_network:
+  memorin_network:
     driver: bridge
