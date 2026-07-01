@@ -20,42 +20,45 @@ repositories {
 dependencies {
 
 	// DB
-	runtimeOnly 'com.h2database:h2'        // 로컬 개발용 인메모리 DB
+	runtimeOnly 'com.h2database:h2'          // 로컬 개발용 인메모리 DB
 	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
 
 	// Web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	// JPA
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	runtimeOnly 'org.postgresql:postgresql'
+
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
 	// Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 
-	// JWT
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+	// JWT (develop 확정 버전 0.12.7로 통일)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
 
-	// Firebase
-	implementation 'com.google.firebase:firebase-admin:9.2.0'
+	// Firebase (develop 확정 버전 9.4.2 유지)
+	implementation 'com.google.firebase:firebase-admin:9.4.2'
 
 	// Redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-	// WebSocket (STOMP)
+	// WebSocket (STOMP) — spring-messaging는 websocket starter가 전이 포함
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-	implementation 'org.springframework:spring-messaging'
 
-	// JSONB
-	implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
+	// JSONB (Hibernate 6.6 대응: hibernate-types-60 → hypersistence-utils)
+	implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.9.11'
 
-	// QueryDSL
+	// QueryDSL (Jakarta) — APT에 jakarta 프로세서 동반 필요
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
 	annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+	annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
