@@ -116,6 +116,10 @@ docker compose --profile tools up -d
 | pgAdmin | http://localhost:5050 |
 | PostgreSQL | localhost:5432 |
 
+> pgAdmin 접속·서버 등록과 PG18 `public` 스키마 `GRANT` 표준은
+> [`docs/pgadmin-onboarding-grant-guide.md`](docs/pgadmin-onboarding-grant-guide.md) 참고.
+> (pgAdmin에서 서버 등록 시 Host는 `localhost`가 아니라 서비스명 `postgres`)
+
 ### 백엔드 로컬 개발 (Docker 없이)
 ```bash
 cd backend
@@ -139,7 +143,9 @@ cd backend
 │       ├── init/             # 초기 DDL 스크립트
 │       └── postgresql.conf   # io_uring 등 튜닝 설정
 ├── docs/
-│   └── erd.md                # DB ERD 문서
+│   ├── erd.md                # DB ERD 문서
+│   ├── minio-bucket-policy.md          # MinIO 버킷 정책 초안
+│   └── pgadmin-onboarding-grant-guide.md  # pgAdmin 온보딩 + GRANT 가이드
 ├── docker-compose.yml        # postgres · minio · backend · pgadmin
 └── .env.example
 ```
