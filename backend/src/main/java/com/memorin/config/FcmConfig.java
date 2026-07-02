@@ -3,11 +3,13 @@ package com.memorin.config;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import jakarta.annotation.PostConstruct;
 import java.io.InputStream;
 
 @Configuration
+@ConditionalOnProperty(name = "fcm.enabled", havingValue = "true", matchIfMissing = true)
 public class FcmConfig {
 
     // 앱 시작될 때 딱 한 번 실행되는 초기화 메서드
