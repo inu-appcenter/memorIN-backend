@@ -37,16 +37,8 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    window.start = async () => {
-        const sender = document.getElementById('sender').value;
+    window.start = () => {
         const roomId = document.getElementById('roomId').value;
-
-        try {
-            await fetch(`/api/rooms/${roomId}/members?userId=${sender}`, { method: 'POST' });
-            log(`${sender} 방${roomId} 참여 완료`, "sys");
-        } catch (e) {
-            log("방 참여 실패: " + e.message, "sys"); return;
-        }
 
         const socket = new SockJS('/ws');
         client = Stomp.over(socket);
