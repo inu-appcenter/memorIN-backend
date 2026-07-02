@@ -14,6 +14,7 @@ import java.util.List;
 public record MinioProperties(
         @NotBlank String endpoint,
         @NotBlank String publicEndpoint,
+        @NotBlank String region,
         @NotBlank String accessKey,
         @NotBlank String secretKey,
         @NotBlank String bucketName,
