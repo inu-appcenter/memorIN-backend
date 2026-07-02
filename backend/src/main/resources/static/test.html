@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <title>채팅 + 알림 테스트</title>
+    <title>STOMP 채팅 테스트</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.2/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <style>
@@ -14,12 +14,12 @@
     </style>
 </head>
 <body>
-<h2>채팅 + 알림 테스트</h2>
+<h2>STOMP 채팅 테스트</h2>
 
 <div class="row">
     내 이름: <input id="sender" value="alice" size="8" />
     방번호: <input id="roomId" value="1" size="3" />
-    <button onclick="start()">접속 &amp; 토큰등록</button>
+    <button onclick="start()">접속</button>
 </div>
 <div class="row">
     메시지: <input id="content" size="28" />
@@ -28,25 +28,8 @@
 
 <div id="messages"></div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyBFw_Rqawiefd3PigXK40hJ1_TNzapmdes",
-        authDomain: "chat-test-b9025.firebaseapp.com",
-        projectId: "chat-test-b9025",
-        storageBucket: "chat-test-b9025.firebasestorage.app",
-        messagingSenderId: "570575560014",
-        appId: "1:570575560014:web:702f84f1116ad66408521f"
-    };
-    const VAPID_KEY = "BI5-UdXIt1zDtrwjdj4mvwYXDYldvZ6AoGwe4HCuWInhB1tvverK1118unnH_4Fk_3IxGtGeu3zKG_RGF7yykNM";
-
-    const app = initializeApp(firebaseConfig);
-    const messaging = getMessaging(app);
-
+<script>
     let client = null;
-    let swReg = null;
 
     function log(html, cls) {
         const box = document.getElementById('messages');
@@ -58,35 +41,13 @@
         const sender = document.getElementById('sender').value;
         const roomId = document.getElementById('roomId').value;
 
-        // 1) 알림 권한 + FCM 토큰 발급
         try {
-            const perm = await Notification.requestPermission();
-            if (perm !== "granted") { log("알림 권한이 거부됨", "sys"); return; }
-            swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            await navigator.serviceWorker.ready;
-            const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
-
-            // 2) 백엔드에 토큰 등록 + 방 참여자로 등록
-            await fetch('/api/fcm/token', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: sender, token, deviceType: 'web' })
-            });
             await fetch(`/api/rooms/${roomId}/members?userId=${sender}`, { method: 'POST' });
-            log(`${sender} 토큰등록 + 방${roomId} 참여 완료`, "sys");
+            log(`${sender} 방${roomId} 참여 완료`, "sys");
         } catch (e) {
-            log("토큰/등록 실패: " + e.message, "sys"); return;
+            log("방 참여 실패: " + e.message, "sys"); return;
         }
 
-        // 3) 탭을 보고 있을 때(포그라운드)도 직접 팝업을 띄워줌
-        onMessage(messaging, (payload) => {
-            const n = payload.notification || {};
-            log(`🔔 [알림] ${n.title}: ${n.body}`, "sys");
-            if (swReg) {
-                swReg.showNotification(n.title || "새 메시지", { body: n.body || "" });
-            }
-        });
-
-        // 4) WebSocket 연결 + 구독
         const socket = new SockJS('/ws');
         client = Stomp.over(socket);
         client.debug = null;
@@ -100,7 +61,7 @@
     };
 
     window.sendMessage = () => {
-        if (!client) { alert("먼저 '접속 & 토큰등록'을 누르세요"); return; }
+        if (!client) { alert("먼저 '접속'을 누르세요"); return; }
         const sender = document.getElementById('sender').value;
         const roomId = document.getElementById('roomId').value;
         const content = document.getElementById('content').value;

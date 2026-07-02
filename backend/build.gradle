@@ -42,8 +42,6 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
 
-	// Firebase (develop 확정 버전 9.4.2 유지)
-	implementation 'com.google.firebase:firebase-admin:9.4.2'
 	implementation 'io.minio:minio:8.5.17'
 
 	// Redis
