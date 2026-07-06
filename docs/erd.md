@@ -8,7 +8,7 @@
 
 | 결정 | 선택 | 이유 |
 |---|---|---|
-| PK 타입 | `UUID v7` | 정렬 가능 + 분산 환경 충돌 없음 |
+| PK 타입 | `UUID v7` | 정렬 가능 + 분산 환경 충돌 없음. PG18 내장 `uuidv7()` + 앱(Hibernate)에서 v7 생성 → H2/PG18 공통 동작 |
 | 게시물 본문 | `JSONB content[]` | 텍스트·이미지·비디오 블록 혼합 지원 |
 | 친구 관계 | 단방향 follow (+ 상태 enum) | DM은 direct room으로 처리, 팔로우 비대칭 허용 |
 | 채팅 | ChatRoom + Members + Messages 3-테이블 | 1:1 / 그룹 채팅 공통 처리 |
@@ -131,8 +131,8 @@ erDiagram
 ## SQL DDL 초안
 
 ```sql
--- 확장
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";  -- gen_random_uuid()
+-- UUID v7: PostgreSQL 18 내장 uuidv7() 사용 → 별도 확장/라이브러리 불필요.
+--          앱(Hibernate)에서도 동일하게 v7을 생성하므로 아래 DEFAULT는 SQL 직접 INSERT용 안전망.
 
 -- ──────────────────────────────────────────────────────────────
 -- ENUM 타입
@@ -146,7 +146,7 @@ CREATE TYPE member_role       AS ENUM ('owner', 'member');
 -- users
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE users (
-    id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                UUID        PRIMARY KEY DEFAULT uuidv7(),
     email             VARCHAR(320) NOT NULL UNIQUE,
     password_hash     VARCHAR(255) NOT NULL,
     username          VARCHAR(50)  NOT NULL UNIQUE,
@@ -165,7 +165,7 @@ CREATE INDEX idx_users_username    ON users (username)  WHERE deleted_at IS NULL
 -- posts
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE posts (
-    id            UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID           PRIMARY KEY DEFAULT uuidv7(),
     user_id       UUID           NOT NULL REFERENCES users(id),
     content       JSONB          NOT NULL DEFAULT '[]',
     visibility    visibility_type NOT NULL DEFAULT 'public',
@@ -183,7 +183,7 @@ CREATE INDEX idx_posts_content_gin   ON posts USING GIN (content);  -- JSONB 검
 -- post_media
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE post_media (
-    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID        PRIMARY KEY DEFAULT uuidv7(),
     post_id         UUID        NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     file_key        VARCHAR(500) NOT NULL,
     mime_type       VARCHAR(100) NOT NULL,
@@ -201,7 +201,7 @@ CREATE INDEX idx_post_media_post_id ON post_media (post_id, order_index);
 -- follows
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE follows (
-    id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID         PRIMARY KEY DEFAULT uuidv7(),
     follower_id   UUID         NOT NULL REFERENCES users(id),
     following_id  UUID         NOT NULL REFERENCES users(id),
     status        follow_status NOT NULL DEFAULT 'pending',
@@ -218,7 +218,7 @@ CREATE INDEX idx_follows_following  ON follows (following_id, status);
 -- chat_rooms
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE chat_rooms (
-    id            UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID      PRIMARY KEY DEFAULT uuidv7(),
     name          VARCHAR(100),
     type          chat_type  NOT NULL DEFAULT 'direct',
     thumbnail_key VARCHAR(500),
@@ -230,7 +230,7 @@ CREATE TABLE chat_rooms (
 -- chat_room_members
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE chat_room_members (
-    id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID        PRIMARY KEY DEFAULT uuidv7(),
     room_id       UUID        NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
     user_id       UUID        NOT NULL REFERENCES users(id),
     role          member_role  NOT NULL DEFAULT 'member',
@@ -246,7 +246,7 @@ CREATE INDEX idx_members_user_id ON chat_room_members (user_id) WHERE left_at IS
 -- messages
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE messages (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    id          UUID        PRIMARY KEY DEFAULT uuidv7(),
     room_id     UUID        NOT NULL REFERENCES chat_rooms(id),
     sender_id   UUID        NOT NULL REFERENCES users(id),
     content     JSONB       NOT NULL,
@@ -259,6 +259,17 @@ CREATE INDEX idx_messages_room_id ON messages (room_id, sent_at DESC) WHERE dele
 
 ---
 
+## 확정 사항
+
+| # | 결정 | 내용 |
+|---|---|---|
+| A | **UUID v7 생성 방식** | PG18 내장 `uuidv7()` 사용(확장 불필요). 앱은 `com.fasterxml.uuid:java-uuid-generator`로 v7 생성 → `@GeneratedUuidV7` 어노테이션(`global.support`)을 PK에 부착. DB `DEFAULT uuidv7()`는 SQL 직접 INSERT용 안전망. H2(로컬)·PG18(운영) 공통 동작. |
+
+> UUID v7 생성 인프라(`@GeneratedUuidV7` 어노테이션 + 제너레이터)는 이 브랜치에 포함.
+> ⚠️ **엔티티 PK 적용은 각 도메인 담당자 몫.** `Member` 엔티티는 **BE 주니어 1의 열린 PR #19(feature/auth-login)** 에서 `Long` → `UUID`로 반영 예정(중복 작업/충돌 방지). 신규 엔티티(posts, messages 등)는 처음부터 `@GeneratedUuidV7` 사용.
+
+---
+
 ## 미결 사항 (수요일 리뷰 전까지 논의 필요)
 
 | # | 질문 | 후보 |
@@ -266,4 +277,5 @@ CREATE INDEX idx_messages_room_id ON messages (room_id, sent_at DESC) WHERE dele
 | 1 | 좋아요/댓글 테이블을 지금 추가할까? | Sprint 0 포함 vs Sprint 1으로 미룸 |
 | 2 | 팔로우 vs 맞팔(친구) 구분 필요? | 현재 `follows.status = accepted`로 처리 |
 | 3 | 메시지 읽음 처리 세분화? | `last_read_at` 방식 vs `message_reads` 별도 테이블 |
-| 4 | UUID v7 지원 라이브러리? | PG18 내장 `gen_random_uuid()` 는 v4 → v7 라이브러리 추가 검토 |
+| 4 | `posts.content`(JSONB) ↔ `post_media`(테이블) 미디어 중복 | JSONB=렌더링 순서, post_media=파일 메타/Quota 집계로 역할 분리 vs 통합 |
+| 5 | `users.password_hash` NOT NULL | 소셜/학번 로그인 확장 시 비밀번호 없는 유저 발생 가능 → 인증 방식 확장 계획 합의 |

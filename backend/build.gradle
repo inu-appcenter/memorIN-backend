@@ -53,6 +53,9 @@ dependencies {
 	// JSONB (Hibernate 6.6 대응: hibernate-types-60 → hypersistence-utils)
 	implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.9.11'
 
+	// UUID v7 생성기 (Java 기본 java.util.UUID는 v4까지만 지원 → 시간순 정렬되는 v7 발급용)
+	implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
 	// QueryDSL (Jakarta) — APT에 jakarta 프로세서 동반 필요
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
 	annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
