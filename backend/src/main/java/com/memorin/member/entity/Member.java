@@ -1,5 +1,6 @@
 package com.memorin.member.entity;
 
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
