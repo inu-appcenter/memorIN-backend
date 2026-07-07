@@ -1,4 +1,4 @@
-package com.memorin.media;
+package com.memorin.global.media;
 
 import java.time.Instant;
 import java.util.Map;
