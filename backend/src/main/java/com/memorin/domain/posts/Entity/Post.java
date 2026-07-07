@@ -21,11 +21,11 @@ import java.util.UUID;
 public class Post {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()") // DB에서 랜덤으로 UUID를 생성하도록 함.
     private UUID id; // PK
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 1:N로 형성
-    @JoinColumn(name = "user_id", nullable = false) // User 도메인의 PK와 FK 관계 형성
+    @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
     private User user_id; // FK
 
     @JdbcTypeCode(SqlTypes.JSON) // Hibernate에서 jsonb 타입으로 매핑
@@ -33,8 +33,10 @@ public class Post {
     @ColumnDefault("[]")
     private String content; // 게시물
 
-
-    // private  visibility; // 공개 유무(?)
+    @Column(name = "visibility", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("PUBLIC")
+    private Visibility_type visibility; // 공개 유무(?)
 
     @Column(name = "recorded_date", nullable = false)
     @ColumnDefault("CURRENT_DATE") // ERD과 DDL에 따라서 CURRENT_TIMESTAMP가 아닌 CURRENT_DATE로 설정

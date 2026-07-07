@@ -1,4 +1,4 @@
-package com.memorin.media;
+package com.memorin.global.media;
 
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;

@@ -1,4 +1,4 @@
-package com.memorin.media;
+package com.memorin.global.media;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

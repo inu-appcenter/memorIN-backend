@@ -1,4 +1,4 @@
-package com.memorin.media;
+package com.memorin.global.media;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

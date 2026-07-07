@@ -18,7 +18,8 @@ import java.util.UUID;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // @GeneratedValue(strategy = GenerationType.IDENTITY) DB가 직접 생성함으로 제거, 예상치 못한 값을 넣을 수 있음.
+    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()") // DB에서 랜덤으로 UUID를 생성하도록 함.
     private UUID userId; // PK
 
     @Column(name = "email", nullable = false, unique = true, length = 320)

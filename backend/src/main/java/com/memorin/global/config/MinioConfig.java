@@ -1,5 +1,6 @@
-package com.memorin.media;
+package com.memorin.global.config;
 
+import com.memorin.global.media.MinioProperties;
 import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;

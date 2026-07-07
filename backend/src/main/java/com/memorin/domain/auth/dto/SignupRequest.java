@@ -1,4 +1,4 @@
-package com.memorin.auth.dto;
+package com.memorin.domain.auth.dto;
 
 import lombok.Getter;
 

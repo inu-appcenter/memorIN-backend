@@ -1,4 +1,4 @@
-package com.memorin.media;
+package com.memorin.global.media;
 
 public class MediaStorageException extends RuntimeException {
 
