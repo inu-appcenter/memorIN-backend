@@ -23,6 +23,7 @@ public class SecurityConfig {
                                 "/auth/signup",
                                 "/auth/login"
                         ).permitAll()
+                        .requestMatchers("/api/media/**", "/ws/**", "/*.html", "/error").permitAll() // JWT 필터 도입 시 제거
                         .anyRequest().authenticated()
                 );
 

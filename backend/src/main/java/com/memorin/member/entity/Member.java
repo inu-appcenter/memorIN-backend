@@ -5,14 +5,17 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedUuidV7
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
+    private UUID id;
 
     //로그인용 이메일
     //추후 학번으로 로그인 확정되면 추가 예정
