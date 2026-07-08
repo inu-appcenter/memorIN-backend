@@ -7,7 +7,12 @@ public enum Visibility_type {
     PRIVATE("비공개");
 
     private String visibility_type;
+    
     Visibility_type(String visibility_type) {
         this.visibility_type = visibility_type;
+    }
+
+     public String getvisibility_type() {
+        return visibility_type;
     }
 }
