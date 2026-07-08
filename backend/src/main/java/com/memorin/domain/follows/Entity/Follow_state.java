@@ -2,7 +2,7 @@ package com.memorin.domain.follows.Entity;
 
 public enum Follow_state {
 
-    Pending,
+    PENDING,
     ACCEPTED,
     BLOCKED;
 
