@@ -4,6 +4,6 @@ public enum Visibility_type {
 
     PUBLIC,
     FRIENDS,
-    PRIVATE;
+    PRIVATE
 
 }
