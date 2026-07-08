@@ -21,15 +21,16 @@ import java.util.UUID;
 public class Post {
 
     @Id
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()") // DB에서 랜덤으로 UUID를 생성하도록 함.
+    @OneToMany(fetch = FetchType.LAZY)
+    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
     private UUID id; // PK
 
-    @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 1:N로 형성
+    @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 N:1로 형성
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
     private User userId; // FK
 
     @JdbcTypeCode(SqlTypes.JSON) // Hibernate에서 jsonb 타입으로 매핑
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", columnDefinition = "jsonb", nullable = false)
     @ColumnDefault("[]")
     private String content; // 게시물
 

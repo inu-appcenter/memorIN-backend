@@ -19,10 +19,10 @@ import java.util.UUID;
 public class PostMedia {
 
     @Id
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()") // DB에서 랜덤으로 UUID를 생성하도록 함.
-    private UUID id;
+    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
+    private UUID id; // PK
 
-    @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 1:N로 형성
+    @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 N:1로 형성
     @JoinColumn(name = "post_id", nullable = false) // posts 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // DB에 쿼리문을 직접 전달 -> 빠르고 정확함.
     private Post postId; // FK
