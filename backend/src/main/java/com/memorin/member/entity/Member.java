@@ -1,9 +1,12 @@
 package com.memorin.member.entity;
 
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.UUID;
 
 @Getter
 @Entity
@@ -11,8 +14,9 @@ import lombok.NoArgsConstructor;
 public class Member {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedUuidV7
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
+    private UUID id;
 
     //로그인용 이메일
     //추후 학번으로 로그인 확정되면 추가 예정
@@ -28,7 +32,6 @@ public class Member {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Column()
     private String bio;
 
     @Column(name = "profile_image_key", length = 500)
