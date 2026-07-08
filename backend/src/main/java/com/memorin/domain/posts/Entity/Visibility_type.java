@@ -8,5 +8,4 @@ public enum Visibility_type {
 
     private String visibility_type;
     Visibility_type(String visibility_type) {}
-    
 }
