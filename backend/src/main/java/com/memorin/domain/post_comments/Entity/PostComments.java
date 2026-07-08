@@ -1,0 +1,58 @@
+package com.memorin.domain.post_comments.Entity;
+
+import com.memorin.domain.posts.Entity.Post;
+import com.memorin.domain.users.Entity.User;
+import jakarta.persistence.*;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.*;
+import org.springframework.data.annotation.Id;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@NoArgsConstructor
+@Getter
+@Table(name = "post_comments")
+public class PostComments {
+
+    @Id
+    @OneToMany(fetch = FetchType.LAZY)
+    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false)
+    private UUID id; // PK
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false) // posts 도메인의 PK와 FK 관계 형성
+    @OnDelete(action = OnDeleteAction.CASCADE) // post가 사라지면 Like도 삭제
+    private Post post_id; // FK
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
+    @OnDelete(action = OnDeleteAction.CASCADE) // user가 사라지면 Like도 삭제
+    private User user_id; // FK
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id", nullable = false) // post_comments(self) 도메인의 PK와 FK 관계 형성
+    @OnDelete(action = OnDeleteAction.CASCADE) // comment가 사라지면 Like도 삭제
+    private User parent_id; // FK
+
+    @Column(name = "body", nullable = false)
+    private String body; // comment 내용
+
+    @Column(name = "created_at", nullable = false)
+    @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    private LocalDateTime created_at; // 만들어진 날짜
+
+    @Column(name = "updated_at", nullable = false)
+    @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    private LocalDateTime updated_at; // 수정된 날짜
+
+    @Column(name = "deleted_at")
+    @ColumnDefault("false") // 기본 값을 null로
+    private LocalDateTime deleted_at; // 삭제된 날짜
+
+}

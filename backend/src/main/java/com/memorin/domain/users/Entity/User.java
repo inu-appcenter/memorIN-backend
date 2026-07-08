@@ -21,7 +21,7 @@ public class User {
     // @GeneratedValue(strategy = GenerationType.IDENTITY) DB가 직접 생성함으로 제거, 예상치 못한 값을 넣을 수 있음.
     @OneToMany(fetch = FetchType.LAZY) // 다른 FK와 1:N 관계를 형성하며, 실제 데이터를 가져올때만 쿼리를 실행함.
     @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
-    private UUID userId; // PK
+    private UUID id; // PK
 
     @Column(name = "email", nullable = false, unique = true, length = 320)
     private String email; // 유저 이메일
