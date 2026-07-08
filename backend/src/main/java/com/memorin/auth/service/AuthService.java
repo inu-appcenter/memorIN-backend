@@ -1,8 +1,8 @@
 package com.memorin.auth.service;
 
-import com.memorin.auth.dto.LoginRequest;
-import com.memorin.auth.dto.LoginResponse;
-import com.memorin.auth.dto.SignupRequest;
+import com.memorin.domain.auth.dto.LoginRequest;
+import com.memorin.domain.auth.dto.LoginResponse;
+import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.member.entity.Member;

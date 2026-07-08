@@ -1,4 +1,4 @@
-package com.memorin.auth.dto;
+package com.memorin.domain.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

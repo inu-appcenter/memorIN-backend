@@ -1,8 +1,8 @@
 package com.memorin.domain.auth.controller;
 
-import com.memorin.auth.dto.LoginRequest;
-import com.memorin.auth.dto.LoginResponse;
-import com.memorin.auth.dto.SignupRequest;
+import com.memorin.domain.auth.dto.LoginRequest;
+import com.memorin.domain.auth.dto.LoginResponse;
+import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.auth.service.AuthService;
 import com.memorin.global.common.ApiResponse;
 import jakarta.validation.Valid;
