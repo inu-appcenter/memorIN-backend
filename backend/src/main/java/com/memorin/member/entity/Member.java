@@ -32,7 +32,6 @@ public class Member {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Column()
     private String bio;
 
     @Column(name = "profile_image_key", length = 500)
