@@ -3,26 +3,28 @@ package com.memorin.domain.users.Entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AccessLevel;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.data.annotation.Id;
+import com.memorin.global.support.GeneratedUuidV7;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users")
 public class User {
 
     @Id
-    // @GeneratedValue(strategy = GenerationType.IDENTITY) DB가 직접 생성함으로 제거, 예상치 못한 값을 넣을 수 있음.
-    @OneToMany(fetch = FetchType.LAZY) // 다른 FK와 1:N 관계를 형성하며, 실제 데이터를 가져올때만 쿼리를 실행함.
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
-    private UUID id; // PK
+    @GeneratedUuidV7
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
+    private UUID id;
 
+    //로그인용 이메일
+    //추후 학번으로 로그인 확정되면 추가 예정
     @Column(name = "email", nullable = false, unique = true, length = 320)
     private String email; // 유저 이메일
 
@@ -55,8 +57,16 @@ public class User {
     @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deletedAt; // 삭제된 날짜
 
+    //이메일 인증 기능 구현 시 추가 예정
+//    @Column(name = , nullable = false)
+//    private boolean emailVerified = false;
 
     // Builder는 작성 논의
 
-
+    public User(String email, String passwordHash, String username, String displayName) {
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.username = username;
+        this.displayName = displayName;
+    }
 }

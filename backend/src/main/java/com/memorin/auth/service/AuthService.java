@@ -5,8 +5,8 @@ import com.memorin.domain.auth.dto.LoginResponse;
 import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
-import com.memorin.member.entity.Member;
-import com.memorin.member.repository.MemberRepository;
+import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -15,36 +15,36 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     public void signup(SignupRequest request) {
 
-        if (memberRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmail(request.email())) {
             throw new BusinessException(ErrorCode.MEMBER_002);
         }
 
-        if (memberRepository.existsByUsername(request.username())) {
+        if (userRepository.existsByUsername(request.username())) {
             throw new BusinessException(ErrorCode.MEMBER_003);
         }
 
         String passwordHash = passwordEncoder.encode(request.password());
 
-        Member member = new Member(
+        User user = new User(
                 request.email(),
                 passwordHash,
                 request.username(),
                 request.displayName()
         );
 
-        memberRepository.save(member);
+        userRepository.save(user);
     }
 
     public LoginResponse login(LoginRequest request) {
-        Member member = memberRepository.findByEmail(request.email())
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_002));
 
-        if (!passwordEncoder.matches(request.password(), member.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.AUTH_002);
         }
 

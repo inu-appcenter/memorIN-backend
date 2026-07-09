@@ -1,14 +1,14 @@
-package com.memorin.member.repository;
+package com.memorin.domain.users.repository;
 
-import com.memorin.member.entity.Member;
+import com.memorin.domain.users.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import java.util.UUID;
 
-public interface MemberRepository extends JpaRepository<Member, UUID> {
+public interface UserRepository extends JpaRepository<User, UUID> {
 
-    Optional<Member> findByEmail(String email);
+    Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email); //UNIQUE 설정
 
