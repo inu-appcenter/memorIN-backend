@@ -1,4 +1,4 @@
-package com.memorin.auth.service;
+package com.memorin.domain.auth.service;
 
 import com.memorin.domain.auth.dto.LoginRequest;
 import com.memorin.domain.auth.dto.LoginResponse;
