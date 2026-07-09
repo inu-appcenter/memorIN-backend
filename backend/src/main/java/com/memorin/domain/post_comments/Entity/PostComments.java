@@ -2,8 +2,10 @@ package com.memorin.domain.post_comments.Entity;
 
 import com.memorin.domain.posts.Entity.Post;
 import com.memorin.domain.users.Entity.User;
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.*;
@@ -13,14 +15,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Table(name = "post_comments")
 public class PostComments {
 
     @Id
-    @OneToMany(fetch = FetchType.LAZY)
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false)
+    @GeneratedUuidV7 // UUID 생성자 변경, UUID와 @OneToMany 혼용 불가
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id; // PK
 
     @ManyToOne(fetch = FetchType.LAZY)
