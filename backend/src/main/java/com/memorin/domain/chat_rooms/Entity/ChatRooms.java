@@ -1,6 +1,8 @@
 package com.memorin.domain.chat_rooms.Entity;
 
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
@@ -12,13 +14,13 @@ import java.util.UUID;
 
 @Entity
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "chat_rooms")
 public class ChatRooms {
 
     @Id
-    @OneToMany(fetch = FetchType.LAZY)
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
+    @GeneratedUuidV7 // UUID 생성자 변경, UUID와 @OneToMany 혼용 불가
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id; // PK
 
     @Column(name = "name", length = 100)
