@@ -2,6 +2,7 @@ package com.memorin.domain.chat_room_members.Entity;
 
 import com.memorin.domain.chat_rooms.Entity.ChatRooms;
 import com.memorin.domain.users.Entity.User;
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,7 +27,8 @@ import java.util.UUID;
 public class ChatRoomMembers {
 
     @Id
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
+    @GeneratedUuidV7 // UUID 생성자 변경, UUID와 @OneToMany 혼용 불가
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id; // PK
 
     @ManyToOne(fetch = FetchType.LAZY)

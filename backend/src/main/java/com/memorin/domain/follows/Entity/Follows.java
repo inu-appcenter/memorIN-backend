@@ -1,6 +1,7 @@
 package com.memorin.domain.follows.Entity;
 
 import com.memorin.domain.users.Entity.User;
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -24,7 +25,8 @@ import java.util.UUID;
 public class Follows {
 
     @Id
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
+    @GeneratedUuidV7
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 1:N로 형성

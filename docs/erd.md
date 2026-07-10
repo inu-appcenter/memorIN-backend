@@ -41,7 +41,7 @@ erDiagram
         uuid        id              PK
         uuid        user_id         FK
         jsonb       content         "블록 배열 [{type,data}]"
-        varchar     visibility      "public | friends | private"
+        varchar     visibility      "PUBLIC | FRIENDS | PRIVATE"
         date        recorded_date   "기록 일자 (≠ 작성일)"
         integer     view_count
         timestamptz created_at
@@ -85,7 +85,7 @@ erDiagram
         uuid        id              PK
         uuid        follower_id     FK
         uuid        following_id    FK
-        varchar     status          "pending | accepted | blocked"
+        varchar     status          "PENDING | ACCEPTED | BLOCKED"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -93,7 +93,7 @@ erDiagram
     chat_rooms {
         uuid        id              PK
         varchar     name            "그룹 채팅명 (1:1은 null)"
-        varchar     type            "direct | group"
+        varchar     type            "DIRECT | GROUP"
         varchar     thumbnail_key   "그룹 채팅 썸네일"
         timestamptz created_at
         timestamptz updated_at
@@ -103,7 +103,7 @@ erDiagram
         uuid        id              PK
         uuid        room_id         FK
         uuid        user_id         FK
-        varchar     role            "owner | member"
+        varchar     role            "OWNER | MEMBER"
         timestamptz joined_at
         timestamptz last_read_at    "읽음 처리 기준"
         timestamptz left_at         "나간 시각"
@@ -164,10 +164,10 @@ erDiagram
 -- ──────────────────────────────────────────────────────────────
 -- ENUM 타입
 -- ──────────────────────────────────────────────────────────────
-CREATE TYPE visibility_type  AS ENUM ('public', 'friends', 'private');
-CREATE TYPE follow_status     AS ENUM ('pending', 'accepted', 'blocked');
-CREATE TYPE chat_type         AS ENUM ('direct', 'group');
-CREATE TYPE member_role       AS ENUM ('owner', 'member');
+CREATE TYPE visibility_type  AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
+CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
+CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
 
 -- ──────────────────────────────────────────────────────────────
 -- users
@@ -195,7 +195,7 @@ CREATE TABLE posts (
     id            UUID           PRIMARY KEY DEFAULT uuidv7(),
     user_id       UUID           NOT NULL REFERENCES users(id),
     content       JSONB          NOT NULL DEFAULT '[]',
-    visibility    visibility_type NOT NULL DEFAULT 'public',
+    visibility    visibility_type NOT NULL DEFAULT 'PUBLIC',
     recorded_date DATE           NOT NULL DEFAULT CURRENT_DATE,
     view_count    INTEGER        NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -262,7 +262,7 @@ CREATE TABLE follows (
     id            UUID         PRIMARY KEY DEFAULT uuidv7(),
     follower_id   UUID         NOT NULL REFERENCES users(id),
     following_id  UUID         NOT NULL REFERENCES users(id),
-    status        follow_status NOT NULL DEFAULT 'pending',
+    status        follow_status NOT NULL DEFAULT 'PENDING',
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_follows UNIQUE (follower_id, following_id),
@@ -278,7 +278,7 @@ CREATE INDEX idx_follows_following  ON follows (following_id, status);
 CREATE TABLE chat_rooms (
     id            UUID      PRIMARY KEY DEFAULT uuidv7(),
     name          VARCHAR(100),
-    type          chat_type  NOT NULL DEFAULT 'direct',
+    type          chat_type  NOT NULL DEFAULT 'DIRECT',
     thumbnail_key VARCHAR(500),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -291,7 +291,7 @@ CREATE TABLE chat_room_members (
     id            UUID        PRIMARY KEY DEFAULT uuidv7(),
     room_id       UUID        NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
     user_id       UUID        NOT NULL REFERENCES users(id),
-    role          member_role  NOT NULL DEFAULT 'member',
+    role          member_role  NOT NULL DEFAULT 'MEMBER',
     joined_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     last_read_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     left_at       TIMESTAMPTZ,

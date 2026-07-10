@@ -7,10 +7,10 @@
 -- ENUM 타입
 -- 문자열로 저장하면 오타 발생 시 대응하기 어렵기 때문에 ENUM으로 선언
 -- 각 타입이 유효범위 밖의 값이 저장되는 것을 막는다.
-CREATE TYPE visibility_type AS ENUM ('public', 'friends', 'private');
-CREATE TYPE follow_status    AS ENUM ('pending', 'accepted', 'blocked');
-CREATE TYPE chat_type        AS ENUM ('direct', 'group');
-CREATE TYPE member_role      AS ENUM ('owner', 'member');
+CREATE TYPE visibility_type AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
+CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
+CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
 
 -- users
 CREATE TABLE IF NOT EXISTS users (
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS posts (
     id            UUID            PRIMARY KEY DEFAULT uuidv7(),
     user_id       UUID            NOT NULL REFERENCES users(id),
     content       JSONB           NOT NULL DEFAULT '[]',
-    visibility    visibility_type NOT NULL DEFAULT 'public',
+    visibility    visibility_type NOT NULL DEFAULT 'PUBLIC',
     recorded_date DATE            NOT NULL DEFAULT CURRENT_DATE,
     view_count    INTEGER         NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS follows (
     id           UUID         PRIMARY KEY DEFAULT uuidv7(),
     follower_id  UUID         NOT NULL REFERENCES users(id),
     following_id UUID         NOT NULL REFERENCES users(id),
-    status       follow_status NOT NULL DEFAULT 'pending',
+    status       follow_status NOT NULL DEFAULT 'PENDING',
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_follows        UNIQUE (follower_id, following_id), -- 중복 팔로우x
@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_follows_following ON follows (following_id, statu
 CREATE TABLE IF NOT EXISTS chat_rooms (
     id            UUID        PRIMARY KEY DEFAULT uuidv7(),
     name          VARCHAR(100),
-    type          chat_type   NOT NULL DEFAULT 'direct',
+    type          chat_type   NOT NULL DEFAULT 'DIRECT',
     thumbnail_key VARCHAR(500),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS chat_room_members (
     id           UUID        PRIMARY KEY DEFAULT uuidv7(),
     room_id      UUID        NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
     user_id      UUID        NOT NULL REFERENCES users(id),
-    role         member_role NOT NULL DEFAULT 'member',
+    role         member_role NOT NULL DEFAULT 'MEMBER',
     joined_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     left_at      TIMESTAMPTZ,
