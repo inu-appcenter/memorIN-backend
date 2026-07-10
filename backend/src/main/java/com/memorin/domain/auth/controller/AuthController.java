@@ -3,7 +3,7 @@ package com.memorin.domain.auth.controller;
 import com.memorin.domain.auth.dto.LoginRequest;
 import com.memorin.domain.auth.dto.LoginResponse;
 import com.memorin.domain.auth.dto.SignupRequest;
-import com.memorin.auth.service.AuthService;
+import com.memorin.domain.auth.service.AuthService;
 import com.memorin.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
