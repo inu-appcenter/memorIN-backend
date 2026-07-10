@@ -32,13 +32,12 @@ public class PostComments {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    @OnDelete(action = OnDeleteAction.CASCADE) // user가 사라지면 Like도 삭제
     private User user_id; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id", nullable = false) // post_comments(self) 도메인의 PK와 FK 관계 형성
+    @JoinColumn(name = "parent_id") // post_comments(self) 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // comment가 사라지면 Like도 삭제
-    private User parent_id; // FK
+    private PostComments parent_id; // FK
 
     @Column(name = "body", nullable = false)
     private String body; // comment 내용

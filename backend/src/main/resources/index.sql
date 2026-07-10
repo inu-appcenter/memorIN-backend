@@ -18,3 +18,10 @@ CREATE INDEX IF NOT EXISTS idx_members_user ON chat_room_members (user_id) WHERE
 
 -- messages
 CREATE INDEX IF NOT EXISTS idx_messages_room ON messages (room_id, sent_at DESC) WHERE deleted_at IS NULL;
+
+-- post_likes
+CREATE INDEX idx_post_likes_post ON post_likes (post_id);
+
+-- post_comments
+CREATE INDEX idx_post_comments_post   ON post_comments (post_id, created_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_post_comments_parent ON post_comments (parent_id)           WHERE parent_id IS NOT NULL;

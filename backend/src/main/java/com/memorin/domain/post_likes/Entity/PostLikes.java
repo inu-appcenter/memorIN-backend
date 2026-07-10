@@ -19,7 +19,14 @@ import java.util.UUID;
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@Table(name = "post_likes")
+@Table(
+        name = "post_likes",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_post_like", // 제약 조건의 이름
+                        columnNames = {"post_id", "user_id"} // 유니크하게 묶을 컬럼명들
+                )
+        })
 public class PostLikes {
 
     @Id

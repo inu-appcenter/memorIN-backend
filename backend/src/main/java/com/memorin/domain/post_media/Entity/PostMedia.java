@@ -1,6 +1,7 @@
 package com.memorin.domain.post_media.Entity;
 
 import com.memorin.domain.posts.Entity.Post;
+import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,7 +20,8 @@ import java.util.UUID;
 public class PostMedia {
 
     @Id
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false) // DB에서 랜덤으로 UUID를 생성하도록 함.
+    @GeneratedUuidV7
+    @Column(columnDefinition = "uuid", updatable = false, nullable = false)
     private UUID id; // PK
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 N:1로 형성
