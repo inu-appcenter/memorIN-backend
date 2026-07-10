@@ -143,6 +143,7 @@ cd backend
 │       ├── init/             # 초기 DDL 스크립트
 │       └── postgresql.conf   # io_uring 등 튜닝 설정
 ├── docs/
+│   ├── api-spec.md           # 인증/JWT + Presigned Upload 통합 API 명세
 │   ├── erd.md                # DB ERD 문서
 │   ├── minio-bucket-policy.md          # MinIO 버킷 정책 초안
 │   └── pgadmin-onboarding-grant-guide.md  # pgAdmin 온보딩 + GRANT 가이드
