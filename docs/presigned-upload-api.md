@@ -1,5 +1,8 @@
 # Presigned Upload API 초안
 
+> 최신 API 명세는 [`docs/api-spec.md`](api-spec.md)를 기준으로 한다.
+> 이 문서는 Presigned Upload 초기 구현 메모를 보존하기 위한 초안이며, Notion API 명세서에 남아 있는 이전 주제 잔재보다 레포 `docs/` 문서를 우선한다.
+
 ## 현재 구현 범위
 
 기능 명세 확정 전까지는 파일 메타데이터를 DB에 저장하지 않고, MinIO 업로드용 presigned URL만 발급한다.
