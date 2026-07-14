@@ -19,6 +19,7 @@ public record MinioProperties(
         @NotBlank String secretKey,
         @NotBlank String bucketName,
         @Min(60) @Max(604800) int presignedUploadExpirySeconds,
+        @Min(60) @Max(604800) int presignedDownloadExpirySeconds,
         @Min(1) long maxUploadSizeBytes,
         @NotEmpty List<String> allowedContentTypes
 ) {

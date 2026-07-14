@@ -36,20 +36,20 @@ public class PostMedia {
     private String mimeType;
 
     @Column(name = "file_size_bytes")
-    private long fileSizeBytes;
+    private Long fileSizeBytes;
 
     @Column(name = "order_index", nullable = false)
     @ColumnDefault("0")
     private Short orderIndex;
 
     @Column(name = "width")
-    private int width;
+    private Integer width;
 
     @Column(name = "height")
-    private int height;
+    private Integer height;
 
     @Column(name = "duration_sec")
-    private int durationSec;
+    private Integer durationSec;
 
     @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
