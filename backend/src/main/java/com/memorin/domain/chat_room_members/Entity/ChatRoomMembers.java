@@ -38,7 +38,6 @@ public class ChatRoomMembers {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    @JoinColumn()
     private User user_id; // FK
 
     @Column(name ="role", nullable = false)
@@ -54,7 +53,7 @@ public class ChatRoomMembers {
     @ColumnDefault("CURRENT_TIMESTAMP")
     private LocalDateTime last_read_at;
 
-    @Column(name = "joined_at")
+    @Column(name = "left_at")
     private LocalDateTime left_at;
 
 }
