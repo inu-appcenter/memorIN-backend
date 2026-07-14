@@ -1,4 +1,4 @@
-package com.memorin.global.media;
+package com.memorin.global.media.dto.response;
 
 import java.time.Instant;
 import java.util.Map;

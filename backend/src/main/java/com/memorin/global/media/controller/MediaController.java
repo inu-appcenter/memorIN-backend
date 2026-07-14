@@ -1,5 +1,10 @@
-package com.memorin.global.media;
+package com.memorin.global.media.controller;
 
+import com.memorin.global.media.MediaStorageException;
+import com.memorin.global.media.StorageQuotaExceededException;
+import com.memorin.global.media.dto.request.PresignedUploadRequest;
+import com.memorin.global.media.dto.response.PresignedUploadResponse;
+import com.memorin.global.media.service.PresignedUploadService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,5 +48,11 @@ public class MediaController {
     public ResponseEntity<Map<String, String>> handleStorageException(MediaStorageException e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "Failed to create presigned upload URL."));
+    }
+
+    @ExceptionHandler(StorageQuotaExceededException.class)
+    public ResponseEntity<Map<String, String>> handleQuotaExceeded(StorageQuotaExceededException e) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(Map.of("message", e.getMessage()));
     }
 }
