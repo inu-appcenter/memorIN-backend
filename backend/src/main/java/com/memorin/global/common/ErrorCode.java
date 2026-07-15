@@ -20,7 +20,10 @@ public enum ErrorCode {
     MEMBER_003(HttpStatus.CONFLICT, "이미 사용 중인 이름입니다."),
 
     // 미디어 (media)
-    MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다");
+    MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다"),
+    MEDIA_002(HttpStatus.FORBIDDEN, "스토리지 용량을 초과했습니다"),
+    MEDIA_003(HttpStatus.INTERNAL_SERVER_ERROR, "미디어 저장소 처리 중 오류가 발생했습니다"),
+    MEDIA_004(HttpStatus.NOT_FOUND, "존재하지 않는 미디어입니다");
 
     private final HttpStatus status;
     private final String message;

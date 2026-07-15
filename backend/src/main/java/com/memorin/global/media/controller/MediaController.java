@@ -1,15 +1,11 @@
 package com.memorin.global.media.controller;
 
-import com.memorin.global.media.MediaStorageException;
-import com.memorin.global.media.PostMediaNotFoundException;
-import com.memorin.global.media.StorageQuotaExceededException;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
 import com.memorin.global.media.dto.response.PresignedUploadResponse;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -52,31 +48,19 @@ public class MediaController {
         return ResponseEntity.ok(presignedDownloadService.createDownloadUrl(postMediaId));
     }
 
+    // 요청 파라미터 값 자체가 잘못된 경우(예: 잘못된 파일 타입 등) -> 400
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
 
+    // @Valid 바인딩된 요청 DTO가 검증 애노테이션(@NotNull 등)을 통과하지 못한 경우 -> 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationException(MethodArgumentNotValidException e) {
         return ResponseEntity.badRequest().body(Map.of("message", "Invalid presigned upload request."));
     }
 
-    @ExceptionHandler(MediaStorageException.class)
-    public ResponseEntity<Map<String, String>> handleStorageException(MediaStorageException e) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "Failed to create presigned upload URL."));
-    }
-
-    @ExceptionHandler(StorageQuotaExceededException.class)
-    public ResponseEntity<Map<String, String>> handleQuotaExceeded(StorageQuotaExceededException e) {
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(Map.of("message", e.getMessage()));
-    }
-
-    @ExceptionHandler(PostMediaNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handlePostMediaNotFound(PostMediaNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("message", e.getMessage()));
-    }
+    // MediaStorageException(MEDIA_003), StorageQuotaExceededException(MEDIA_002),
+    // PostMediaNotFoundException(MEDIA_004)은 모두 BusinessException이므로
+    // GlobalExceptionHandler가 공통 ApiResponse 포맷으로 처리한다.
 }

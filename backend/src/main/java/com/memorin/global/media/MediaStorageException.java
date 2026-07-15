@@ -1,8 +1,11 @@
 package com.memorin.global.media;
 
-public class MediaStorageException extends RuntimeException {
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
+
+public class MediaStorageException extends BusinessException {
 
     public MediaStorageException(String message, Throwable cause) {
-        super(message, cause);
+        super(ErrorCode.MEDIA_003, message, cause);
     }
 }
