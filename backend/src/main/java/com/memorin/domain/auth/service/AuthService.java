@@ -3,6 +3,7 @@ package com.memorin.domain.auth.service;
 import com.memorin.domain.auth.dto.LoginRequest;
 import com.memorin.domain.auth.dto.LoginResponse;
 import com.memorin.domain.auth.dto.SignupRequest;
+import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.domain.users.Entity.User;
@@ -17,6 +18,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     public void signup(SignupRequest request) {
 
@@ -48,8 +50,8 @@ public class AuthService {
             throw new BusinessException(ErrorCode.AUTH_002);
         }
 
-        // JWT 구현 시 실제 Access Token 발급 후 반환 예정
-        // 현재 "로그인 성공" 메세지는 임시 값
-        return new LoginResponse("로그인 성공");
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId());
+
+        return new LoginResponse(accessToken);
     }
 }
