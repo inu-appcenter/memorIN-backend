@@ -2,9 +2,12 @@ package com.memorin.domain.post_media.repository;
 
 import com.memorin.domain.post_media.Entity.PostMedia;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
@@ -19,4 +22,13 @@ public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
               AND pm.deleted_at IS NULL
             """, nativeQuery = true)
     long sumFileSizeBytesByUserId(@Param("userId") UUID userId);
+
+    List<PostMedia> findByPost_IdOrderByOrderIndexAsc(UUID postId);
+
+    // 목록(피드) 조회 시 게시물마다 따로 쿼리하지 않고 N+1 없이 한 번에 가져오기 위한 배치 조회.
+    List<PostMedia> findByPost_IdInOrderByOrderIndexAsc(Collection<UUID> postIds);
+
+    @Modifying
+    @Query("DELETE FROM PostMedia m WHERE m.post.id = :postId")
+    void deleteAllByPostId(@Param("postId") UUID postId);
 }

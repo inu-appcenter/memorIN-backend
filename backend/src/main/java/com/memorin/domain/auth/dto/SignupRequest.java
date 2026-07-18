@@ -20,6 +20,11 @@ public record SignupRequest (
 
     @NotBlank
     @Size(max = 50)
-    String displayName
+    String displayName,
+
+    @NotBlank
+    @Size(max = 200)
+    String bio
+
 ) {
 }
