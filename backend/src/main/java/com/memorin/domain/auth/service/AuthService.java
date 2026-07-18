@@ -36,7 +36,8 @@ public class AuthService {
                 request.email(),
                 passwordHash,
                 request.username(),
-                request.displayName()
+                request.displayName(),
+                request.bio()
         );
 
         userRepository.save(user);

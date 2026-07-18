@@ -3,6 +3,7 @@ package com.memorin.domain.post_media.Entity;
 import com.memorin.domain.posts.Entity.Post;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
@@ -55,5 +56,38 @@ public class PostMedia {
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
     @ColumnDefault("CURRENT_TIMESTAMP")// CURRENT_DATE 사용 X -> 시/분/초 까지 저장하기 위해서
     private LocalDateTime createdAt; // 만들어진 날짜
+
+    @Builder
+    private PostMedia(
+            Post postId, String fileKey, String mimeType, Long fileSizeBytes,
+            Short orderIndex, Integer width, Integer height
+    ) {
+        this.postId = postId;
+        this.fileKey = fileKey;
+        this.mimeType = mimeType;
+        this.fileSizeBytes = fileSizeBytes;
+        this.orderIndex = orderIndex;
+        this.width = width;
+        this.height = height;
+    }
+
+    public static PostMedia of(
+            Post postId, String fileKey, String mimeType, Long fileSizeBytes,
+            Short orderIndex, Integer width, Integer height
+    ){
+        return PostMedia.builder()
+                .postId(postId)
+                .fileKey(fileKey)
+                .mimeType(mimeType)
+                .fileSizeBytes(fileSizeBytes)
+                .orderIndex(orderIndex)
+                .width(width)
+                .height(height)
+                .build();
+    }
+
+    public Post getPost() {
+        return this.postId;
+    }
 
 }

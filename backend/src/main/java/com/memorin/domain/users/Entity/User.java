@@ -31,7 +31,7 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash; // 비밀번호
 
-    @Column(name = "username", nullable = false, unique = true ,length = 50)
+    @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username; // 이름
 
     @Column(name = "display_name", nullable = false, length = 100)
@@ -63,10 +63,18 @@ public class User {
 
     // Builder는 작성 논의
 
-    public User(String email, String passwordHash, String username, String displayName) {
+    // 임시 AuthService Builder
+    public User(String email,
+                String passwordHash,
+                String username,
+                String displayName,
+                String bio
+    ) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.username = username;
         this.displayName = displayName;
+        this.bio = bio;
     }
+
 }

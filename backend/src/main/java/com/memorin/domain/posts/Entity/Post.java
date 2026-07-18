@@ -4,6 +4,7 @@ import com.memorin.domain.users.Entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
@@ -13,6 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.sql.Date;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -39,7 +41,11 @@ public class Post {
     @Column(name = "visibility", nullable = false)
     @Enumerated(EnumType.STRING)
     @ColumnDefault("PUBLIC")
-    private VisibilityType visibility; // 공개 유무(?)
+    private VisibilityType visibility; // 공개 유무
+
+    @Column(name = "timeslot", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private TimeslotType timeslot; // 시간대
 
     @Column(name = "recorded_date", nullable = false)
     @ColumnDefault("CURRENT_DATE") // ERD과 DDL에 따라서 CURRENT_TIMESTAMP가 아닌 CURRENT_DATE로 설정
@@ -64,5 +70,59 @@ public class Post {
     private LocalDateTime deletedAt; // 삭제된 날짜
 
     // Builder는 작성 논의
+
+    // 임시 builder
+    @Builder
+    private Post(
+            User userId, String content, VisibilityType visibilityType, TimeslotType timeslot,
+            Date recordedDate, int viewCount, LocalDateTime createdAt,
+            LocalDateTime updatedAt, LocalDateTime deletedAt
+    ){
+        this.content = content;
+        this.visibility = visibilityType != null ? visibilityType : VisibilityType.PUBLIC;
+        this.timeslot = timeslot;
+        this.recordedDate = recordedDate;
+        this.viewCount = viewCount;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.deletedAt = deletedAt;
+    }
+
+    public static Post create(User userId, String content, VisibilityType visibility,
+                              TimeslotType timeslot, Date recordedDate) {
+        return Post.builder()
+                .userId(userId)
+                .content(content)
+                .visibilityType(visibility)
+                .timeslot(timeslot)
+                .recordedDate(recordedDate != null ? recordedDate : Date.valueOf(LocalDate.now()))
+                .build();
+    }
+
+    public void update(String content, VisibilityType visibility, TimeslotType timeslot, Date recordedDate) {
+        if (isDeleted()) {
+            throw new IllegalStateException("삭제된 게시물은 수정할 수 없습니다.");
+        }
+        if (content != null) this.content = content;
+        if (visibility != null) this.visibility = visibility;
+        if (timeslot != null) this.timeslot = timeslot;
+        if (recordedDate != null) this.recordedDate = recordedDate;
+    }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+
+    public void increaseViewCount() {
+        this.viewCount += 1;
+    }
+
+    public boolean isOwnedBy(UUID userId) {
+        return this.userId.getId().equals(userId);
+    }
 
 }

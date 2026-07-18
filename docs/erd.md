@@ -42,6 +42,7 @@ erDiagram
         uuid        user_id         FK
         jsonb       content         "블록 배열 [{type,data}]"
         varchar     visibility      "PUBLIC | FRIENDS | PRIVATE"
+        varchar     timeslot        "AM | PM"
         date        recorded_date   "기록 일자 (≠ 작성일)"
         integer     view_count
         timestamptz created_at
@@ -149,8 +150,10 @@ erDiagram
 
 ### `messages.content`
 ```json
-{ "type": "text",  "body": "ㅋㅋㅋ" }
+[
+{ "type": "text",  "body": "ㅋㅋㅋ" },
 { "type": "image", "key": "chat/room_id/msg_id.webp" }
+]
 ```
 
 ---
@@ -165,6 +168,7 @@ erDiagram
 -- ENUM 타입
 -- ──────────────────────────────────────────────────────────────
 CREATE TYPE visibility_type  AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
@@ -196,6 +200,7 @@ CREATE TABLE posts (
     user_id       UUID           NOT NULL REFERENCES users(id),
     content       JSONB          NOT NULL DEFAULT '[]',
     visibility    visibility_type NOT NULL DEFAULT 'PUBLIC',
+    timeslot      timeslot_type  NOT NULL
     recorded_date DATE           NOT NULL DEFAULT CURRENT_DATE,
     view_count    INTEGER        NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
