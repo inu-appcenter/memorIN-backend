@@ -150,8 +150,10 @@ erDiagram
 
 ### `messages.content`
 ```json
-{ "type": "text",  "body": "ㅋㅋㅋ" }
+[
+{ "type": "text",  "body": "ㅋㅋㅋ" },
 { "type": "image", "key": "chat/room_id/msg_id.webp" }
+]
 ```
 
 ---

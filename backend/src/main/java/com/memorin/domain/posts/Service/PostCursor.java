@@ -27,7 +27,7 @@ public class PostCursor {
         try {
             String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
             String[] parts = raw.split(":", 2);
-            return new Decoded(Date.valueOf(LocalDate.parse(parts[0])), parts[1]);
+            return new Cursor(Date.valueOf(LocalDate.parse(parts[0])), parts[1]);
         } catch (Exception e) {
             throw new IllegalArgumentException("잘못된 cursor 값입니다.", e);
         }
