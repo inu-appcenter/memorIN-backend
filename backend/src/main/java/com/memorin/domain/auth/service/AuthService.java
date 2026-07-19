@@ -23,11 +23,11 @@ public class AuthService {
     public void signup(SignupRequest request) {
 
         if (userRepository.existsByEmail(request.email())) {
-            throw new BusinessException(ErrorCode.MEMBER_002);
+            throw new BusinessException(ErrorCode.USER_002);
         }
 
         if (userRepository.existsByUsername(request.username())) {
-            throw new BusinessException(ErrorCode.MEMBER_003);
+            throw new BusinessException(ErrorCode.USER_003);
         }
 
         String passwordHash = passwordEncoder.encode(request.password());
