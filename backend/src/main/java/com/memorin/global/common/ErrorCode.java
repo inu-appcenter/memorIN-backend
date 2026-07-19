@@ -15,9 +15,9 @@ public enum ErrorCode {
     AUTH_002(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
 
     // 회원 (member)
-    MEMBER_001(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
-    MEMBER_002(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
-    MEMBER_003(HttpStatus.CONFLICT, "이미 사용 중인 이름입니다."),
+    USER_001(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
+    USER_002(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
+    USER_003(HttpStatus.CONFLICT, "이미 사용 중인 이름입니다."),
 
     // 미디어 (media)
     MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다"),
