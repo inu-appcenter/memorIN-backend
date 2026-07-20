@@ -61,9 +61,9 @@ public class PresignedUploadService {
         this.allowedContentTypes = Set.copyOf(properties.allowedContentTypes());
     }
 
-    public PresignedUploadResponse createUploadUrl(PresignedUploadRequest request) {
+    public PresignedUploadResponse createUploadUrl(UUID userId, PresignedUploadRequest request) {
         validateRequest(request);
-        storageQuotaService.assertWithinQuota(request.userId(), request.contentLength());
+        storageQuotaService.assertWithinQuota(userId, request.contentLength());
 
         String objectKey = createObjectKey(request.fileName());
         Map<String, String> requiredHeaders = Map.of("Content-Type", request.contentType());

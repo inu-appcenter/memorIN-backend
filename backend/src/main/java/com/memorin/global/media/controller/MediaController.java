@@ -5,8 +5,10 @@ import com.memorin.global.media.dto.response.PresignedDownloadResponse;
 import com.memorin.global.media.dto.response.PresignedUploadResponse;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
+import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,9 +38,12 @@ public class MediaController {
 
     @PostMapping("/presigned-upload-url")
     public ResponseEntity<PresignedUploadResponse> createPresignedUploadUrl(
-            @Valid @RequestBody PresignedUploadRequest request
+            @Valid @RequestBody PresignedUploadRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        return ResponseEntity.ok(presignedUploadService.createUploadUrl(request));
+        return ResponseEntity.ok(
+                presignedUploadService.createUploadUrl(userDetails.getUserId(), request)
+        );
     }
 
     @GetMapping("/{postMediaId}/presigned-download-url")
