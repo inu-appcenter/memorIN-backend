@@ -28,6 +28,7 @@ public class ChatRooms {
 
     @Column(name = "type", nullable = false)
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM) // DDL의 chat_type은 Postgres 네이티브 ENUM
     @ColumnDefault("DIRECT")
     private Chat_type type; // 1:1 채팅 or 그룹 채팅
 

@@ -41,6 +41,7 @@ public class Follows {
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM) // DDL의 follow_status는 Postgres 네이티브 ENUM
     @ColumnDefault("PENDING")
     private Follow_state status; // 팔로우 상태
 
