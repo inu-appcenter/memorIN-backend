@@ -45,8 +45,9 @@ public class UserDetailsImpl implements UserDetails {
         return this.user.getId();
     }
 
+    // 자기 자신을 호출하면 StackOverflowError가 난다. 만료 정책 도입 전까지는 항상 유효 처리.
     @Override
     public boolean isAccountNonExpired() {
-        return UserDetailsImpl.this.isAccountNonExpired();
+        return true;
     }
 }
