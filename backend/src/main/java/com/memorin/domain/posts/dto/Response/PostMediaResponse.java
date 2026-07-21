@@ -5,16 +5,17 @@ import com.memorin.domain.post_media.Entity.PostMedia;
 
 public record PostMediaResponse(
         String objectKey,
-        String[] url,
+        // presigned 다운로드 URL. 발급에 실패하면 null.
+        String url,
         String contentType,
         int order,
         Integer width,
         Integer height
 ) {
-    public static PostMediaResponse from(PostMedia media, String presignedUrlResolver) {
+    public static PostMediaResponse from(PostMedia media, String presignedDownloadUrl) {
         return new PostMediaResponse(
                 media.getFileKey(),
-                presignedUrlResolver.split(media.getFileKey()),
+                presignedDownloadUrl,
                 media.getMimeType(),
                 media.getOrderIndex(),
                 media.getWidth(),

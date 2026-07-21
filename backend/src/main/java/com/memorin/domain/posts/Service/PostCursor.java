@@ -1,5 +1,7 @@
 package com.memorin.domain.posts.Service;
 
+import com.memorin.global.exception.PostExceptions;
+
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
@@ -29,7 +31,7 @@ public class PostCursor {
             String[] parts = raw.split(":", 2);
             return new Cursor(Date.valueOf(LocalDate.parse(parts[0])), parts[1]);
         } catch (Exception e) {
-            throw new IllegalArgumentException("잘못된 cursor 값입니다.", e);
+            throw new PostExceptions.InvalidCursorException(e);
         }
     }
 }

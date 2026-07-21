@@ -40,6 +40,10 @@ dependencies {
 	// Validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+	// API 문서 (Swagger UI + OpenAPI 3)
+	// 컨트롤러가 늘어날 때마다 명세가 자동 축적되도록 미리 붙여둔다.
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
+
 	// Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	testImplementation 'org.springframework.security:spring-security-test'
