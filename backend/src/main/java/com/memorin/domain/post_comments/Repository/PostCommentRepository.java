@@ -25,7 +25,7 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
     List<PostComments> findActiveByPostId(@Param("postId") UUID postId);
 
     interface PostCommentCountRow {
-        UUID getPost();
+        UUID getPostId();
         Long getCommentCount();
     }
 
@@ -40,6 +40,6 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
     default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds) {
         if (postIds == null || postIds.isEmpty()) return Map.of();
         return countGroupedByPostIds(postIds).stream()
-                .collect(Collectors.toMap(PostCommentCountRow::getPost, PostCommentCountRow::getCommentCount));
+                .collect(Collectors.toMap(PostCommentCountRow::getPostId, PostCommentCountRow::getCommentCount));
     }
 }
