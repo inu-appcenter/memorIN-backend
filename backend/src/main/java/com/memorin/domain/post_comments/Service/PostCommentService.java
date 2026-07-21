@@ -35,7 +35,7 @@ public class PostCommentService {
             parent = postCommentsRepository.findActiveById(parentId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_003, "부모 댓글이 존재하지 않습니다.: " + parentId));
             // 대댓글의 대댓글까지 허용할지는 정책 문제. 일단 1단계 depth만 허용하려면 아래 체크 추가:
-            if (parent.getParent_id() != null) {
+            if (parent.getParentId() != null) {
                 throw new BusinessException(ErrorCode.COMMENT_004, "대댓글에는 답글을 달 수 없습니다.");
             }
         }
@@ -48,7 +48,7 @@ public class PostCommentService {
         PostComments comment = postCommentsRepository.findActiveById(commentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_001, "댓글이 존재하지 않습니다.: " + commentId));
 
-        if (!comment.getUser_id().getId().equals(requesterId)) {
+        if (!comment.getUserId().getId().equals(requesterId)) {
             throw new BusinessException(ErrorCode.COMMENT_002, "본인만 댓글을 삭제할 수 있습니다.: ");
         }
         comment.softDelete();
