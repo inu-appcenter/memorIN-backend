@@ -61,7 +61,7 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
 
         // then
         PostComments found = em.find(PostComments.class, saved.getId());
-        assertThat(found.getParentId()).isNull();
+        assertThat(found.getParent()).isNull();
         assertThat(found.getBody()).isEqualTo("최상위 댓글");
     }
 
@@ -80,8 +80,8 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
         // then
         PostComments found = em.find(PostComments.class, saved.getId());
         // parent_id 타입이 User였다면 이 단언 자체가 컴파일되지 않는다.
-        assertThat(found.getParentId()).isNotNull();
-        assertThat(found.getParentId().getId()).isEqualTo(parent.getId());
-        assertThat(found.getParentId().getBody()).isEqualTo("부모 댓글");
+        assertThat(found.getParent()).isNotNull();
+        assertThat(found.getParent().getId()).isEqualTo(parent.getId());
+        assertThat(found.getParent().getBody()).isEqualTo("부모 댓글");
     }
 }
