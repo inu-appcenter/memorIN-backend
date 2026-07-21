@@ -22,7 +22,7 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
             WHERE c.post.id = :postId AND c.deleted_at IS NULL
             ORDER BY c.created_at ASC
             """)
-    List<PostComments> findActiveByPostId(@Param("postId") UUID postId);
+    List<PostComments> findActiveByPost(@Param("postId") UUID postId);
 
     interface PostCommentCountRow {
         UUID getPostId();

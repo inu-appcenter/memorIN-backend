@@ -55,6 +55,6 @@ public class PostCommentService {
     }
 
     public long countComments(UUID postId) {
-        return postCommentsRepository.findActiveByPostId(postId).size(); // 목록 화면용. 집계만 필요하면 COUNT 쿼리로 대체 권장
+        return postCommentsRepository.findActiveByPost(postId).size(); // 목록 화면용. 집계만 필요하면 COUNT 쿼리로 대체 권장
     }
 }
