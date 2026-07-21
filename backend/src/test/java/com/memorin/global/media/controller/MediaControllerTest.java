@@ -6,12 +6,15 @@ import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.UserDetailsImpl;
-import com.memorin.global.media.MediaStorageException;
-import com.memorin.global.media.PostMediaNotFoundException;
-import com.memorin.global.media.StorageQuotaExceededException;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
+import com.memorin.global.media.dto.response.QuotaResponse;
+import com.memorin.global.media.exception.MediaStorageException;
+import com.memorin.global.media.exception.PostMediaNotFoundException;
+import com.memorin.global.media.exception.StorageQuotaExceededException;
+import com.memorin.global.media.exception.UnsupportedContentTypeException;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
+import com.memorin.global.media.service.StorageQuotaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -52,6 +55,9 @@ class MediaControllerTest {
 
     @MockitoBean
     private PresignedDownloadService presignedDownloadService;
+
+    @MockitoBean
+    private StorageQuotaService storageQuotaService;
 
     // resolveToken이 null을 반환하므로 필터는 인증을 건드리지 않고 통과시킨다.
     // 인증 상태는 아래 .with(user(...))로 직접 세팅한다.
@@ -120,6 +126,54 @@ class MediaControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("MEDIA_003"))
                 .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void createPresignedUploadUrl_허용되지_않는_파일_형식이면_400과_MEDIA_001_에러코드를_반환한다() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        PresignedUploadRequest request = new PresignedUploadRequest("malware.exe", "application/x-msdownload", 10_000_000L);
+        given(presignedUploadService.createUploadUrl(eq(userId), any(PresignedUploadRequest.class)))
+                .willThrow(new UnsupportedContentTypeException("application/x-msdownload"));
+
+        // when
+        // then
+        mockMvc.perform(post("/api/media/presigned-upload-url")
+                        .with(user(principalOf(userId)))
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("MEDIA_001"))
+                .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void getQuota_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/quota"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
+    void getQuota_인증된_사용자의_사용량을_반환한다() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        given(storageQuotaService.getQuotaStatus(userId))
+                .willReturn(new QuotaResponse(300_000_000L, 1_073_741_824L, 773_741_824L, 27.94));
+
+        // when
+        // then
+        mockMvc.perform(get("/api/media/quota")
+                        .with(user(principalOf(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usedBytes").value(300_000_000L))
+                .andExpect(jsonPath("$.limitBytes").value(1_073_741_824L))
+                .andExpect(jsonPath("$.remainingBytes").value(773_741_824L))
+                .andExpect(jsonPath("$.usagePercentage").value(27.94));
     }
 
     @Test
