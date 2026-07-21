@@ -42,6 +42,7 @@ public class ChatRoomMembers {
 
     @Column(name ="role", nullable = false)
     @Enumerated(EnumType.STRING)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM) // DDL의 member_role은 Postgres 네이티브 ENUM
     @ColumnDefault("MEMBER")
     private Members_role role; // 채팅방 내 역할
 

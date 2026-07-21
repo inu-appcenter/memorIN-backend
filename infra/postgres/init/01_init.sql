@@ -8,6 +8,7 @@
 -- 문자열로 저장하면 오타 발생 시 대응하기 어렵기 때문에 ENUM으로 선언
 -- 각 타입이 유효범위 밖의 값이 저장되는 것을 막는다.
 CREATE TYPE visibility_type AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS posts (
     user_id       UUID            NOT NULL REFERENCES users(id),
     content       JSONB           NOT NULL DEFAULT '[]',
     visibility    visibility_type NOT NULL DEFAULT 'PUBLIC',
+    timeslot      timeslot_type   NOT NULL,
     recorded_date DATE            NOT NULL DEFAULT CURRENT_DATE,
     view_count    INTEGER         NOT NULL DEFAULT 0,
     created_at    TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
