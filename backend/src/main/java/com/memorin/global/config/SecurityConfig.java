@@ -42,6 +42,8 @@ public class SecurityConfig {
                         // /api/media/**는 JWT 필터 도입에 맞춰 permitAll에서 제외했다.
                         // Quota 검증 대상 userId를 토큰에서 받으므로 인증 없이 열어두면 남의 quota로 업로드가 가능해진다.
                         .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
+                        // API 문서. 운영 배포 시 노출 범위는 별도 논의 필요.
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 );
 
