@@ -19,7 +19,7 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
 
     @Query("""
             SELECT c FROM PostComments c
-            WHERE c.post_id.id = :postId AND c.deleted_at IS NULL
+            WHERE c.postId.id = :postId AND c.deleted_at IS NULL
             ORDER BY c.created_at ASC
             """)
     List<PostComments> findActiveByPostId(@Param("postId") UUID postId);
@@ -30,10 +30,10 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
     }
 
     @Query("""
-            SELECT c.post_id.id AS postId, COUNT(c) AS commentCount
+            SELECT c.postId.id AS postId, COUNT(c) AS commentCount
             FROM PostComments c
-            WHERE c.post_id.id IN :postIds AND c.deleted_at IS NULL
-            GROUP BY c.post_id.id
+            WHERE c.postId.id IN :postIds AND c.deleted_at IS NULL
+            GROUP BY c.postId.id
             """)
     List<PostCommentCountRow> countGroupedByPostIds(@Param("postIds") Collection<UUID> postIds);
 

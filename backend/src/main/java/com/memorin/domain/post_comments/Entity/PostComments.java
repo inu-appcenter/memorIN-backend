@@ -27,16 +27,16 @@ public class PostComments {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false) // posts 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // post가 사라지면 Like도 삭제
-    private Post post_id; // FK
+    private Post postId; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    private User user_id; // FK
+    private User userId; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id") // post_comments(self) 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // comment가 사라지면 Like도 삭제
-    private PostComments parent_id; // FK
+    private PostComments parentId; // FK
 
     @Column(name = "body", nullable = false)
     private String body; // comment 내용
@@ -57,9 +57,9 @@ public class PostComments {
     // 최상위 댓글은 parent에 null을 넘긴다.
     public static PostComments of(Post post, User author, PostComments parent, String body) {
         PostComments comment = new PostComments();
-        comment.post_id = post;
-        comment.user_id = author;
-        comment.parent_id = parent;
+        comment.postId = post;
+        comment.userId = author;
+        comment.parentId = parent;
         comment.body = body;
         return comment;
     }
