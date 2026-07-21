@@ -52,7 +52,6 @@ public class PostComments {
     private LocalDateTime updated_at; // 수정된 날짜
 
     @Column(name = "deleted_at")
-    @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deleted_at; // 삭제된 날짜
 
     // 최상위 댓글은 parent에 null을 넘긴다.
@@ -63,6 +62,10 @@ public class PostComments {
         comment.parent_id = parent;
         comment.body = body;
         return comment;
+    }
+
+    public void softDelete() {
+        this.deleted_at = LocalDateTime.now();
     }
 
 }

@@ -70,7 +70,6 @@ public class Post {
     private LocalDateTime updatedAt; // 수정된 날짜
 
     @Column(name = "deleted_at")
-    @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deletedAt; // 삭제된 날짜
 
     // Builder는 작성 논의

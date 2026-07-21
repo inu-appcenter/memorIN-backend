@@ -48,5 +48,10 @@ public class PostLikes {
     @ColumnDefault("CURRENT_TIMESTAMP")// CURRENT_DATE 사용 X -> 시/분/초 까지 저장하기 위해서
     private LocalDateTime created_at; // 만들어진 날짜
 
-
+    public static PostLikes of(Post post, User user) {
+        PostLikes like = new PostLikes();
+        like.post_id = post;
+        like.user_id = user;
+        return like;
+    }
 }
