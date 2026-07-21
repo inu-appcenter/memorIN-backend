@@ -77,11 +77,11 @@ public class Post {
     // 임시 builder
     @Builder
     private Post(
-            User userId, String content, VisibilityType visibilityType, TimeslotType timeslot,
+            User user, String content, VisibilityType visibilityType, TimeslotType timeslot,
             Date recordedDate, int viewCount, LocalDateTime createdAt,
             LocalDateTime updatedAt, LocalDateTime deletedAt
     ){
-        this.user = userId; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
+        this.user = user; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
         this.content = content;
         this.visibility = visibilityType != null ? visibilityType : VisibilityType.PUBLIC;
         this.timeslot = timeslot;
@@ -92,10 +92,10 @@ public class Post {
         this.deletedAt = deletedAt;
     }
 
-    public static Post create(User userId, String content, VisibilityType visibility,
+    public static Post create(User user, String content, VisibilityType visibility,
                               TimeslotType timeslot, Date recordedDate) {
         return Post.builder()
-                .userId(userId)
+                .user(user)
                 .content(content)
                 .visibilityType(visibility)
                 .timeslot(timeslot)

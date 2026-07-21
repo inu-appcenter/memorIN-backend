@@ -90,16 +90,16 @@ public class PostService {
         int limit = normalizeSize(size);
 
         Date cursorRecordedDate = null;
-        String cursorId = null;
+        UUID cursorId = null;
         if (cursor != null && !cursor.isBlank()) {
             PostCursor.Cursor decoded = PostCursor.decode(cursor);
             cursorRecordedDate = decoded.recordedDate();
-            cursorId = decoded.postId();
+            cursorId = UUID.fromString(decoded.postId());
         }
 
         // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
         List<Post> rows = postRepository.findUserFeed(
-                userId.toString(), includeAllVisibility, cursorRecordedDate, cursorId, limit + 1
+                userId, includeAllVisibility, cursorRecordedDate, cursorId, limit + 1
         );
 
         boolean hasNext = rows.size() > limit;

@@ -28,10 +28,10 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             LIMIT :limit
             """, nativeQuery = true)
     List<Post> findUserFeed(
-            @Param("userId") String userId,
+            @Param("userId") UUID userId,
             @Param("includeAllVisibility") boolean includeAllVisibility,
             @Param("cursorRecordedDate") Date cursorRecordedDate,
-            @Param("cursorId") String cursorId,
+            @Param("cursorId") UUID cursorId,
             @Param("limit") int limit
     );
 

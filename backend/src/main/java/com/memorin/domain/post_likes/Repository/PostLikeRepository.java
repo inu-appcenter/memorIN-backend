@@ -28,7 +28,7 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
     long countByPostId(@Param("postId") UUID postId);
 
     interface PostLikeCountRow {
-        UUID getPostId();
+        UUID getPost();
         Long getLikeCount();
     }
 
@@ -44,6 +44,6 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
     default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds) {
         if (postIds == null || postIds.isEmpty()) return Map.of();
         return countGroupedByPostIds(postIds).stream()
-                .collect(Collectors.toMap(PostLikeCountRow::getPostId, PostLikeCountRow::getLikeCount));
+                .collect(Collectors.toMap(PostLikeCountRow::getPost, PostLikeCountRow::getLikeCount));
     }
 }
