@@ -19,6 +19,11 @@ public enum ErrorCode {
     USER_002(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     USER_003(HttpStatus.CONFLICT, "이미 사용 중인 이름입니다."),
 
+    // 게시물 (post)
+    POST_001(HttpStatus.NOT_FOUND, "존재하지 않는 게시물입니다"),
+    POST_002(HttpStatus.FORBIDDEN, "게시물에 접근할 권한이 없습니다"),
+    POST_003(HttpStatus.BAD_REQUEST, "잘못된 cursor 값입니다"),
+
     // 미디어 (media)
     MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다"),
     MEDIA_002(HttpStatus.FORBIDDEN, "스토리지 용량을 초과했습니다"),
