@@ -30,7 +30,7 @@ public class PostMedia {
     @OnDelete(action = OnDeleteAction.CASCADE) // DB에 쿼리문을 직접 전달 -> 빠르고 정확함.
     // 필드는 ID가 아니라 Post 연관이므로 post로 둔다.
     // postId로 두면 PostMediaRepository의 findByPost_Id... 파생 쿼리가 속성을 찾지 못해 부팅이 실패한다.
-    private Post post; // FK
+    private Post postId; // FK
 
     @Column(name = "file_key", nullable = false, length = 500)
     private String fileKey;
@@ -64,7 +64,7 @@ public class PostMedia {
             Post post, String fileKey, String mimeType, Long fileSizeBytes,
             Short orderIndex, Integer width, Integer height
     ) {
-        this.post = post;
+        this.postId = post;
         this.fileKey = fileKey;
         this.mimeType = mimeType;
         this.fileSizeBytes = fileSizeBytes;
@@ -89,7 +89,7 @@ public class PostMedia {
     }
 
     public Post getPost() {
-        return this.post;
+        return this.postId;
     }
 
 }

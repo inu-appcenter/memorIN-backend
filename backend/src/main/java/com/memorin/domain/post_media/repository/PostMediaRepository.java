@@ -16,17 +16,17 @@ public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
     @Query(value = """
             SELECT COALESCE(SUM(pm.file_size_bytes), 0)
             FROM post_media pm
-            JOIN posts p ON pm.post_id = p.id
-            WHERE p.user_id = :userId
+            JOIN posts p ON pm.postId = p.id
+            WHERE p.userId = :userId
               AND p.deleted_at IS NULL
               AND pm.deleted_at IS NULL
             """, nativeQuery = true)
     long sumFileSizeBytesByUserId(@Param("userId") UUID userId);
 
-    List<PostMedia> findByPost_IdOrderByOrderIndexAsc(UUID postId);
+    List<PostMedia> findByPostIdOrderByOrderIndexAsc(UUID postId);
 
     // 목록(피드) 조회 시 게시물마다 따로 쿼리하지 않고 N+1 없이 한 번에 가져오기 위한 배치 조회.
-    List<PostMedia> findByPost_IdInOrderByOrderIndexAsc(Collection<UUID> postIds);
+    List<PostMedia> findByPostIdInOrderByOrderIndexAsc(Collection<UUID> postIds);
 
     @Modifying
     @Query("DELETE FROM PostMedia m WHERE m.post.id = :postId")

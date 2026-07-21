@@ -74,7 +74,7 @@ public class PostService {
             post.increaseViewCount();
         }
 
-        List<PostMedia> media = postMediaRepository.findByPost_IdOrderByOrderIndexAsc(postId);
+        List<PostMedia> media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
         return PostResponse.of(post, toMediaResponses(media));
     }
 
@@ -108,7 +108,7 @@ public class PostService {
         // N+1 방지: 페이지에 포함된 게시물들의 미디어를 한 번에 가져와서 postId로 그룹핑.
         List<UUID> postIds = pageContent.stream().map(Post::getId).toList();
         Map<UUID, List<PostMedia>> mediaByPostId = postMediaRepository
-                .findByPost_IdInOrderByOrderIndexAsc(postIds).stream()
+                .findByPostIdInOrderByOrderIndexAsc(postIds).stream()
                 .collect(Collectors.groupingBy(m -> m.getPost().getId()));
 
         List<PostSummaryResponse> items = pageContent.stream()
@@ -143,7 +143,7 @@ public class PostService {
             postMediaRepository.deleteAllByPostId(postId);
             media = saveMedia(post, request.attachments());
         } else {
-            media = postMediaRepository.findByPost_IdOrderByOrderIndexAsc(postId);
+            media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
         }
 
         return PostResponse.of(post, toMediaResponses(media));
