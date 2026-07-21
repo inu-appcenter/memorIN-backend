@@ -31,7 +31,7 @@ public class Post {
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 N:1로 형성
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    private User userId; // FK
+    private User user; // FK
 
     @JdbcTypeCode(SqlTypes.JSON) // Hibernate에서 jsonb 타입으로 매핑
     @Column(name = "content", columnDefinition = "jsonb", nullable = false)
@@ -81,7 +81,7 @@ public class Post {
             Date recordedDate, int viewCount, LocalDateTime createdAt,
             LocalDateTime updatedAt, LocalDateTime deletedAt
     ){
-        this.userId = userId; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
+        this.user = userId; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
         this.content = content;
         this.visibility = visibilityType != null ? visibilityType : VisibilityType.PUBLIC;
         this.timeslot = timeslot;
@@ -126,7 +126,7 @@ public class Post {
     }
 
     public boolean isOwnedBy(UUID userId) {
-        return this.userId.getId().equals(userId);
+        return this.user.getId().equals(userId);
     }
 
 }

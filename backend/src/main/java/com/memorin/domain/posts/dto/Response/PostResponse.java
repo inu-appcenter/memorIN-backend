@@ -23,7 +23,7 @@ public record PostResponse(
     public static PostResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostResponse(
                 post.getId().toString(),
-                post.getUserId().getId().toString(),
+                post.getUser().getId().toString(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),

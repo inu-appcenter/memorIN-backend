@@ -15,16 +15,16 @@ import java.util.stream.Collectors;
 public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
 
     // 필드명이 post_id/user_id라 파생 쿼리 이름 대신 명시적 JPQL을 쓴다 (위 설명 참고).
-    @Query("SELECT COUNT(l) > 0 FROM PostLikes l WHERE l.postId.id = :postId AND l.userId.id = :userId")
+    @Query("SELECT COUNT(l) > 0 FROM PostLikes l WHERE l.post.id = :postId AND l.user.id = :userId")
     boolean existsByPostIdAndUserId(@Param("postId") UUID postId, @Param("userId") UUID userId);
 
     @Modifying
-    @Query("DELETE FROM PostLikes l WHERE l.postId.id = :postId AND l.userId.id = :userId")
+    @Query("DELETE FROM PostLikes l WHERE l.post.id = :postId AND l.user.id = :userId")
     int deleteByPostIdAndUserId(@Param("postId") UUID postId, @Param("userId") UUID userId);
 
     long countByPostIdViaQuery(UUID postId); // 사용 안 함 - 아래 단건 카운트로 대체
 
-    @Query("SELECT COUNT(l) FROM PostLikes l WHERE l.postId.id = :postId")
+    @Query("SELECT COUNT(l) FROM PostLikes l WHERE l.post.id = :postId")
     long countByPostId(@Param("postId") UUID postId);
 
     interface PostLikeCountRow {
@@ -33,10 +33,10 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
     }
 
     @Query("""
-            SELECT l.postId.id AS postId, COUNT(l) AS likeCount
+            SELECT l.post.id AS postId, COUNT(l) AS likeCount
             FROM PostLikes l
-            WHERE l.postId.id IN :postIds
-            GROUP BY l.postId.id
+            WHERE l.post.id IN :postIds
+            GROUP BY l.post.id
             """)
     List<PostLikeCountRow> countGroupedByPostIds(@Param("postIds") Collection<UUID> postIds);
 

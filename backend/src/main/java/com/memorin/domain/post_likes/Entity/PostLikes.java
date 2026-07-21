@@ -36,12 +36,12 @@ public class PostLikes {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false) // posts 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // post가 사라지면 Like도 삭제
-    private Post postId; // FK
+    private Post post; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // user가 사라지면 Like도 삭제
-    private User userId; // FK
+    private User user; // FK
 
     @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
@@ -50,8 +50,8 @@ public class PostLikes {
 
     public static PostLikes of(Post post, User user) {
         PostLikes like = new PostLikes();
-        like.postId = post;
-        like.userId = user;
+        like.post = post;
+        like.user = user;
         return like;
     }
 }
