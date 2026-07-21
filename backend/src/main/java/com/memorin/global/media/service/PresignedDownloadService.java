@@ -2,10 +2,10 @@ package com.memorin.global.media.service;
 
 import com.memorin.domain.post_media.Entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
-import com.memorin.global.media.MediaStorageException;
 import com.memorin.global.media.MinioProperties;
-import com.memorin.global.media.PostMediaNotFoundException;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
+import com.memorin.global.media.exception.MediaStorageException;
+import com.memorin.global.media.exception.PostMediaNotFoundException;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.http.Method;

@@ -1,9 +1,11 @@
 package com.memorin.global.media.service;
 
-import com.memorin.global.media.MediaStorageException;
 import com.memorin.global.media.MinioProperties;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
 import com.memorin.global.media.dto.response.PresignedUploadResponse;
+import com.memorin.global.media.exception.MediaStorageException;
+import com.memorin.global.media.exception.UnsupportedContentTypeException;
+import com.memorin.global.media.exception.UploadSizeExceededException;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
@@ -115,10 +117,10 @@ public class PresignedUploadService {
 
     private void validateRequest(PresignedUploadRequest request) {
         if (!allowedContentTypes.contains(request.contentType())) {
-            throw new IllegalArgumentException("Unsupported content type: " + request.contentType());
+            throw new UnsupportedContentTypeException(request.contentType());
         }
         if (request.contentLength() > properties.maxUploadSizeBytes()) {
-            throw new IllegalArgumentException("File size exceeds max upload size.");
+            throw new UploadSizeExceededException(request.contentLength(), properties.maxUploadSizeBytes());
         }
     }
 
