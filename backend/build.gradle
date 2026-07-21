@@ -18,14 +18,60 @@ repositories {
 }
 
 dependencies {
+
+	// DB
+	runtimeOnly 'com.h2database:h2'          // 로컬 개발용 인메모리 DB
+	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
+
+	// 테스트용 실제 PostgreSQL 컨테이너
+	// jsonb 컬럼과 Postgres 전용 네이티브 쿼리(행 비교 커서 페이징)를 쓰므로 H2로는 검증할 수 없다.
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
+
+	// Web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// JPA
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	runtimeOnly 'com.h2database:h2'        // 로컬 개발용 인메모리 DB
-	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
+
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Security
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	testImplementation 'org.springframework.security:spring-security-test'
+
+	// JWT (develop 확정 버전 0.12.7로 통일)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
+
+	implementation 'io.minio:minio:8.5.17'
+
+	// Redis
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// WebSocket (STOMP) — spring-messaging는 websocket starter가 전이 포함
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-	implementation 'com.google.firebase:firebase-admin:9.4.2'
+
+	// JSONB (Hibernate 6.6 대응: hibernate-types-60 → hypersistence-utils)
+	implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.9.11'
+
+	// UUID v7 생성기 (Java 기본 java.util.UUID는 v4까지만 지원 → 시간순 정렬되는 v7 발급용)
+	implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
+
+	// QueryDSL (Jakarta) — APT에 jakarta 프로세서 동반 필요
+	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+	annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
+	annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
