@@ -57,9 +57,12 @@ public class MediaController {
 
     @GetMapping("/{postMediaId}/presigned-download-url")
     public ResponseEntity<PresignedDownloadResponse> createPresignedDownloadUrl(
-            @PathVariable UUID postMediaId
+            @PathVariable UUID postMediaId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        return ResponseEntity.ok(presignedDownloadService.createDownloadUrl(postMediaId));
+        return ResponseEntity.ok(
+                presignedDownloadService.createDownloadUrl(postMediaId, userDetails.getUserId())
+        );
     }
 
     // 이 컨트롤러가 던지는 모든 예외(BusinessException 서브클래스, @Valid 검증 실패 등)는
