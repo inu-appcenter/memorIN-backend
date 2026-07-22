@@ -181,13 +181,13 @@ public class PostService {
     // requireNonNull로 감싸면 미디어 한 건의 실패가 게시물 조회 전체를 500으로 만든다.
     private List<PostMediaResponse> toMediaResponses(List<PostMedia> media) {
         return media.stream()
-                .map(m -> PostMediaResponse.from(m, resolveDownloadUrl(m.getId())))
+                .map(m -> PostMediaResponse.from(m, resolveDownloadUrl(m)))
                 .toList();
     }
 
-    private String resolveDownloadUrl(UUID postMediaId) {
+    private String resolveDownloadUrl(PostMedia media) {
         try {
-            return presignedDownloadService.createDownloadUrl(postMediaId).downloadUrl();
+            return presignedDownloadService.createDownloadUrl(media).downloadUrl();
         } catch (Exception e) {
             // 미디어 하나의 URL 발급 실패로 게시물 조회 전체가 실패하지 않도록 null 처리.
             return null;
