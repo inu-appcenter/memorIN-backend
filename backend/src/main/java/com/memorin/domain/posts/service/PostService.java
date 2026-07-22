@@ -67,7 +67,7 @@ public class PostService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
 
-        assertReadable(post, requesterId);
+        PostAccessPolicy.assertReadable(post, requesterId);
 
         // 작성자 본인이 아닐 때만 조회수 증가 (읽기 API인데 굳이 트랜잭션 열어서 처리)
         if (requesterId == null || !post.isOwnedBy(requesterId)) {
@@ -191,23 +191,6 @@ public class PostService {
         } catch (Exception e) {
             // 미디어 하나의 URL 발급 실패로 게시물 조회 전체가 실패하지 않도록 null 처리.
             return null;
-        }
-    }
-
-    private void assertReadable(Post post, UUID requesterId) {
-        switch (post.getVisibility()) {
-            case PUBLIC -> { /* 누구나 조회 가능 */ }
-            case PRIVATE -> {
-                if (requesterId == null || !post.isOwnedBy(requesterId)) {
-                    throw new PostExceptions.PostAccessDeniedException();
-                }
-            }
-            case FRIENDS -> {
-                // TODO: follows 테이블 연동 후 팔로우 관계 확인 로직으로 교체. 현재는 본인만 허용.
-                if (requesterId == null || !post.isOwnedBy(requesterId)) {
-                    throw new PostExceptions.PostAccessDeniedException();
-                }
-            }
         }
     }
 

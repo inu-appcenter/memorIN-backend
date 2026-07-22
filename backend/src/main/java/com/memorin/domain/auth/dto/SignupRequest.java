@@ -22,7 +22,6 @@ public record SignupRequest (
     @Size(max = 50)
     String displayName,
 
-    @NotBlank
     @Size(max = 200)
     String bio
 

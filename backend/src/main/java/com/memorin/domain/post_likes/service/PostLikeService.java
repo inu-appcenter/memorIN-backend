@@ -4,6 +4,7 @@ import com.memorin.domain.post_likes.entity.PostLikes;
 import com.memorin.domain.post_likes.repository.PostLikeRepository;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.posts.service.PostAccessPolicy;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
@@ -26,13 +27,16 @@ public class PostLikeService {
     /** @return true면 좋아요 등록, false면 좋아요 취소 (토글) */
     @Transactional
     public boolean toggleLike(UUID postId, UUID userId) {
+
         if (postLikesRepository.existsByPostIdAndUserId(postId, userId)) {
             postLikesRepository.deleteByPostIdAndUserId(postId, userId);
             return false;
-        }
+        } // 이전에 누른 좋아요는 권한에 얽매이지 X 취소 가능하게
 
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
+        PostAccessPolicy.assertReadable(post, userId); // 새로 누르는 것만 검사
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + userId));
 

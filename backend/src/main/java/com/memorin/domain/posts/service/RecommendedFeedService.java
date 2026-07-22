@@ -43,13 +43,13 @@ public class RecommendedFeedService {
 
         // 1. 후보 풀 조회 (posts 도메인 단독)
         List<Post> candidates = postRepository.findRecommendationCandidates(
-                asOf.minus(RECENCY_WINDOW), CANDIDATE_POOL_SIZE
+                asOf.minus(RECENCY_WINDOW), asOf, CANDIDATE_POOL_SIZE
         );
 
         // 2. 좋아요/댓글 수 배치 조회 (도메인 경계를 넘지 않고 각 도메인의 배치 API 호출)
         List<UUID> candidateIds = candidates.stream().map(Post::getId).toList();
-        Map<UUID, Long> likeCounts = postLikeRepository.countAllByPostIdIn(candidateIds);
-        Map<UUID, Long> commentCounts = postCommentRepository.countAllByPostIdIn(candidateIds);
+        Map<UUID, Long> likeCounts = postLikeRepository.countAllByPostIdIn(candidateIds, asOf);
+        Map<UUID, Long> commentCounts = postCommentRepository.countAllByPostIdIn(candidateIds, asOf);
 
         // 3. 점수 계산 (자바에서)
         record Scored(Post post, double score, long likeCount, long commentCount) {}
@@ -93,7 +93,7 @@ public class RecommendedFeedService {
 
     private double computeScore(Post post, long likeCount, long commentCount, Instant asOf) {
         double engagement = 1 + likeCount * 3 + commentCount * 2 + post.getViewCount() * 0.1;
-        double hoursSinceCreated = Duration.between(post.getCreatedAt().toInstant(java.time.ZoneOffset.UTC), asOf).toMinutes() / 60.0;
+        double hoursSinceCreated = Duration.between(post.getCreatedAt(), asOf).toMinutes() / 60.0;
         return Math.log(engagement) / Math.pow(hoursSinceCreated + 2, GRAVITY);
     }
 
