@@ -62,6 +62,7 @@ public class MediaController {
     ) {
         return ResponseEntity.ok(
                 presignedDownloadService.createDownloadUrl(postMediaId, userDetails.getUserId())
+
         );
     }
 

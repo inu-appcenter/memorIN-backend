@@ -36,7 +36,8 @@ public enum ErrorCode {
     MEDIA_003(HttpStatus.INTERNAL_SERVER_ERROR, "미디어 저장소 처리 중 오류가 발생했습니다"),
     MEDIA_004(HttpStatus.NOT_FOUND, "존재하지 않는 미디어입니다"),
     MEDIA_005(HttpStatus.BAD_REQUEST, "업로드 가능한 최대 파일 크기를 초과했습니다"),
-    MEDIA_006(HttpStatus.FORBIDDEN, "미디어에 접근할 권한이 없습니다");
+    MEDIA_006(HttpStatus.FORBIDDEN, "미디어에 접근할 권한이 없습니다"),
+    MEDIA_007(HttpStatus.NOT_FOUND, "업로드 예약을 찾을 수 없거나 만료되었습니다");
 
     private final HttpStatus status;
     private final String message;
