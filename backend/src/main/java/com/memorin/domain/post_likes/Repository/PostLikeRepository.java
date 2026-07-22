@@ -20,15 +20,13 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
 
     @Modifying
     @Query("DELETE FROM PostLikes l WHERE l.post.id = :postId AND l.user.id = :userId")
-    int deleteByPostIdAndUserId(@Param("postId") UUID postId, @Param("userId") UUID userId);
-
-    long countByPostIdViaQuery(UUID postId); // 사용 안 함 - 아래 단건 카운트로 대체
+    void deleteByPostIdAndUserId(@Param("postId") UUID postId, @Param("userId") UUID userId);
 
     @Query("SELECT COUNT(l) FROM PostLikes l WHERE l.post.id = :postId")
     long countByPostId(@Param("postId") UUID postId);
 
     interface PostLikeCountRow {
-        UUID getPost();
+        UUID getPostId();
         Long getLikeCount();
     }
 
@@ -44,6 +42,6 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
     default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds) {
         if (postIds == null || postIds.isEmpty()) return Map.of();
         return countGroupedByPostIds(postIds).stream()
-                .collect(Collectors.toMap(PostLikeCountRow::getPost, PostLikeCountRow::getLikeCount));
+                .collect(Collectors.toMap(PostLikeCountRow::getPostId, PostLikeCountRow::getLikeCount));
     }
 }
