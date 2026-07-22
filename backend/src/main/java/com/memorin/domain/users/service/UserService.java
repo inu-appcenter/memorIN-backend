@@ -1,4 +1,4 @@
-package com.memorin.domain.users.Service;
+package com.memorin.domain.users.service;
 
 import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

@@ -1,11 +1,11 @@
-package com.memorin.domain.posts.Controller;
+package com.memorin.domain.posts.controller;
 
-import com.memorin.domain.posts.Service.PostService;
-import com.memorin.domain.posts.dto.Request.PostCreateRequest;
-import com.memorin.domain.posts.dto.Request.PostUpdateRequest;
-import com.memorin.domain.posts.dto.Response.PostCreateResponse;
-import com.memorin.domain.posts.dto.Response.PostListResponse;
-import com.memorin.domain.posts.dto.Response.PostResponse;
+import com.memorin.domain.posts.service.PostService;
+import com.memorin.domain.posts.dto.request.PostCreateRequest;
+import com.memorin.domain.posts.dto.request.PostUpdateRequest;
+import com.memorin.domain.posts.dto.response.PostCreateResponse;
+import com.memorin.domain.posts.dto.response.PostListResponse;
+import com.memorin.domain.posts.dto.response.PostResponse;
 import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;

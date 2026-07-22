@@ -1,8 +1,8 @@
-package com.memorin.domain.posts.dto.Response;
+package com.memorin.domain.posts.dto.response;
 
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Entity.TimeslotType;
-import com.memorin.domain.posts.Entity.VisibilityType;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.entity.VisibilityType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

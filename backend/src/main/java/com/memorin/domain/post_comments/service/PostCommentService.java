@@ -1,10 +1,10 @@
-package com.memorin.domain.post_comments.Service;
+package com.memorin.domain.post_comments.service;
 
-import com.memorin.domain.post_comments.Entity.PostComments;
-import com.memorin.domain.post_comments.Repository.PostCommentRepository;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Repository.PostRepository;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.post_comments.entity.PostComments;
+import com.memorin.domain.post_comments.repository.PostCommentRepository;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

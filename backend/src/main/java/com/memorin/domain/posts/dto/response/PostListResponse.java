@@ -1,4 +1,4 @@
-package com.memorin.domain.posts.dto.Response;
+package com.memorin.domain.posts.dto.response;
 
 import java.util.List;
 

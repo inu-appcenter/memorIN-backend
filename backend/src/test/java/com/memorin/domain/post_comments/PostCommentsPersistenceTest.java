@@ -1,10 +1,10 @@
 package com.memorin.domain.post_comments;
 
-import com.memorin.domain.post_comments.Entity.PostComments;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Entity.TimeslotType;
-import com.memorin.domain.posts.Entity.VisibilityType;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.post_comments.entity.PostComments;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.entity.VisibilityType;
+import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

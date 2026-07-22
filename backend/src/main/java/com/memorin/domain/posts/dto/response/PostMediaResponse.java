@@ -1,7 +1,7 @@
-package com.memorin.domain.posts.dto.Response;
+package com.memorin.domain.posts.dto.response;
 
 
-import com.memorin.domain.post_media.Entity.PostMedia;
+import com.memorin.domain.post_media.entity.PostMedia;
 
 public record PostMediaResponse(
         String objectKey,

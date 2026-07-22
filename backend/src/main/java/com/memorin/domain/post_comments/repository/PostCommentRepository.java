@@ -1,6 +1,6 @@
-package com.memorin.domain.post_comments.Repository;
+package com.memorin.domain.post_comments.repository;
 
-import com.memorin.domain.post_comments.Entity.PostComments;
+import com.memorin.domain.post_comments.entity.PostComments;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -1,4 +1,4 @@
-package com.memorin.domain.follows.Entity;
+package com.memorin.domain.follows.entity;
 
 public enum Follow_state {
 

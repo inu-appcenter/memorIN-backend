@@ -2,9 +2,9 @@ package com.memorin.domain.posts;
 
 import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
-import com.memorin.domain.posts.Controller.PostController;
-import com.memorin.domain.posts.Service.PostCursor;
-import com.memorin.domain.posts.Service.PostService;
+import com.memorin.domain.posts.controller.PostController;
+import com.memorin.domain.posts.service.PostCursor;
+import com.memorin.domain.posts.service.PostService;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.PostExceptions;

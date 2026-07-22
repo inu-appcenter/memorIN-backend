@@ -1,6 +1,6 @@
-package com.memorin.domain.users.Controller;
+package com.memorin.domain.users.controller;
 
-import com.memorin.domain.users.Service.UserService;
+import com.memorin.domain.users.service.UserService;
 import com.memorin.domain.users.dto.MyPageResponseDto;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

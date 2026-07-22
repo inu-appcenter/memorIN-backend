@@ -1,6 +1,6 @@
 package com.memorin.global.media.service;
 
-import com.memorin.domain.post_media.Entity.PostMedia;
+import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.global.media.MinioProperties;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;

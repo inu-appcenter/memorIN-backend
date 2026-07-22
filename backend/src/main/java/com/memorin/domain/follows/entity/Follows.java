@@ -1,6 +1,6 @@
-package com.memorin.domain.follows.Entity;
+package com.memorin.domain.follows.entity;
 
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;

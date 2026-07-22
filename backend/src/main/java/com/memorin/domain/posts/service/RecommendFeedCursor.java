@@ -1,4 +1,4 @@
-package com.memorin.domain.posts.Service;
+package com.memorin.domain.posts.service;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;

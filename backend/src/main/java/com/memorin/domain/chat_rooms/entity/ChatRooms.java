@@ -1,4 +1,4 @@
-package com.memorin.domain.chat_rooms.Entity;
+package com.memorin.domain.chat_rooms.entity;
 
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;

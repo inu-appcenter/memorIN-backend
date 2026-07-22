@@ -1,13 +1,13 @@
-package com.memorin.domain.posts.Service;
+package com.memorin.domain.posts.service;
 
-import com.memorin.domain.post_media.Entity.PostMedia;
+import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Repository.PostRepository;
-import com.memorin.domain.posts.dto.Request.PostCreateRequest;
-import com.memorin.domain.posts.dto.Request.PostUpdateRequest;
-import com.memorin.domain.posts.dto.Response.*;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.posts.dto.request.PostCreateRequest;
+import com.memorin.domain.posts.dto.request.PostUpdateRequest;
+import com.memorin.domain.posts.dto.response.*;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

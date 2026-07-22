@@ -1,6 +1,6 @@
-package com.memorin.domain.post_media.Entity;
+package com.memorin.domain.post_media.entity;
 
-import com.memorin.domain.posts.Entity.Post;
+import com.memorin.domain.posts.entity.Post;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.Builder;

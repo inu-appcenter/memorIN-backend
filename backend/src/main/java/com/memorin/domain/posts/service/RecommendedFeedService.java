@@ -1,11 +1,11 @@
-package com.memorin.domain.posts.Service;
+package com.memorin.domain.posts.service;
 
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Repository.PostRepository;
-import com.memorin.domain.posts.dto.Response.PostListResponse;
-import com.memorin.domain.posts.dto.Response.PostSummaryResponse;
-import com.memorin.domain.post_likes.Repository.PostLikeRepository;
-import com.memorin.domain.post_comments.Repository.PostCommentRepository;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.posts.dto.response.PostListResponse;
+import com.memorin.domain.posts.dto.response.PostSummaryResponse;
+import com.memorin.domain.post_likes.repository.PostLikeRepository;
+import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

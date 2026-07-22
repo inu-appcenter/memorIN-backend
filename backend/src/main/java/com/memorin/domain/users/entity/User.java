@@ -1,4 +1,4 @@
-package com.memorin.domain.users.Entity;
+package com.memorin.domain.users.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

@@ -1,10 +1,10 @@
-package com.memorin.domain.post_likes.Service;
+package com.memorin.domain.post_likes.service;
 
-import com.memorin.domain.post_likes.Entity.PostLikes;
-import com.memorin.domain.post_likes.Repository.PostLikeRepository;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Repository.PostRepository;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.post_likes.entity.PostLikes;
+import com.memorin.domain.post_likes.repository.PostLikeRepository;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

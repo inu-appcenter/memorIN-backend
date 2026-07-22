@@ -1,7 +1,7 @@
-package com.memorin.domain.posts.dto.Request;
+package com.memorin.domain.posts.dto.request;
 
-import com.memorin.domain.posts.Entity.TimeslotType;
-import com.memorin.domain.posts.Entity.VisibilityType;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.entity.VisibilityType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 

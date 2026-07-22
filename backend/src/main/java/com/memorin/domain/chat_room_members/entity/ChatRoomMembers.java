@@ -1,7 +1,7 @@
-package com.memorin.domain.chat_room_members.Entity;
+package com.memorin.domain.chat_room_members.entity;
 
-import com.memorin.domain.chat_rooms.Entity.ChatRooms;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.chat_rooms.entity.ChatRooms;
+import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.Getter;

@@ -1,6 +1,6 @@
-package com.memorin.domain.post_likes.Repository;
+package com.memorin.domain.post_likes.repository;
 
-import com.memorin.domain.post_likes.Entity.PostLikes;
+import com.memorin.domain.post_likes.entity.PostLikes;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

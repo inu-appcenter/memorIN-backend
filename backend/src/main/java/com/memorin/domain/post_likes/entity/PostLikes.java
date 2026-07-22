@@ -1,7 +1,7 @@
-package com.memorin.domain.post_likes.Entity;
+package com.memorin.domain.post_likes.entity;
 
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

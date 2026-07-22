@@ -1,6 +1,6 @@
 package com.memorin.global.exception;
 
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

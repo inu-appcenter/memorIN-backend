@@ -1,4 +1,4 @@
-package com.memorin.domain.posts.Service;
+package com.memorin.domain.posts.service;
 
 import com.memorin.global.exception.PostExceptions;
 

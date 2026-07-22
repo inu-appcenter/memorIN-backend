@@ -1,6 +1,6 @@
 package com.memorin.domain.post_media.repository;
 
-import com.memorin.domain.post_media.Entity.PostMedia;
+import com.memorin.domain.post_media.entity.PostMedia;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

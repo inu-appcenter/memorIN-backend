@@ -1,4 +1,4 @@
-package com.memorin.domain.posts.Entity;
+package com.memorin.domain.posts.entity;
 
 public enum VisibilityType {
 
