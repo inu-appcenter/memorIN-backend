@@ -25,15 +25,18 @@ public class JwtTokenProvider {
 
     private final SecretKey secretKey;
     private final long accessExpiry;
+    private final long refreshExpiry;
     private final UserRepository userRepository;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-expiry-ms}") long accessExpiry,
+            @Value("${jwt.refresh-expiry-ms}") long refreshExpiry,
             UserRepository userRepository
     ) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessExpiry = accessExpiry;
+        this.refreshExpiry = refreshExpiry;
         this.userRepository = userRepository;
     }
 
@@ -96,5 +99,17 @@ public class JwtTokenProvider {
                 null,
                 List.of(new SimpleGrantedAuthority("ROLE_USER"))
         );
+    }
+
+    public String createRefreshToken(UUID userId) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + refreshExpiry);
+
+        return Jwts.builder()
+                .subject(userId.toString())
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(secretKey)
+                .compact();
     }
 }
