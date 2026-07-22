@@ -47,7 +47,9 @@ public class PostController {
     }
 
     // 게시물 목록(피드) 조회
-    @GetMapping("?cursor={uuid}&size=20&userId={uuid}")
+    // GET /api/posts?userId={uuid}&cursor={cursor}&size=20
+    // 쿼리 파라미터는 @RequestParam으로 받는다. @GetMapping 값에 적으면 경로 패턴으로 해석돼 매핑되지 않는다.
+    @GetMapping
     public ResponseEntity<ApiResponse<PostListResponse>> getPostList(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String cursor,

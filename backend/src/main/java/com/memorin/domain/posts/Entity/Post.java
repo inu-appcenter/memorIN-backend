@@ -38,13 +38,17 @@ public class Post {
     @ColumnDefault("[]")
     private String content; // 게시물
 
+    // DDL의 visibility_type/timeslot_type은 Postgres 네이티브 ENUM이다.
+    // NAMED_ENUM 없이 EnumType.STRING만 두면 varchar로 전송돼 INSERT가 실패한다.
     @Column(name = "visibility", nullable = false)
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @ColumnDefault("PUBLIC")
     private VisibilityType visibility; // 공개 유무
 
     @Column(name = "timeslot", nullable = false)
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private TimeslotType timeslot; // 시간대
 
     @Column(name = "recorded_date", nullable = false)
@@ -78,6 +82,7 @@ public class Post {
             Date recordedDate, int viewCount, LocalDateTime createdAt,
             LocalDateTime updatedAt, LocalDateTime deletedAt
     ){
+        this.userId = userId; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
         this.content = content;
         this.visibility = visibilityType != null ? visibilityType : VisibilityType.PUBLIC;
         this.timeslot = timeslot;

@@ -4,6 +4,7 @@ import com.memorin.domain.users.Entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
+import com.memorin.global.exception.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -11,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
@@ -94,10 +96,14 @@ public class JwtTokenProvider {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
+        // principal은 반드시 UserDetailsImpl로 넣는다.
+        // User 엔티티를 그대로 넣으면 컨트롤러의 @AuthenticationPrincipal UserDetailsImpl이 null로 주입된다.
+        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
+
         return new UsernamePasswordAuthenticationToken(
-                user,
+                new UserDetailsImpl(user, authorities),
                 null,
-                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                authorities
         );
     }
 

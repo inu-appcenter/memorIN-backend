@@ -55,4 +55,14 @@ public class PostComments {
     @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deleted_at; // 삭제된 날짜
 
+    // 최상위 댓글은 parent에 null을 넘긴다.
+    public static PostComments of(Post post, User author, PostComments parent, String body) {
+        PostComments comment = new PostComments();
+        comment.post_id = post;
+        comment.user_id = author;
+        comment.parent_id = parent;
+        comment.body = body;
+        return comment;
+    }
+
 }

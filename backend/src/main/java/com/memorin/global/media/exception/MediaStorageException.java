@@ -1,4 +1,4 @@
-package com.memorin.global.media;
+package com.memorin.global.media.exception;
 
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

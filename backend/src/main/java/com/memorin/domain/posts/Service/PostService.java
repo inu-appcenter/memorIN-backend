@@ -9,6 +9,8 @@ import com.memorin.domain.posts.dto.Request.PostUpdateRequest;
 import com.memorin.domain.posts.dto.Response.*;
 import com.memorin.domain.users.Entity.User;
 import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.PostExceptions;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
@@ -43,7 +45,7 @@ public class PostService {
     @Transactional
     public PostCreateResponse create(UUID authorId, PostCreateRequest request) {
         User author = userRepository.findById(authorId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + authorId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + authorId));
 
         Date recordedDate = request.recordedDate() != null
                 ? Date.valueOf(request.recordedDate())
@@ -81,7 +83,7 @@ public class PostService {
     public PostListResponse list(UUID targetUserId, UUID requesterId, String cursor, Integer size) {
         UUID userId = targetUserId != null ? targetUserId : requesterId;
         if (userId == null) {
-            throw new IllegalArgumentException("조회할 사용자를 특정할 수 없습니다.");
+            throw new BusinessException(ErrorCode.COMMON_002, "조회할 사용자를 특정할 수 없습니다.");
         }
         boolean includeAllVisibility = userId.equals(requesterId);
 
@@ -175,16 +177,17 @@ public class PostService {
         }
         return postMediaRepository.saveAll(entities);
     }
-// 여기 수정해야 함. 여기 수정해야 함.여기 수정해야 함.여기 수정해야 함.여기 수정해야 함.
+    // URL 발급에 실패한 미디어는 url이 null로 내려간다.
+    // requireNonNull로 감싸면 미디어 한 건의 실패가 게시물 조회 전체를 500으로 만든다.
     private List<PostMediaResponse> toMediaResponses(List<PostMedia> media) {
         return media.stream()
-                .map(m -> PostMediaResponse.from(m, Objects.requireNonNull(resolveDownloadUrl(m.getId()))))
+                .map(m -> PostMediaResponse.from(m, resolveDownloadUrl(m)))
                 .toList();
-}
+    }
 
-    private String resolveDownloadUrl(UUID postMediaId) {
+    private String resolveDownloadUrl(PostMedia media) {
         try {
-            return presignedDownloadService.createDownloadUrl(postMediaId).downloadUrl();
+            return presignedDownloadService.createDownloadUrl(media).downloadUrl();
         } catch (Exception e) {
             // 미디어 하나의 URL 발급 실패로 게시물 조회 전체가 실패하지 않도록 null 처리.
             return null;

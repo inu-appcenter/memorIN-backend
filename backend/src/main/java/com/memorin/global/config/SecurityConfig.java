@@ -17,6 +17,7 @@ import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -30,12 +31,19 @@ public class SecurityConfig {
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
                 )
+                // 인증 실패는 401(AUTH_001)로 내린다. 기본값을 두면 403이라 Quota 초과와 구분되지 않는다.
+                .exceptionHandling(handling ->
+                        handling.authenticationEntryPoint(restAuthenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/signup",
                                 "/auth/login"
                         ).permitAll()
-                        .requestMatchers("/api/media/**", "/ws/**", "/*.html", "/error").permitAll() // JWT 필터 도입 시 제거
+                        // /api/media/**는 JWT 필터 도입에 맞춰 permitAll에서 제외했다.
+                        // Quota 검증 대상 userId를 토큰에서 받으므로 인증 없이 열어두면 남의 quota로 업로드가 가능해진다.
+                        .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
+                        // API 문서. 운영 배포 시 노출 범위는 별도 논의 필요.
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 );
 
