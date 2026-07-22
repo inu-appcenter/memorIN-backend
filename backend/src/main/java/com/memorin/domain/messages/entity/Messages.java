@@ -26,11 +26,11 @@ public class Messages {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false) // chat_rooms 도메인의 PK와 FK 관계 형성
-    private ChatRooms room_id; // FK
+    private ChatRooms room; // FK
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 1:N로 형성
     @JoinColumn(name = "sender_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    private User sender_id; // FK
+    private User sender; // FK
 
     @JdbcTypeCode(SqlTypes.JSON) // Hibernate에서 jsonb 타입으로 매핑
     @Column(name = "content", columnDefinition = "jsonb", nullable = false)
@@ -38,9 +38,9 @@ public class Messages {
 
     @Column(name = "sent_at", nullable = false)
     @ColumnDefault("CURRENT_TIMESTAMP")
-    private LocalDateTime sent_at;
+    private LocalDateTime sentAt;
 
     @Column(name = "deleted_at")
-    private LocalDateTime deleted_at;
+    private LocalDateTime deletedAt;
 
 }

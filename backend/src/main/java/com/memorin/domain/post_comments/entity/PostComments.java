@@ -44,15 +44,15 @@ public class PostComments {
     @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
     @ColumnDefault("CURRENT_TIMESTAMP")
-    private LocalDateTime created_at; // 만들어진 날짜
+    private LocalDateTime createdAt; // 만들어진 날짜
 
     @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
     @ColumnDefault("CURRENT_TIMESTAMP")
-    private LocalDateTime updated_at; // 수정된 날짜
+    private LocalDateTime updatedAt; // 수정된 날짜
 
     @Column(name = "deleted_at")
-    private LocalDateTime deleted_at; // 삭제된 날짜
+    private LocalDateTime deletedAt; // 삭제된 날짜
 
     // 최상위 댓글은 parent에 null을 넘긴다.
     public static PostComments of(Post post, User author, PostComments parent, String body) {
@@ -65,7 +65,7 @@ public class PostComments {
     }
 
     public void softDelete() {
-        this.deleted_at = LocalDateTime.now();
+        this.deletedAt = LocalDateTime.now();
     }
 
 }

@@ -14,13 +14,13 @@ import java.util.stream.Collectors;
 
 public interface PostCommentRepository extends JpaRepository<PostComments, UUID> {
 
-    @Query("SELECT c FROM PostComments c WHERE c.id = :id AND c.deleted_at IS NULL")
+    @Query("SELECT c FROM PostComments c WHERE c.id = :id AND c.deletedAt IS NULL")
     Optional<PostComments> findActiveById(@Param("id") UUID id);
 
     @Query("""
             SELECT c FROM PostComments c
-            WHERE c.post.id = :postId AND c.deleted_at IS NULL
-            ORDER BY c.created_at ASC
+            WHERE c.post.id = :postId AND c.deletedAt IS NULL
+            ORDER BY c.createdAt ASC
             """)
     List<PostComments> findActiveByPost(@Param("postId") UUID postId);
 
@@ -32,7 +32,7 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
     @Query("""
             SELECT c.post.id AS postId, COUNT(c) AS commentCount
             FROM PostComments c
-            WHERE c.post.id IN :postIds AND c.deleted_at IS NULL
+            WHERE c.post.id IN :postIds AND c.deletedAt IS NULL
             GROUP BY c.post.id
             """)
     List<PostCommentCountRow> countGroupedByPostIds(@Param("postIds") Collection<UUID> postIds);
