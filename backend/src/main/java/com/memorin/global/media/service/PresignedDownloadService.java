@@ -38,6 +38,13 @@ public class PresignedDownloadService {
         this(presignedUrlMinioClient, properties, postMediaRepository, Clock.systemUTC());
     }
 
+    // 단건 API용 - id만 아는 경우, 하위호환 유지 (findById 한 번만)
+    public PresignedDownloadResponse createDownloadUrl(UUID postMediaId) {
+        PostMedia postMedia = postMediaRepository.findById(postMediaId)
+                .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
+        return createDownloadUrl(postMedia);
+    }
+
     PresignedDownloadService(
             MinioClient presignedUrlMinioClient,
             MinioProperties properties,
@@ -50,10 +57,8 @@ public class PresignedDownloadService {
         this.clock = clock;
     }
 
-    public PresignedDownloadResponse createDownloadUrl(UUID postMediaId) {
-        PostMedia postMedia = postMediaRepository.findById(postMediaId)
-                .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
-
+    // 목록용 - 이미 엔티티를 손에 든 경우 DB 재조회 없음.
+    public PresignedDownloadResponse createDownloadUrl(PostMedia postMedia) {
         String objectKey = postMedia.getFileKey();
 
         try {
