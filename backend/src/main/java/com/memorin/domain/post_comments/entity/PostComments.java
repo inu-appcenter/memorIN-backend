@@ -66,6 +66,11 @@ public class PostComments {
 
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
+        this.body = null; // 삭제 시점에 실제 내용은 DB에서도 즉시 비운다 (tombstone - 자리만 남기고 내용은 폐기)
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 
 }

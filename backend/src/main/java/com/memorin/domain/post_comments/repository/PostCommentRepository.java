@@ -27,6 +27,14 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
     List<PostComments> findActiveByPost(@Param("postId") UUID postId);
     */
 
+    // 스레드 전체 조회 (활성 + tombstone 포함) - 자식이 부모 없이 떠 있는 것처럼 보이지 않도록 tombstone도 함께 내려준다.
+    @Query("""
+        SELECT c FROM PostComments c
+        WHERE c.post.id = :postId
+        ORDER BY c.createdAt ASC
+        """)
+    List<PostComments> findThreadByPostId(@Param("postId") UUID postId);
+
     // 게시물 상세/목록에 보여줄 "지금 이 순간"의 실제 댓글 수. asOf 필터 없음.
     @Query("SELECT COUNT(c) FROM PostComments c WHERE c.post.id = :postId AND c.deletedAt IS NULL")
     long countActiveByPostId(@Param("postId") UUID postId);

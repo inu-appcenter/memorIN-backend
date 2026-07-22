@@ -11,7 +11,6 @@ import java.util.UUID;
  * 조회(PostService), 댓글(PostCommentsService), 좋아요(PostLikesService)가
  * 전부 이 로직을 그대로 재사용해야 "조회는 막혔는데 상호작용은 열려있는" 문제가 재발하지 않는다.
  */
-@Component
 public class PostAccessPolicy {
 
     public static void assertReadable(Post post, UUID requesterId) {

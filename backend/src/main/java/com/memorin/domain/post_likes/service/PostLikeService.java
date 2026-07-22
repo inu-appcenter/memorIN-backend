@@ -40,9 +40,14 @@ public class PostLikeService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + userId));
 
-        // 유니크 제약(post_id, user_id)이 동시 요청 시 최종 방어선 역할을 해준다.
-        postLikesRepository.save(PostLikes.of(post, user));
-        return true;
+        try {
+            postLikesRepository.saveAndFlush(PostLikes.of(post, user));
+            return true;
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 더블탭 등으로 동시에 두 요청이 들어와 uq_post_like 제약에 걸린 경우.
+            // 최종 상태는 "좋아요가 등록됨"과 동일하므로 예외를 삼키고 멱등하게 성공 처리한다.
+            return true;
+        }
     }
 
     public long countLikes(UUID postId) {
