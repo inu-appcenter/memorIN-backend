@@ -16,8 +16,8 @@ public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
     @Query(value = """
             SELECT COALESCE(SUM(pm.file_size_bytes), 0)
             FROM post_media pm
-            JOIN posts p ON pm.post = p.id
-            WHERE p.user = :userId
+            JOIN posts p ON pm.post_id = p.id
+            WHERE p.user_id = :userId
               AND p.deleted_at IS NULL
               AND pm.deleted_at IS NULL
             """, nativeQuery = true)
