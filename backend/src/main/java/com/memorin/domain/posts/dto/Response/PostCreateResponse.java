@@ -21,7 +21,7 @@ public record PostCreateResponse(
     public static PostCreateResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostCreateResponse(
                 post.getId().toString(),
-                post.getUserId().getId().toString(),
+                post.getUser().getId().toString(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),

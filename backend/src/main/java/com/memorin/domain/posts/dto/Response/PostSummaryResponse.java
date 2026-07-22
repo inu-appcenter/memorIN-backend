@@ -20,7 +20,7 @@ public record PostSummaryResponse(
     public static PostSummaryResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostSummaryResponse(
                 post.getId().toString(),
-                post.getUserId().getId().toString(),
+                post.getUser().getId().toString(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),

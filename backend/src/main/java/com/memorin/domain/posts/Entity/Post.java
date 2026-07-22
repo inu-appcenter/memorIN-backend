@@ -31,7 +31,7 @@ public class Post {
 
     @ManyToOne(fetch = FetchType.LAZY) // FK 관계를 N:1로 형성
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    private User userId; // FK
+    private User user; // FK
 
     @JdbcTypeCode(SqlTypes.JSON) // Hibernate에서 jsonb 타입으로 매핑
     @Column(name = "content", columnDefinition = "jsonb", nullable = false)
@@ -70,7 +70,6 @@ public class Post {
     private LocalDateTime updatedAt; // 수정된 날짜
 
     @Column(name = "deleted_at")
-    @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deletedAt; // 삭제된 날짜
 
     // Builder는 작성 논의
@@ -78,11 +77,11 @@ public class Post {
     // 임시 builder
     @Builder
     private Post(
-            User userId, String content, VisibilityType visibilityType, TimeslotType timeslot,
+            User user, String content, VisibilityType visibilityType, TimeslotType timeslot,
             Date recordedDate, int viewCount, LocalDateTime createdAt,
             LocalDateTime updatedAt, LocalDateTime deletedAt
     ){
-        this.userId = userId; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
+        this.user = user; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
         this.content = content;
         this.visibility = visibilityType != null ? visibilityType : VisibilityType.PUBLIC;
         this.timeslot = timeslot;
@@ -93,10 +92,10 @@ public class Post {
         this.deletedAt = deletedAt;
     }
 
-    public static Post create(User userId, String content, VisibilityType visibility,
+    public static Post create(User user, String content, VisibilityType visibility,
                               TimeslotType timeslot, Date recordedDate) {
         return Post.builder()
-                .userId(userId)
+                .user(user)
                 .content(content)
                 .visibilityType(visibility)
                 .timeslot(timeslot)
@@ -127,7 +126,7 @@ public class Post {
     }
 
     public boolean isOwnedBy(UUID userId) {
-        return this.userId.getId().equals(userId);
+        return this.user.getId().equals(userId);
     }
 
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.sql.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,11 +28,25 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             LIMIT :limit
             """, nativeQuery = true)
     List<Post> findUserFeed(
-            @Param("userId") String userId,
+            @Param("userId") UUID userId,
             @Param("includeAllVisibility") boolean includeAllVisibility,
             @Param("cursorRecordedDate") Date cursorRecordedDate,
-            @Param("cursorId") String cursorId,
+            @Param("cursorId") UUID cursorId,
             @Param("limit") int limit
+    );
+
+    // posts 도메인 단독 쿼리. 다른 도메인과 JOIN하지 않는다.
+    @Query(value = """
+        SELECT * FROM posts p
+        WHERE p.deleted_at IS NULL
+          AND p.visibility = 'PUBLIC'
+          AND p.created_at > :windowStart
+        ORDER BY p.created_at DESC
+        LIMIT :candidatePoolSize
+        """, nativeQuery = true)
+    List<Post> findRecommendationCandidates(
+            @Param("windowStart") Instant windowStart,
+            @Param("candidatePoolSize") int candidatePoolSize
     );
 
 }

@@ -27,16 +27,16 @@ public class PostComments {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false) // posts 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // post가 사라지면 Like도 삭제
-    private Post post_id; // FK
+    private Post post; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false) // users 도메인의 PK와 FK 관계 형성
-    private User user_id; // FK
+    private User user; // FK
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id") // post_comments(self) 도메인의 PK와 FK 관계 형성
     @OnDelete(action = OnDeleteAction.CASCADE) // comment가 사라지면 Like도 삭제
-    private PostComments parent_id; // FK
+    private PostComments parent; // FK
 
     @Column(name = "body", nullable = false)
     private String body; // comment 내용
@@ -52,17 +52,20 @@ public class PostComments {
     private LocalDateTime updated_at; // 수정된 날짜
 
     @Column(name = "deleted_at")
-    @ColumnDefault("false") // 기본 값을 null로
     private LocalDateTime deleted_at; // 삭제된 날짜
 
     // 최상위 댓글은 parent에 null을 넘긴다.
     public static PostComments of(Post post, User author, PostComments parent, String body) {
         PostComments comment = new PostComments();
-        comment.post_id = post;
-        comment.user_id = author;
-        comment.parent_id = parent;
+        comment.post = post;
+        comment.user = author;
+        comment.parent = parent;
         comment.body = body;
         return comment;
+    }
+
+    public void softDelete() {
+        this.deleted_at = LocalDateTime.now();
     }
 
 }
