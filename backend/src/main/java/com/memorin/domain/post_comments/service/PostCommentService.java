@@ -3,7 +3,6 @@ package com.memorin.domain.post_comments.service;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import com.memorin.domain.posts.entity.Post;
-import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.posts.repository.PostRepository;
 import com.memorin.domain.posts.service.PostAccessPolicy;
 import com.memorin.domain.users.entity.User;

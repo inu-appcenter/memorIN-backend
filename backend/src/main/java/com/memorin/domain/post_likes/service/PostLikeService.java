@@ -35,6 +35,7 @@ public class PostLikeService {
 
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
+
         PostAccessPolicy.assertReadable(post, userId); // 새로 누르는 것만 검사
 
         User user = userRepository.findById(userId)
