@@ -12,6 +12,7 @@ import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.PostExceptions;
+import com.memorin.global.media.service.MediaUploadCommitService;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
 import com.memorin.global.media.service.StorageQuotaService;
@@ -40,6 +41,7 @@ public class PostService {
     private final PresignedDownloadService presignedDownloadService;
     private final PresignedUploadService presignedUploadService;
     private final StorageQuotaService storageQuotaService;
+    private final MediaUploadCommitService mediaUploadCommitService;
 
     // 글 등록
     @Transactional
@@ -55,7 +57,7 @@ public class PostService {
                 request.timeslotType(), recordedDate);
         postRepository.save(post);
 
-        List<PostMedia> savedMedia = saveMedia(post, request.attachments());
+        List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
 
         List<PostMediaResponse> attachmentResponses = toMediaResponses(savedMedia);
         return PostCreateResponse.of(post, attachmentResponses);
@@ -141,7 +143,7 @@ public class PostService {
         if (request.attachments() != null) {
             // attachments가 명시적으로 온 경우: 기존 미디어를 통째로 교체.
             postMediaRepository.deleteAllByPostId(postId);
-            media = saveMedia(post, request.attachments());
+            media = saveMedia(post, request.attachments(), requesterId);
         } else {
             media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
         }
@@ -164,15 +166,18 @@ public class PostService {
 
     // ---- private helpers ----
 
-    private List<PostMedia> saveMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments) {
+    // 첨부마다 pending 예약을 커밋(statObject로 실제 크기 재검증)한 뒤 저장한다.
+    // a.fileSizeBytes()(클라이언트 선언값)는 신뢰하지 않고 검증된 실제 크기를 쓴다.
+    private List<PostMedia> saveMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments, UUID requesterId) {
         if (attachments == null || attachments.isEmpty()) {
             return List.of();
         }
         List<PostMedia> entities = new ArrayList<>();
         int order = 0;
         for (PostCreateRequest.AttachmentRequest a : attachments) {
+            long verifiedBytes = mediaUploadCommitService.commitUpload(requesterId, a.fileKey());
             entities.add(PostMedia.of(
-                    post, a.fileKey(), a.mimeType(), a.fileSizeBytes(), (short) order++, a.width(), a.height()
+                    post, a.fileKey(), a.mimeType(), verifiedBytes, (short) order++, a.width(), a.height()
             ));
         }
         return postMediaRepository.saveAll(entities);

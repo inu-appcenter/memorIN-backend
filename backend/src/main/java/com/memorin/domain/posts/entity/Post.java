@@ -129,4 +129,12 @@ public class Post {
         return this.user.getId().equals(userId);
     }
 
+    // FRIENDS는 팔로우 연동 전까지 PRIVATE과 동일하게 본인만 허용한다.
+    public boolean isVisibleTo(UUID requesterId) {
+        return switch (this.visibility) {
+            case PUBLIC -> true;
+            case PRIVATE, FRIENDS -> requesterId != null && isOwnedBy(requesterId);
+        };
+    }
+
 }
