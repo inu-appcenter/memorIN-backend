@@ -2,7 +2,6 @@ package com.memorin.domain.posts.service;
 
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.global.exception.PostExceptions;
-import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 

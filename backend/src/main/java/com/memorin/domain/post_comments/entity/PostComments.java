@@ -41,14 +41,12 @@ public class PostComments {
     @Column(name = "body", nullable = false)
     private String body; // comment 내용
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz") // timestamptz로 시간 오차 발생 방어
     private LocalDateTime createdAt; // 만들어진 날짜
 
-    @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime updatedAt; // 수정된 날짜
 
     @Column(name = "deleted_at")

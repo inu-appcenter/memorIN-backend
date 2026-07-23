@@ -4,11 +4,10 @@ import com.memorin.domain.chat_rooms.entity.ChatRooms;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -46,12 +45,10 @@ public class ChatRoomMembers {
     @ColumnDefault("MEMBER")
     private Members_role role; // 채팅방 내 역할
 
-    @Column(name = "joined_at", nullable = false)
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "joined_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime joinedAt;
 
-    @Column(name = "last_read_at", nullable = false)
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "lastRead_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime lastReadAt;
 
     @Column(name = "left_at")

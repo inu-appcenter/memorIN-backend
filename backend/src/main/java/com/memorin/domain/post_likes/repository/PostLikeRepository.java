@@ -34,7 +34,7 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
     @Query("""
             SELECT l.post.id AS postId, COUNT(l) AS likeCount
             FROM PostLikes l
-            WHERE l.post.id IN :postIds AND l.created_at <= :asOf
+            WHERE l.post.id IN :postIds AND l.createdAt <= :asOf
             GROUP BY l.post.id
             """)
     List<PostLikeCountRow> countGroupedByPostIds(
