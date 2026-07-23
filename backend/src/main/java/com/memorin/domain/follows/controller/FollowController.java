@@ -2,7 +2,7 @@ package com.memorin.domain.follows.controller;
 
 import com.memorin.domain.follows.dto.FollowRequest;
 import com.memorin.domain.follows.service.FollowService;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.global.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -2,7 +2,7 @@
 
 > **목적** — Sprint 1 본격 구현에 들어가기 전에, BE 각자가 맡은 도메인이 **서로를 어떻게 호출할지(경계)** 를 미리 합의한다.
 > Sprint 0 게이트 체크리스트의 **"BE: 도메인 인터페이스 경계 문서 합의 완료"** 항목을 충족하기 위한 초안이다.
-> 이 문서는 **초안**이며, 표의 "합의 필요" 칸을 수요일 세션에서 채워 확정한다.
+> **상태**: 결정사항 A~D는 **Week 4 수요일 확정**(3절·5절 결정 로그 참고). E(소프트 삭제 공통화)만 후속 논의로 미확정.
 
 ---
 
@@ -22,30 +22,37 @@
 
 ## 2. 도메인 간 참조 관계 (DDL FK 기준, 현재 상태)
 
-| 참조하는 쪽(내 도메인) | 참조 대상 | 연결 컬럼(FK) | 현재 구현 상태 | 참조 방식 (🔴 합의 필요) |
+참조 방식은 **B(옵션1: @ManyToOne 직접 참조)** 로 확정. 연관 필드명은 `_id` 없이 대상 이름으로 통일(Week 4 리팩터 반영).
+
+| 참조하는 쪽(내 도메인) | 참조 대상 | 연결 컬럼(FK, DB) | Java 연관 필드 | 참조 방식 |
 | --- | --- | --- | --- | --- |
-| posts | users | `posts.user_id` | `Post.userId` 가 **`User` 엔티티 직접 참조**(@ManyToOne) | 엔티티 직접? / UUID만? |
-| post_media | posts | `post_media.post_id` | `PostMedia.postId` 가 **`Post` 엔티티 직접 참조** | 엔티티 직접? / UUID만? |
-| post_likes | posts, users | `post_id`, `user_id` | 엔티티 미구현 | ─ |
-| post_comments | posts, users, (self) | `post_id`, `user_id`, `parent_id` | 엔티티 미구현 | ─ |
-| follows | users(×2) | `follower_id`, `following_id` | 엔티티 미구현 | ─ |
-| chat_room_members | chat_rooms, users | `room_id`, `user_id` | 엔티티 미구현 | ─ |
-| messages | chat_rooms, users | `room_id`, `sender_id` | 엔티티 미구현 | ─ |
+| posts | users | `posts.user_id` | `Post.user` | @ManyToOne |
+| post_media | posts | `post_media.post_id` | `PostMedia.post` | @ManyToOne |
+| post_likes | posts, users | `post_id`, `user_id` | `PostLikes.post`, `.user` | @ManyToOne |
+| post_comments | posts, users, (self) | `post_id`, `user_id`, `parent_id` | `PostComments.post`, `.user`, `.parent` | @ManyToOne |
+| follows | users(×2) | `follower_id`, `following_id` | `Follows.follower`, `.following` | @ManyToOne |
+| chat_room_members | chat_rooms, users | `room_id`, `user_id` | `ChatRoomMembers.room`, `.user` | @ManyToOne |
+| messages | chat_rooms, users | `room_id`, `sender_id` | `Messages.room`, `.sender` | @ManyToOne |
 
 ---
 
-## 3. 🔴 합의가 필요한 핵심 결정사항 (수요일 안건)
+## 3. 핵심 결정사항 (Week 4 수요일 확정)
 
-- [ ] **A. 유저 엔티티 단일화** — 현재 `member.entity.Member` 와 `domain.users.Entity.User` 가 **동일 필드로 중복**. 게시물·채팅 등이 참조할 유저 엔티티를 **하나로 확정**한다.
-  - 결정: 표준 엔티티 = `____________` / 삭제할 것 = `____________`
-- [ ] **B. 도메인 간 참조 방식** — 남의 엔티티를 JPA로 **직접 참조**할지, **ID(UUID)만** 들고 서비스로 조회할지 팀 표준을 정한다.
-  - 옵션1: `@ManyToOne User user` (JPA 직접 참조 — 조인 편함, 도메인 결합 강함)
+- [x] **A. 유저 엔티티 단일화** — `member.entity.Member` 는 삭제되었고 `domain.users.entity.User` 로 단일화 완료.
+  - **결정: 표준 엔티티 = `com.memorin.domain.users.entity.User` / 삭제할 것 = `member.entity.Member`(삭제 완료)**
+- [x] **B. 도메인 간 참조 방식** — **옵션1(JPA 직접 참조)로 확정.** 전 엔티티가 `@ManyToOne(fetch = LAZY)` 로 통일됨.
+  - 옵션1: `@ManyToOne User user` (JPA 직접 참조 — 조인 편함, 도메인 결합 강함) ← **채택**
   - 옵션2: `UUID userId` 필드 + 필요 시 `UserQueryService`로 조회 (결합 약함, 조인 직접 관리)
-  - 결정: `____________`
-- [ ] **C. 필드 네이밍 컨벤션** — Java 필드는 카멜케이스, `@Column(name=...)` 는 스네이크케이스(DB 컬럼)로 통일. (이미 `domain` 패키지 엔티티 적용 완료)
-- [ ] **D. 패키지 구조** — `com.memorin.member.*` vs `com.memorin.domain.*.Entity.*` 혼재. 표준 경로 확정.
-  - 결정: `____________`
-- [ ] **E. 소프트 삭제 규칙** — `deleted_at IS NULL` 필터를 어디서 책임지나 (조회 서비스 공통? 도메인별?).
+  - **결정: `옵션1 — @ManyToOne 직접 참조`. 연관 필드명은 `_id` 접미사 없이 대상 이름으로(`user`, `post`, `follower`, `sender`).**
+- [x] **C. 필드 네이밍 컨벤션** — **Java 필드 = camelCase, `@Column(name=...)`/`@JoinColumn(name=...)` = snake_case(DB 컬럼).** 전 엔티티 적용 완료(Week 4 리팩터).
+  ```java
+  @Column(name = "created_at")   // DB 컬럼: snake_case
+  private LocalDateTime createdAt; // Java 필드: camelCase
+  ```
+  - 주의: JPQL(`@Query`)의 프로퍼티 경로는 **Java 필드명(camelCase)**, 네이티브 쿼리(`nativeQuery=true`)는 **DB 컬럼명(snake_case)**.
+- [x] **D. 패키지 구조** — **전 패키지 소문자 통일**(Week 4 리팩터). `Entity/Controller/Repository/Service/Request/Response` 대문자 세그먼트 제거.
+  - **결정: `com.memorin.domain.<도메인>.{controller|service|repository|entity|dto.request|dto.response}` (전부 소문자). `member.*` 패키지 폐기.**
+- [ ] **E. 소프트 삭제 규칙** — `deleted_at IS NULL` 필터를 어디서 책임지나 (조회 서비스 공통? 도메인별?). *(미확정 — 조회 레이어 공통화 방안 후속 논의)*
 
 ---
 
@@ -80,7 +87,9 @@
 - 3번 체크리스트 A~E가 결정되면,
 - 이 문서를 **`도메인 인터페이스 v1`** 으로 확정(이후 변경은 PM 승인) → 게이트 항목 충족.
 
-> 결정 로그(수요일 채움):
-> - A. 유저 엔티티 = …
-> - B. 참조 방식 = …
-> - C/D/E. …
+> 결정 로그 (Week 4 수요일 확정):
+> - A. 유저 엔티티 = `domain.users.entity.User` 단일화 (Member 삭제 완료)
+> - B. 참조 방식 = 옵션1 `@ManyToOne` 직접 참조. 연관 필드명 `_id` 접미사 제거
+> - C. 네이밍 = Java camelCase / `@Column` snake_case — 전 엔티티 적용 완료
+> - D. 패키지 = 전부 소문자(`controller/service/repository/entity/dto`) — `member.*` 폐기
+> - E. 소프트 삭제 공통화 = **미확정**, 후속 논의

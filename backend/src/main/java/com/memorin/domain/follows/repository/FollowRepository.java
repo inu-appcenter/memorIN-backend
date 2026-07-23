@@ -1,6 +1,6 @@
 package com.memorin.domain.follows.repository;
 
-import com.memorin.domain.follows.Entity.Follows;
+import com.memorin.domain.follows.entity.Follows;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

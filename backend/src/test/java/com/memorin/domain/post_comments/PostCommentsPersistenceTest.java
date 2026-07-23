@@ -1,10 +1,10 @@
 package com.memorin.domain.post_comments;
 
-import com.memorin.domain.post_comments.Entity.PostComments;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Entity.TimeslotType;
-import com.memorin.domain.posts.Entity.VisibilityType;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.post_comments.entity.PostComments;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.entity.VisibilityType;
+import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +61,7 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
 
         // then
         PostComments found = em.find(PostComments.class, saved.getId());
-        assertThat(found.getParent_id()).isNull();
+        assertThat(found.getParent()).isNull();
         assertThat(found.getBody()).isEqualTo("최상위 댓글");
     }
 
@@ -80,8 +80,8 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
         // then
         PostComments found = em.find(PostComments.class, saved.getId());
         // parent_id 타입이 User였다면 이 단언 자체가 컴파일되지 않는다.
-        assertThat(found.getParent_id()).isNotNull();
-        assertThat(found.getParent_id().getId()).isEqualTo(parent.getId());
-        assertThat(found.getParent_id().getBody()).isEqualTo("부모 댓글");
+        assertThat(found.getParent()).isNotNull();
+        assertThat(found.getParent().getId()).isEqualTo(parent.getId());
+        assertThat(found.getParent().getBody()).isEqualTo("부모 댓글");
     }
 }

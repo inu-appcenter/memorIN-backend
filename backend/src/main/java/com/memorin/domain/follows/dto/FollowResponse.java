@@ -1,7 +1,7 @@
 package com.memorin.domain.follows.dto;
 
-import com.memorin.domain.follows.Entity.Follows;
-import com.memorin.domain.follows.Entity.Follow_state;
+import com.memorin.domain.follows.entity.Follows;
+import com.memorin.domain.follows.entity.Follow_state;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

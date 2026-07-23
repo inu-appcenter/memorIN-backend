@@ -8,6 +8,7 @@ import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.UserDetailsImpl;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
 import com.memorin.global.media.dto.response.QuotaResponse;
+import com.memorin.global.media.exception.MediaAccessDeniedException;
 import com.memorin.global.media.exception.MediaStorageException;
 import com.memorin.global.media.exception.PostMediaNotFoundException;
 import com.memorin.global.media.exception.StorageQuotaExceededException;
@@ -180,7 +181,7 @@ class MediaControllerTest {
     void createPresignedDownloadUrl_미디어를_찾지_못하면_404와_MEDIA_004_에러코드를_반환한다() throws Exception {
         // given
         UUID postMediaId = UUID.randomUUID();
-        given(presignedDownloadService.createDownloadUrl(postMediaId))
+        given(presignedDownloadService.createDownloadUrl(eq(postMediaId), any()))
                 .willThrow(new PostMediaNotFoundException(postMediaId));
 
         // when
@@ -190,6 +191,35 @@ class MediaControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("MEDIA_004"))
+                .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void createPresignedDownloadUrl_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/{postMediaId}/presigned-download-url", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    // IDOR 방지: 소유자도 아니고 PUBLIC도 아닌 미디어에 접근하면 403/MEDIA_006이어야 한다.
+    @Test
+    void createPresignedDownloadUrl_접근권한이_없으면_403과_MEDIA_006_에러코드를_반환한다() throws Exception {
+        // given
+        UUID postMediaId = UUID.randomUUID();
+        UUID requesterId = UUID.randomUUID();
+        given(presignedDownloadService.createDownloadUrl(eq(postMediaId), eq(requesterId)))
+                .willThrow(new MediaAccessDeniedException(postMediaId));
+
+        // when
+        // then
+        mockMvc.perform(get("/api/media/{postMediaId}/presigned-download-url", postMediaId)
+                        .with(user(principalOf(requesterId))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("MEDIA_006"))
                 .andExpect(jsonPath("$.error.message").exists());
     }
 }

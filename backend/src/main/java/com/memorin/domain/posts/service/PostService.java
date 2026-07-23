@@ -1,0 +1,207 @@
+package com.memorin.domain.posts.service;
+
+import com.memorin.domain.post_media.entity.PostMedia;
+import com.memorin.domain.post_media.repository.PostMediaRepository;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.repository.PostRepository;
+import com.memorin.domain.posts.dto.request.PostCreateRequest;
+import com.memorin.domain.posts.dto.request.PostUpdateRequest;
+import com.memorin.domain.posts.dto.response.*;
+import com.memorin.domain.users.entity.User;
+import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
+import com.memorin.global.exception.PostExceptions;
+import com.memorin.global.media.service.MediaUploadCommitService;
+import com.memorin.global.media.service.PresignedDownloadService;
+import com.memorin.global.media.service.PresignedUploadService;
+import com.memorin.global.media.service.StorageQuotaService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.Date;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class PostService {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 50;
+
+    private final PostRepository postRepository;
+    private final PostMediaRepository postMediaRepository;
+    private final UserRepository userRepository;
+    private final PresignedDownloadService presignedDownloadService;
+    private final PresignedUploadService presignedUploadService;
+    private final StorageQuotaService storageQuotaService;
+    private final MediaUploadCommitService mediaUploadCommitService;
+
+    // 글 등록
+    @Transactional
+    public PostCreateResponse create(UUID authorId, PostCreateRequest request) {
+        User author = userRepository.findById(authorId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + authorId));
+
+        Date recordedDate = request.recordedDate() != null
+                ? Date.valueOf(request.recordedDate())
+                : Date.valueOf(LocalDate.now());
+
+        Post post = Post.create(author, request.content(), request.visibilityType(),
+                request.timeslotType(), recordedDate);
+        postRepository.save(post);
+
+        List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
+
+        List<PostMediaResponse> attachmentResponses = toMediaResponses(savedMedia);
+        return PostCreateResponse.of(post, attachmentResponses);
+    }
+
+    // ---- 단건 조회 ----
+    @Transactional
+    public PostResponse getOne(UUID postId, UUID requesterId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+                .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
+
+        PostAccessPolicy.assertReadable(post, requesterId);
+
+        // 작성자 본인이 아닐 때만 조회수 증가 (읽기 API인데 굳이 트랜잭션 열어서 처리)
+        if (requesterId == null || !post.isOwnedBy(requesterId)) {
+            post.increaseViewCount();
+        }
+
+        List<PostMedia> media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
+        return PostResponse.of(post, toMediaResponses(media));
+    }
+
+    // ---- 목록(피드) 조회 ----
+    // targetUserId가 없으면 "내 기록" 목록으로 간주하고 requesterId를 사용한다.
+    public PostListResponse list(UUID targetUserId, UUID requesterId, String cursor, Integer size) {
+        UUID userId = targetUserId != null ? targetUserId : requesterId;
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.COMMON_002, "조회할 사용자를 특정할 수 없습니다.");
+        }
+        boolean includeAllVisibility = userId.equals(requesterId);
+
+        int limit = normalizeSize(size);
+
+        Date cursorRecordedDate = null;
+        UUID cursorId = null;
+        if (cursor != null && !cursor.isBlank()) {
+            PostCursor.Cursor decoded = PostCursor.decode(cursor);
+            cursorRecordedDate = decoded.recordedDate();
+            cursorId = UUID.fromString(decoded.postId());
+        }
+
+        // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
+        List<Post> rows = postRepository.findUserFeed(
+                userId, includeAllVisibility, cursorRecordedDate, cursorId, limit + 1
+        );
+
+        boolean hasNext = rows.size() > limit;
+        List<Post> pageContent = hasNext ? rows.subList(0, limit) : rows;
+
+        // N+1 방지: 페이지에 포함된 게시물들의 미디어를 한 번에 가져와서 postId로 그룹핑.
+        List<UUID> postIds = pageContent.stream().map(Post::getId).toList();
+        Map<UUID, List<PostMedia>> mediaByPostId = postMediaRepository
+                .findByPostIdInOrderByOrderIndexAsc(postIds).stream()
+                .collect(Collectors.groupingBy(m -> m.getPost().getId()));
+
+        List<PostSummaryResponse> items = pageContent.stream()
+                .map(p -> PostSummaryResponse.of(p, toMediaResponses(mediaByPostId.getOrDefault(p.getId(), List.of()))))
+                .toList();
+
+        String nextCursor = null;
+        if (hasNext && !pageContent.isEmpty()) {
+            Post last = pageContent.get(pageContent.size() - 1);
+            nextCursor = PostCursor.encode(last.getRecordedDate(), last.getId().toString());
+        }
+
+        return new PostListResponse(items, nextCursor, hasNext);
+    }
+
+    // ---- 수정 ----
+    @Transactional
+    public PostResponse update(UUID postId, UUID requesterId, PostUpdateRequest request) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+                .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
+
+        if (!post.isOwnedBy(requesterId)) {
+            throw new PostExceptions.PostAccessDeniedException();
+        }
+
+        Date recordedDate = request.recordedDate() != null ? Date.valueOf(request.recordedDate()) : null;
+        post.update(request.content(), request.visibilityType(), request.timeslotType(), recordedDate);
+
+        List<PostMedia> media;
+        if (request.attachments() != null) {
+            // attachments가 명시적으로 온 경우: 기존 미디어를 통째로 교체.
+            postMediaRepository.deleteAllByPostId(postId);
+            media = saveMedia(post, request.attachments(), requesterId);
+        } else {
+            media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
+        }
+
+        return PostResponse.of(post, toMediaResponses(media));
+    }
+
+    // ---- 삭제 (소프트) ----
+    @Transactional
+    public void delete(UUID postId, UUID requesterId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+                .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
+
+        if (!post.isOwnedBy(requesterId)) {
+            throw new PostExceptions.PostAccessDeniedException();
+        }
+        post.softDelete();
+        // post_media row는 그대로 둔다. 실제 MinIO 객체 정리는 별도 배치/정책으로 처리하는 것을 권장.
+    }
+
+    // ---- private helpers ----
+
+    // 첨부마다 pending 예약을 커밋(statObject로 실제 크기 재검증)한 뒤 저장한다.
+    // a.fileSizeBytes()(클라이언트 선언값)는 신뢰하지 않고 검증된 실제 크기를 쓴다.
+    private List<PostMedia> saveMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments, UUID requesterId) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+        List<PostMedia> entities = new ArrayList<>();
+        int order = 0;
+        for (PostCreateRequest.AttachmentRequest a : attachments) {
+            long verifiedBytes = mediaUploadCommitService.commitUpload(requesterId, a.fileKey());
+            entities.add(PostMedia.of(
+                    post, a.fileKey(), a.mimeType(), verifiedBytes, (short) order++, a.width(), a.height()
+            ));
+        }
+        return postMediaRepository.saveAll(entities);
+    }
+    // URL 발급에 실패한 미디어는 url이 null로 내려간다.
+    // requireNonNull로 감싸면 미디어 한 건의 실패가 게시물 조회 전체를 500으로 만든다.
+    private List<PostMediaResponse> toMediaResponses(List<PostMedia> media) {
+        return media.stream()
+                .map(m -> PostMediaResponse.from(m, resolveDownloadUrl(m)))
+                .toList();
+    }
+
+    private String resolveDownloadUrl(PostMedia media) {
+        try {
+            return presignedDownloadService.createDownloadUrl(media).downloadUrl();
+        } catch (Exception e) {
+            // 미디어 하나의 URL 발급 실패로 게시물 조회 전체가 실패하지 않도록 null 처리.
+            return null;
+        }
+    }
+
+    private int normalizeSize(Integer size) {
+        if (size == null) return DEFAULT_PAGE_SIZE;
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    }
+
+
+}

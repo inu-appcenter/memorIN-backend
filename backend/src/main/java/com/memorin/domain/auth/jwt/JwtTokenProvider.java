@@ -1,6 +1,6 @@
 package com.memorin.domain.auth.jwt;
 
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

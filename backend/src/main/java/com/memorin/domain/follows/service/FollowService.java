@@ -1,9 +1,9 @@
 package com.memorin.domain.follows.service;
 
-import com.memorin.domain.follows.Entity.Follow_state;
-import com.memorin.domain.follows.Entity.Follows;
+import com.memorin.domain.follows.entity.Follow_state;
+import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;

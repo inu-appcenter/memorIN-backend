@@ -8,7 +8,7 @@ import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.auth.repository.RefreshTokenRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

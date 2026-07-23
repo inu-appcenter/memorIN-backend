@@ -1,12 +1,12 @@
 package com.memorin.domain.posts;
 
-import com.memorin.domain.post_media.Entity.PostMedia;
-import com.memorin.domain.posts.Entity.Post;
-import com.memorin.domain.posts.Entity.TimeslotType;
-import com.memorin.domain.posts.Entity.VisibilityType;
-import com.memorin.domain.posts.Service.PostService;
-import com.memorin.domain.posts.dto.Response.PostListResponse;
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.post_media.entity.PostMedia;
+import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.entity.VisibilityType;
+import com.memorin.domain.posts.service.PostService;
+import com.memorin.domain.posts.dto.response.PostListResponse;
+import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
