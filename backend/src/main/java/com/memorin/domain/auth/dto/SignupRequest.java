@@ -6,8 +6,8 @@ import jakarta.validation.constraints.Size;
 
 public record SignupRequest (
 
-    @NotBlank //빈 문자열, 공백만 있는 값 방지
-    @Email //이메일 형식과 일치하는지 검사
+    @NotBlank // 빈 문자열, 공백만 있는 값 방지
+    @Email // 이메일 형식과 일치하는지 검사
     String email,
 
     @NotBlank
@@ -22,7 +22,6 @@ public record SignupRequest (
     @Size(max = 50)
     String displayName,
 
-    @NotBlank
     @Size(max = 200)
     String bio
 

@@ -6,7 +6,6 @@ import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -36,8 +35,7 @@ public class Messages {
     @Column(name = "content", columnDefinition = "jsonb", nullable = false)
     private String content; // 게시물
 
-    @Column(name = "sent_at", nullable = false)
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "sent_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime sentAt;
 
     @Column(name = "deleted_at")

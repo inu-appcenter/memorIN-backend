@@ -35,14 +35,12 @@ public class ChatRooms {
     @Column(name = "thumbnail_key", length = 500)
     private String thumbnailKey;
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz") // timestamptz로 시간 오차 발생 방어
     private LocalDateTime createdAt; // 만들어진 날짜
 
-    @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP") // CURRENT_DATE 사용 X -> 시/분/초 까지 저장하기 위해서
+    @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime updatedAt; // 수정된 날짜
 
 
