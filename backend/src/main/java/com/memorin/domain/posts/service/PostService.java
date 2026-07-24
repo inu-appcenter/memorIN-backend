@@ -54,7 +54,10 @@ public class PostService {
 
         Post post = Post.create(author, request.content(), request.visibilityType(),
                 request.timeslotType(), recordedDate);
-        postRepository.save(post);
+        // save()만 호출하면 INSERT가 트랜잭션 끝까지 지연돼, @CreationTimestamp가 채우는
+        // createdAt이 아직 null인 상태로 응답 DTO에 담겼다. flush로 INSERT를 즉시 실행해
+        // 생성 시각이 채워진 상태로 응답한다.
+        postRepository.saveAndFlush(post);
 
         List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
 
