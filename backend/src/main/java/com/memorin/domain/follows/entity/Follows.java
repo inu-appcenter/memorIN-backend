@@ -4,6 +4,7 @@ import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.*;
@@ -13,7 +14,7 @@ import java.util.UUID;
 
 @Entity
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "follows",
         uniqueConstraints = {
@@ -54,4 +55,17 @@ public class Follows {
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime updatedAt; // 수정된 날짜
 
+    public Follows(User follower, User following) {
+        this.follower = follower;
+        this.following = following;
+        this.status = Follow_state.PENDING;
+    }
+
+    public void accept() {
+        this.status = Follow_state.ACCEPTED;
+    }
+
+    public void block() {
+        this.status = Follow_state.BLOCKED;
+    }
 }

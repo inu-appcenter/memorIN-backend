@@ -21,6 +21,12 @@ public enum ErrorCode {
     USER_002(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     USER_003(HttpStatus.CONFLICT, "이미 사용 중인 이름입니다."),
 
+    // 팔로우 (follows)
+    FOLLOW_001(HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
+    FOLLOW_002(HttpStatus.BAD_REQUEST, "자기 자신을 팔로우할 수 없습니다."),
+    FOLLOW_003(HttpStatus.CONFLICT, "이미 존재하는 팔로우 관계입니다."),
+    FOLLOW_004(HttpStatus.FORBIDDEN, "처리할 수 없는 팔로우 요청입니다."),
+
     // 게시물 (post)
     POST_001(HttpStatus.NOT_FOUND, "존재하지 않는 게시물입니다"),
     POST_002(HttpStatus.FORBIDDEN, "게시물에 접근할 권한이 없습니다"),
