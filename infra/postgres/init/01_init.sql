@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email    ON users (email)    WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username)  WHERE deleted_at IS NULL;
 
+-- refresh_token: 사용자 1명당 Refresh Token 1개만 유지(재로그인/재발급 시 갱신)
+CREATE TABLE IF NOT EXISTS refresh_token (
+    user_id       UUID         PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token VARCHAR(500) NOT NULL
+);
+
 -- posts
 CREATE TABLE IF NOT EXISTS posts (
     id            UUID            PRIMARY KEY DEFAULT uuidv7(),
