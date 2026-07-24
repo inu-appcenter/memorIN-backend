@@ -59,14 +59,12 @@ public class Post {
     @ColumnDefault("0") // private int viewCount = 0; 으로 하고 @ColumnDefault("0")를 제거해도 동일하게 작동
     private int viewCount; // 조회수(?)
 
-    @Column(name = "created_at", nullable = false)
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz") // timestamptz로 시간 오차 발생 방어
     private LocalDateTime createdAt; // 만들어진 날짜
 
-    @Column(name = "updated_at", nullable = false)
     @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
-    @ColumnDefault("CURRENT_TIMESTAMP") // CURRENT_DATE 사용 X -> 시/분/초 까지 저장하기 위해서
+    @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime updatedAt; // 수정된 날짜
 
     @Column(name = "deleted_at")
@@ -127,6 +125,14 @@ public class Post {
 
     public boolean isOwnedBy(UUID userId) {
         return this.user.getId().equals(userId);
+    }
+
+    // FRIENDS는 팔로우 연동 전까지 PRIVATE과 동일하게 본인만 허용한다.
+    public boolean isVisibleTo(UUID requesterId) {
+        return switch (this.visibility) {
+            case PUBLIC -> true;
+            case PRIVATE, FRIENDS -> requesterId != null && isOwnedBy(requesterId);
+        };
     }
 
 }

@@ -7,7 +7,7 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Base64;
 
-/** "{recordedDate}:{postId}" 를 base64로 인코딩/디코딩하는 커서 유틸리티. */
+// "{recordedDate}:{postId}" 를 base64로 인코딩/디코딩하는 커서 유틸리티.
 /**
  * 커서 = 정렬 기준 컬럼(recordedDate) + tie-breaker(postId)를 묶어서 불투명하게 인코딩한 값.
  * 정렬 기준 하나만으로는 같은 recordedDate를 가진 항목들의 순서가 불안정해지기 때문에

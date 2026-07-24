@@ -41,11 +41,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         WHERE p.deleted_at IS NULL
           AND p.visibility = 'PUBLIC'
           AND p.created_at > :windowStart
+          AND p.created_at <= : asOf
         ORDER BY p.created_at DESC
         LIMIT :candidatePoolSize
         """, nativeQuery = true)
     List<Post> findRecommendationCandidates(
             @Param("windowStart") Instant windowStart,
+            @Param("asOf") Instant asOf,
             @Param("candidatePoolSize") int candidatePoolSize
     );
 

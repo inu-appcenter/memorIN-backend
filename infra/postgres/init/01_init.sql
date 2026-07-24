@@ -64,6 +64,21 @@ CREATE TABLE IF NOT EXISTS post_media (
 
 CREATE INDEX IF NOT EXISTS idx_post_media_post_id ON post_media (post_id, order_index) WHERE deleted_at IS NULL;
 
+-- pending_uploads: presigned 업로드 예약. TOCTOU 방지(committed+pending 합산으로 quota 검증) +
+-- 고아 오브젝트 정리용 TTL. 게시물에 커밋되면(첨부로 확정) 행을 지우고, 커밋 없이 만료되면
+-- 정리 배치가 MinIO 오브젝트와 함께 지운다.
+CREATE TABLE IF NOT EXISTS pending_uploads (
+    id             UUID         PRIMARY KEY DEFAULT uuidv7(),
+    user_id        UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    object_key     VARCHAR(500) NOT NULL UNIQUE,
+    reserved_bytes BIGINT       NOT NULL,
+    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    expires_at     TIMESTAMPTZ  NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_uploads_user_id    ON pending_uploads (user_id);
+CREATE INDEX IF NOT EXISTS idx_pending_uploads_expires_at ON pending_uploads (expires_at);
+
 -- post_likes (좋아요)
 CREATE TABLE IF NOT EXISTS post_likes (
     id         UUID        PRIMARY KEY DEFAULT uuidv7(),

@@ -12,6 +12,7 @@ import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.PostExceptions;
+import com.memorin.global.media.service.MediaUploadCommitService;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
 import com.memorin.global.media.service.StorageQuotaService;
@@ -22,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -40,6 +40,7 @@ public class PostService {
     private final PresignedDownloadService presignedDownloadService;
     private final PresignedUploadService presignedUploadService;
     private final StorageQuotaService storageQuotaService;
+    private final MediaUploadCommitService mediaUploadCommitService;
 
     // 글 등록
     @Transactional
@@ -55,7 +56,7 @@ public class PostService {
                 request.timeslotType(), recordedDate);
         postRepository.save(post);
 
-        List<PostMedia> savedMedia = saveMedia(post, request.attachments());
+        List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
 
         List<PostMediaResponse> attachmentResponses = toMediaResponses(savedMedia);
         return PostCreateResponse.of(post, attachmentResponses);
@@ -67,7 +68,7 @@ public class PostService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
 
-        assertReadable(post, requesterId);
+        PostAccessPolicy.assertReadable(post, requesterId);
 
         // 작성자 본인이 아닐 때만 조회수 증가 (읽기 API인데 굳이 트랜잭션 열어서 처리)
         if (requesterId == null || !post.isOwnedBy(requesterId)) {
@@ -141,7 +142,7 @@ public class PostService {
         if (request.attachments() != null) {
             // attachments가 명시적으로 온 경우: 기존 미디어를 통째로 교체.
             postMediaRepository.deleteAllByPostId(postId);
-            media = saveMedia(post, request.attachments());
+            media = saveMedia(post, request.attachments(), requesterId);
         } else {
             media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
         }
@@ -164,15 +165,18 @@ public class PostService {
 
     // ---- private helpers ----
 
-    private List<PostMedia> saveMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments) {
+    // 첨부마다 pending 예약을 커밋(statObject로 실제 크기 재검증)한 뒤 저장한다.
+    // a.fileSizeBytes()(클라이언트 선언값)는 신뢰하지 않고 검증된 실제 크기를 쓴다.
+    private List<PostMedia> saveMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments, UUID requesterId) {
         if (attachments == null || attachments.isEmpty()) {
             return List.of();
         }
         List<PostMedia> entities = new ArrayList<>();
         int order = 0;
         for (PostCreateRequest.AttachmentRequest a : attachments) {
+            long verifiedBytes = mediaUploadCommitService.commitUpload(requesterId, a.fileKey());
             entities.add(PostMedia.of(
-                    post, a.fileKey(), a.mimeType(), a.fileSizeBytes(), (short) order++, a.width(), a.height()
+                    post, a.fileKey(), a.mimeType(), verifiedBytes, (short) order++, a.width(), a.height()
             ));
         }
         return postMediaRepository.saveAll(entities);
@@ -191,23 +195,6 @@ public class PostService {
         } catch (Exception e) {
             // 미디어 하나의 URL 발급 실패로 게시물 조회 전체가 실패하지 않도록 null 처리.
             return null;
-        }
-    }
-
-    private void assertReadable(Post post, UUID requesterId) {
-        switch (post.getVisibility()) {
-            case PUBLIC -> { /* 누구나 조회 가능 */ }
-            case PRIVATE -> {
-                if (requesterId == null || !post.isOwnedBy(requesterId)) {
-                    throw new PostExceptions.PostAccessDeniedException();
-                }
-            }
-            case FRIENDS -> {
-                // TODO: follows 테이블 연동 후 팔로우 관계 확인 로직으로 교체. 현재는 본인만 허용.
-                if (requesterId == null || !post.isOwnedBy(requesterId)) {
-                    throw new PostExceptions.PostAccessDeniedException();
-                }
-            }
         }
     }
 
