@@ -10,6 +10,8 @@ public enum ErrorCode {
     COMMON_001(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다"),
     COMMON_002(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다"),
     COMMON_003(HttpStatus.FORBIDDEN, "해당 요청에 대한 권한이 없습니다"),
+    COMMON_004(HttpStatus.NOT_FOUND, "요청한 경로를 찾을 수 없습니다"),
+    COMMON_005(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 HTTP 메서드입니다"),
 
     // 인증 (auth)
     AUTH_001(HttpStatus.UNAUTHORIZED, "인증이 필요합니다"),
