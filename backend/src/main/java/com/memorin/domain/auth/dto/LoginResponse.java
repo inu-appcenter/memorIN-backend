@@ -2,6 +2,7 @@ package com.memorin.domain.auth.dto;
 
 public record LoginResponse (
 
-    String accessToken
+    String accessToken,
+    String refreshToken
 ) {
 }

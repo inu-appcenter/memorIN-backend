@@ -14,6 +14,7 @@ public enum ErrorCode {
     // 인증 (auth)
     AUTH_001(HttpStatus.UNAUTHORIZED, "인증이 필요합니다"),
     AUTH_002(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
+    AUTH_003(HttpStatus.UNAUTHORIZED, "유효하지 않은 인증 정보입니다. 다시 로그인해주세요."),
 
     // 회원 (member)
     USER_001(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
