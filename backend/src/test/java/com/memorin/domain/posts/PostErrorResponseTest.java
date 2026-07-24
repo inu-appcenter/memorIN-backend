@@ -5,6 +5,7 @@ import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.posts.controller.PostController;
 import com.memorin.domain.posts.service.PostCursor;
 import com.memorin.domain.posts.service.PostService;
+import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.PostExceptions;
@@ -30,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // 게시물 도메인 예외가 전역 응답 포맷과 올바른 상태코드로 내려가는지 검증한다.
 // PostExceptions가 BusinessException이 아니면 전부 500(COMMON_001)으로 떨어진다.
 @WebMvcTest(PostController.class)
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class PostErrorResponseTest {
 
     @Autowired

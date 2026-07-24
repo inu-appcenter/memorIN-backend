@@ -887,11 +887,11 @@ Authorization: Bearer {accessToken}
 
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
-- 현재 구현: `ChatController`의 STOMP **에코 테스트**만 동작(방/메시지 영속화 없음). `docs/api-spec.md` §6 체크리스트대로 DB 스키마 확정 후 실제 채팅 도메인을 설계한다.
+- 현재 구현: **없음.** 초기 `ChatController`/`ChatMessage` 에코 프로토타입은 STOMP 브로커 설정이 없어 배선되지 않은 죽은 코드였으므로 삭제했다. `docs/api-spec.md` §6 체크리스트대로 DB 스키마 확정 후 Sprint 4에서 실제 채팅 도메인을 설계·구현한다.
 - REST(방 생성/목록/메시지 조회)는 **설계 초안**이다.
-- 인증: 현재 STOMP 경로는 `SecurityConfig`에서 `/ws/**`, `/*.html`이 임시 `permitAll`이다. WebSocket 토큰 인증은 Sprint 1에서 별도 설계한다(`docs/auth-jwt-design.md` §6).
+- 인증: `SecurityConfig`에 `/ws/**`, `/*.html` `permitAll` 매처가 남아 있으나 대응하는 엔드포인트가 없어 현재는 무효하다. WebSocket 토큰 인증은 채팅 착수 시 함께 설계한다(`docs/auth-jwt-design.md` §6).
 
-### 10-1. 실시간 메시지 (STOMP) — 구현됨(에코 테스트)
+### 10-1. 실시간 메시지 (STOMP) — 미구현(설계 초안)
 
 #### 연결
 

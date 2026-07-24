@@ -37,13 +37,11 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail(ErrorCode.COMMON_002, message));
     }
 
-    // 잘못된 파라미터(타입 변환 실패, 검증되지 않은 인자 등) → 400.
-    // 이 핸들러가 없으면 아래 Exception 핸들러로 떨어져 클라이언트 잘못이 500으로 보고된다.
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException e) {
-        return ResponseEntity.status(ErrorCode.COMMON_002.getStatus())
-                .body(ApiResponse.fail(ErrorCode.COMMON_002, e.getMessage()));
-    }
+    // IllegalArgumentException 전용 핸들러는 두지 않는다.
+    // 전부 400으로 묶으면 404여야 할 것도 400이 되고, 서버 버그(잘못된 인자로 라이브러리 호출)까지
+    // 클라이언트 잘못으로 위장돼 로그에 남지 않는다.
+    // 클라이언트 입력 문제는 서비스에서 적절한 ErrorCode를 담은 BusinessException으로 던진다.
+    // 요청 형식 자체의 문제(타입 변환/파싱/필수값 누락)는 아래 전용 핸들러들이 이미 400으로 처리한다.
 
     // 위에서 잡지 못한 모든 예외 → 500. 원인 파악을 위해 스택트레이스를 남긴다.
     @ExceptionHandler(Exception.class)

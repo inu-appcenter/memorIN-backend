@@ -18,6 +18,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -32,8 +33,11 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class
                 )
                 // 인증 실패는 401(AUTH_001)로 내린다. 기본값을 두면 403이라 Quota 초과와 구분되지 않는다.
-                .exceptionHandling(handling ->
-                        handling.authenticationEntryPoint(restAuthenticationEntryPoint))
+                // 권한 부족은 403(COMMON_003)으로 내린다. 핸들러를 지정하지 않으면 이 응답만
+                // ApiResponse 봉투 밖(빈 본문/HTML 오류 페이지)으로 나간다.
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/auth/signup",
