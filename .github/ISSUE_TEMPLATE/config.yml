@@ -1,0 +1,2 @@
+# 빈 이슈(템플릿 없이 생성)를 막아 항상 양식을 쓰게 합니다.
+blank_issues_enabled: false
