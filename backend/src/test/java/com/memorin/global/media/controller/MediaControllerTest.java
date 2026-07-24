@@ -3,6 +3,7 @@ package com.memorin.global.media.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
+import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.UserDetailsImpl;
@@ -42,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // JwtAuthenticationFilter는 실물을 넣고 의존성인 JwtTokenProvider만 목으로 대체한다.
 // 필터 자체를 목으로 만들면 doFilter가 아무것도 하지 않아 요청이 컨트롤러까지 도달하지 못한다.
 @WebMvcTest(MediaController.class)
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class MediaControllerTest {
 
     @Autowired
