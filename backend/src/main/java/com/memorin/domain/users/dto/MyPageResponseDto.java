@@ -11,7 +11,6 @@ public record MyPageResponseDto(
         @NotBlank
         String displayName,
 
-        @NotBlank
         String bio
 
 ) {

@@ -21,6 +21,10 @@ jobs:
     name: 빌드 및 테스트
     runs-on: ubuntu-latest
 
+    # JWT_SECRET 기본값 제거 이후 CI 환경에서는 환경변수가 필수이므로 테스트용 Secret을 주입한다.
+    env:
+        JWT_SECRET: test-secret-key-for-ci-only-32-characters
+
     # Testcontainers가 실제 PostgreSQL 컨테이너를 띄운다.
     # ubuntu-latest 러너에는 Docker가 기본 설치되어 있어 별도 설정이 필요 없다.
     steps:

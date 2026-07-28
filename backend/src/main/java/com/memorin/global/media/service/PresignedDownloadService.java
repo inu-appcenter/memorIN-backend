@@ -1,11 +1,12 @@
 package com.memorin.global.media.service;
 
-import com.memorin.domain.post_media.Entity.PostMedia;
+import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
-import com.memorin.global.media.MediaStorageException;
 import com.memorin.global.media.MinioProperties;
-import com.memorin.global.media.PostMediaNotFoundException;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
+import com.memorin.global.media.exception.MediaAccessDeniedException;
+import com.memorin.global.media.exception.MediaStorageException;
+import com.memorin.global.media.exception.PostMediaNotFoundException;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.http.Method;
@@ -38,6 +39,17 @@ public class PresignedDownloadService {
         this(presignedUrlMinioClient, properties, postMediaRepository, Clock.systemUTC());
     }
 
+    // 단건 API용 - id만 아는 경우. 요청자가 게시물 소유자이거나 게시물이 PUBLIC일 때만 발급한다.
+    // (누구나 인증만 되면 임의 postMediaId로 남의 비공개 미디어 URL을 뽑아낼 수 있던 IDOR 방지)
+    public PresignedDownloadResponse createDownloadUrl(UUID postMediaId, UUID requesterId) {
+        PostMedia postMedia = postMediaRepository.findById(postMediaId)
+                .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
+        if (!postMedia.getPost().isVisibleTo(requesterId)) {
+            throw new MediaAccessDeniedException(postMediaId);
+        }
+        return createDownloadUrl(postMedia);
+    }
+
     PresignedDownloadService(
             MinioClient presignedUrlMinioClient,
             MinioProperties properties,
@@ -50,10 +62,8 @@ public class PresignedDownloadService {
         this.clock = clock;
     }
 
-    public PresignedDownloadResponse createDownloadUrl(UUID postMediaId) {
-        PostMedia postMedia = postMediaRepository.findById(postMediaId)
-                .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
-
+    // 목록용 - 이미 엔티티를 손에 든 경우 DB 재조회 없음.
+    public PresignedDownloadResponse createDownloadUrl(PostMedia postMedia) {
         String objectKey = postMedia.getFileKey();
 
         try {

@@ -40,6 +40,33 @@ Content-Type: application/json
 
 클라이언트는 응답의 `uploadUrl`로 `PUT` 요청을 보내고, `requiredHeaders`의 값을 그대로 포함해야 한다.
 
+## 압축 가이드 정책 (클라이언트 참고용)
+
+서버는 presigned PUT으로 업로드되는 파일 바이트를 직접 만지지 않으므로 서버 사이드 압축은 하지 않는다.
+대신 클라이언트(앱/웹)가 업로드 전 이미지를 압축할 때 참고할 가이드 값을 아래 API로 내려준다. **서버가 강제하는 값이 아니며**, 클라이언트가 이 값보다 큰 파일을 올려도 `MINIO_MAX_UPLOAD_SIZE_BYTES`/Quota 검증만 통과하면 업로드는 성공한다.
+
+```http
+GET /api/media/compression-policy
+```
+
+응답:
+
+```json
+{
+  "imageQualityPercent": 80,
+  "imageMaxWidthPx": 1920,
+  "imageMaxHeightPx": 1920
+}
+```
+
+| 이름 | 기본값 | 설명 |
+|---|---:|---|
+| `MEDIA_COMPRESSION_IMAGE_QUALITY_PERCENT` | `80` | 이미지 압축 품질(1~100) |
+| `MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX` | `1920` | 이미지 최대 가로 픽셀 |
+| `MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX` | `1920` | 이미지 최대 세로 픽셀 |
+
+동영상(`video/mp4`, `video/quicktime`)은 현재 압축 가이드 대상이 아니다.
+
 ## 환경 변수
 
 | 이름 | 기본값 | 설명 |

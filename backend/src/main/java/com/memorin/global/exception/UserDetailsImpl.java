@@ -1,6 +1,6 @@
 package com.memorin.global.exception;
 
-import com.memorin.domain.users.Entity.User;
+import com.memorin.domain.users.entity.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

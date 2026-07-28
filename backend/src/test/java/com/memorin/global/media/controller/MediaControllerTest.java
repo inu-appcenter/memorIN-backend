@@ -3,17 +3,24 @@ package com.memorin.global.media.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
+import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.UserDetailsImpl;
-import com.memorin.global.media.MediaStorageException;
-import com.memorin.global.media.PostMediaNotFoundException;
-import com.memorin.global.media.StorageQuotaExceededException;
+import com.memorin.global.media.MediaCompressionProperties;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
+import com.memorin.global.media.dto.response.QuotaResponse;
+import com.memorin.global.media.exception.MediaAccessDeniedException;
+import com.memorin.global.media.exception.MediaStorageException;
+import com.memorin.global.media.exception.PostMediaNotFoundException;
+import com.memorin.global.media.exception.StorageQuotaExceededException;
+import com.memorin.global.media.exception.UnsupportedContentTypeException;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
+import com.memorin.global.media.service.StorageQuotaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -38,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // JwtAuthenticationFilter는 실물을 넣고 의존성인 JwtTokenProvider만 목으로 대체한다.
 // 필터 자체를 목으로 만들면 doFilter가 아무것도 하지 않아 요청이 컨트롤러까지 도달하지 못한다.
 @WebMvcTest(MediaController.class)
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
+@EnableConfigurationProperties(MediaCompressionProperties.class)
 class MediaControllerTest {
 
     @Autowired
@@ -52,6 +60,9 @@ class MediaControllerTest {
 
     @MockitoBean
     private PresignedDownloadService presignedDownloadService;
+
+    @MockitoBean
+    private StorageQuotaService storageQuotaService;
 
     // resolveToken이 null을 반환하므로 필터는 인증을 건드리지 않고 통과시킨다.
     // 인증 상태는 아래 .with(user(...))로 직접 세팅한다.
@@ -123,10 +134,81 @@ class MediaControllerTest {
     }
 
     @Test
+    void createPresignedUploadUrl_허용되지_않는_파일_형식이면_400과_MEDIA_001_에러코드를_반환한다() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        PresignedUploadRequest request = new PresignedUploadRequest("malware.exe", "application/x-msdownload", 10_000_000L);
+        given(presignedUploadService.createUploadUrl(eq(userId), any(PresignedUploadRequest.class)))
+                .willThrow(new UnsupportedContentTypeException("application/x-msdownload"));
+
+        // when
+        // then
+        mockMvc.perform(post("/api/media/presigned-upload-url")
+                        .with(user(principalOf(userId)))
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("MEDIA_001"))
+                .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void getCompressionPolicy_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/compression-policy"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
+    void getCompressionPolicy_인증된_사용자에게_설정된_압축_가이드값을_반환한다() throws Exception {
+        // when
+        // then
+        // application.properties 기본값(80 / 1920 / 1920)이 그대로 바인딩되어 내려오는지 확인한다.
+        mockMvc.perform(get("/api/media/compression-policy")
+                        .with(user(principalOf(UUID.randomUUID()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imageQualityPercent").value(80))
+                .andExpect(jsonPath("$.imageMaxWidthPx").value(1920))
+                .andExpect(jsonPath("$.imageMaxHeightPx").value(1920));
+    }
+
+    @Test
+    void getQuota_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/quota"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
+    void getQuota_인증된_사용자의_사용량을_반환한다() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        given(storageQuotaService.getQuotaStatus(userId))
+                .willReturn(new QuotaResponse(300_000_000L, 1_073_741_824L, 773_741_824L, 27.94));
+
+        // when
+        // then
+        mockMvc.perform(get("/api/media/quota")
+                        .with(user(principalOf(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usedBytes").value(300_000_000L))
+                .andExpect(jsonPath("$.limitBytes").value(1_073_741_824L))
+                .andExpect(jsonPath("$.remainingBytes").value(773_741_824L))
+                .andExpect(jsonPath("$.usagePercentage").value(27.94));
+    }
+
+    @Test
     void createPresignedDownloadUrl_미디어를_찾지_못하면_404와_MEDIA_004_에러코드를_반환한다() throws Exception {
         // given
         UUID postMediaId = UUID.randomUUID();
-        given(presignedDownloadService.createDownloadUrl(postMediaId))
+        given(presignedDownloadService.createDownloadUrl(eq(postMediaId), any()))
                 .willThrow(new PostMediaNotFoundException(postMediaId));
 
         // when
@@ -136,6 +218,35 @@ class MediaControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("MEDIA_004"))
+                .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void createPresignedDownloadUrl_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/{postMediaId}/presigned-download-url", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    // IDOR 방지: 소유자도 아니고 PUBLIC도 아닌 미디어에 접근하면 403/MEDIA_006이어야 한다.
+    @Test
+    void createPresignedDownloadUrl_접근권한이_없으면_403과_MEDIA_006_에러코드를_반환한다() throws Exception {
+        // given
+        UUID postMediaId = UUID.randomUUID();
+        UUID requesterId = UUID.randomUUID();
+        given(presignedDownloadService.createDownloadUrl(eq(postMediaId), eq(requesterId)))
+                .willThrow(new MediaAccessDeniedException(postMediaId));
+
+        // when
+        // then
+        mockMvc.perform(get("/api/media/{postMediaId}/presigned-download-url", postMediaId)
+                        .with(user(principalOf(requesterId))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("MEDIA_006"))
                 .andExpect(jsonPath("$.error.message").exists());
     }
 }

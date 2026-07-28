@@ -453,5 +453,6 @@ Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만
 
 - `docs/auth-jwt-design.md`: JWT 설계 초안. 최신 API 명세는 이 문서를 우선한다.
 - `docs/presigned-upload-api.md`: Presigned Upload 초안. 최신 API 명세는 이 문서를 우선한다.
-- `docs/storage-quota-design.md`: 업로드 confirm 및 quota 설계 참고.
+- `docs/storage-quota-design.md`: 업로드 confirm 및 quota 설계 초안 (보존용).
+- `docs/storage-quota-policy.md`: 구현된 Storage Quota 정책 (사용량 산정, 동시성 보장, 환경 변수, 알려진 한계).
 - `docs/minio-bucket-policy.md`: MinIO private bucket 운영 정책 참고.
