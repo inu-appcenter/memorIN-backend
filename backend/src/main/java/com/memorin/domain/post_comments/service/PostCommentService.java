@@ -23,13 +23,14 @@ public class PostCommentService {
     private final PostCommentRepository postCommentsRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final PostAccessPolicy postAccessPolicy;
 
     @Transactional
     public PostComments create(UUID postId, UUID authorId, UUID parentId, String body) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
-        PostAccessPolicy.assertReadable(post, authorId);
+        postAccessPolicy.assertReadable(post, authorId);
 
         User author = userRepository.findById(authorId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + authorId));

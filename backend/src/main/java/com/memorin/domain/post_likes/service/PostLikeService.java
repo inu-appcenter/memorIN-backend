@@ -23,6 +23,7 @@ public class PostLikeService {
     private final PostLikeRepository postLikesRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final PostAccessPolicy postAccessPolicy;
 
     /** @return true면 좋아요 등록, false면 좋아요 취소 (토글) */
     @Transactional
@@ -36,7 +37,7 @@ public class PostLikeService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
-        PostAccessPolicy.assertReadable(post, userId); // 새로 누르는 것만 검사
+        postAccessPolicy.assertReadable(post, userId); // 새로 누르는 것만 검사
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + userId));

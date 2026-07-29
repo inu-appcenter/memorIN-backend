@@ -19,7 +19,14 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             SELECT * FROM posts p
             WHERE p.user_id = CAST(:userId AS uuid)
               AND p.deleted_at IS NULL
-              AND (:includeAllVisibility = TRUE OR p.visibility = 'PUBLIC')
+              AND (:includeAllVisibility = TRUE OR p.visibility = 'PUBLIC'
+              OR (p.visibility = 'FRIENDS'
+              AND EXISTS (SELECT 1 FROM follows f WHERE f.status = 'ACCEPTED'
+                      AND ((f.follower_id = CAST(:requesterId AS uuid) AND f.following_id = p.user_id)
+                          OR (f.following_id = CAST(:requesterId AS uuid) AND f.follower_id = p.user_id))
+                          )
+              )
+          )
               AND (
                     CAST(:cursorRecordedDate AS date) IS NULL
                     OR (p.recorded_date, p.id) < (CAST(:cursorRecordedDate AS date), CAST(:cursorId AS uuid))
@@ -29,6 +36,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             """, nativeQuery = true)
     List<Post> findUserFeed(
             @Param("userId") UUID userId,
+            @Param("requesterId") UUID requesterId,
             @Param("includeAllVisibility") boolean includeAllVisibility,
             @Param("cursorRecordedDate") Date cursorRecordedDate,
             @Param("cursorId") UUID cursorId,
