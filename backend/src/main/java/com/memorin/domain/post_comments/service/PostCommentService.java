@@ -64,7 +64,7 @@ public class PostCommentService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
             .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
-        PostAccessPolicy.assertReadable(post, requesterId); // 가시성 검사
+        postAccessPolicy.assertReadable(post, requesterId); // 가시성 검사
 
         return postCommentsRepository.findThreadByPostId(postId).stream()
             .map(PostCommentResponse::from)

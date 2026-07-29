@@ -18,9 +18,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PostAccessPolicy {
 
-    private PostAccessPolicy() {} // 유틸 클래스이므로 인스턴스화 방지
+    private final FollowRepository followRepository;
 
-    public static void assertReadable(Post post, UUID requesterId) {
+    public void assertReadable(Post post, UUID requesterId) {
         switch (post.getVisibility()) {
             case PUBLIC:
                 return;
