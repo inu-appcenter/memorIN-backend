@@ -50,7 +50,7 @@ public class StorageQuotaService {
         this.clock = clock;
     }
 
-    // committed(post_media 실제 합) + pending(만료 전 예약 합). (docs/storage-quota-design.md)
+    // committed(post_media 실제 합) + pending(만료 전 예약 합). (docs/storage-quota-policy.md)
     public long getUsedBytes(UUID userId) {
         long committed = postMediaRepository.sumFileSizeBytesByUserId(userId);
         long pending = pendingUploadRepository.sumReservedBytesByUserId(userId, LocalDateTime.now(clock));

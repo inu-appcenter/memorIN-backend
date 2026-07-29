@@ -1113,10 +1113,10 @@ Status: `200 OK`
 
 ## 12. 관련 문서
 
-- `docs/api-spec.md`: 인증(JWT)·미디어 Presigned Upload API. 이 문서와 함께 전체 API 명세를 구성한다.
+- `docs/api-spec.md`: 인증(JWT)·미디어 Presigned Upload·업로드 커밋 API. 이 문서와 함께 전체 API 명세를 구성한다.
 - `docs/erd.md`: 테이블 스키마·설계 결정. 요청/응답 필드 근거.
 - `docs/domain-interface-draft.md`: 도메인 간 경계(참조 방식·유저 엔티티 단일화 등). 미확정 항목이 API 스키마에 영향.
-- `docs/storage-quota-design.md`: 업로드 confirm·quota 설계.
+- `docs/storage-quota-policy.md`: 구현된 Storage Quota 정책.
 
 ## 13. 명세 확정 전 열린 결정 사항
 

@@ -1,8 +1,5 @@
 # Storage Quota 정책
 
-> `docs/storage-quota-design.md`는 구현 전 설계 초안이며, 실제 구현 후 초안과 달라진 부분이 있다.
-> 현재 구현된 동작 기준의 최신 정책은 이 문서를 기준으로 한다.
-
 ## 개요
 
 사용자별 미디어 저장 용량을 제한한다. 사용량은 별도 집계 테이블 없이 두 테이블의 합산으로 매번 계산한다.
@@ -67,5 +64,5 @@ presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 
 
 ## 관련 문서
 
-- `docs/storage-quota-design.md`: 구현 전 설계 초안 (보존용).
-- `docs/presigned-upload-api.md`: Presigned Upload API 명세, 압축 가이드 정책 포함.
+- `docs/api-spec.md` §4: Presigned Upload / 업로드 커밋 / 압축 가이드 정책 API 명세.
+- `docs/minio-bucket-policy.md`: MinIO private bucket 운영 정책.
