@@ -21,7 +21,6 @@ public class PostAccessPolicy {
     private final FollowRepository followRepository;
 
     public void assertReadable(Post post, UUID requesterId) {
-
         switch (post.getVisibility()) {
             case PUBLIC:
                 return;

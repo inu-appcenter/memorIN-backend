@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,9 +54,10 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
         // given
         User author = persistUser("1");
         Post post = persistPost(author);
+        LocalDateTime createdAt = LocalDateTime.now();
 
         // when
-        PostComments saved = em.persist(PostComments.of(post, author, null, "최상위 댓글"));
+        PostComments saved = em.persist(PostComments.of(post, author, null, "최상위 댓글", createdAt));
         em.flush();
         em.clear();
 
@@ -70,10 +72,12 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
         // given
         User author = persistUser("2");
         Post post = persistPost(author);
-        PostComments parent = em.persist(PostComments.of(post, author, null, "부모 댓글"));
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        PostComments parent = em.persist(PostComments.of(post, author, null, "부모 댓글", createdAt));
 
         // when
-        PostComments saved = em.persist(PostComments.of(post, author, parent, "대댓글"));
+        PostComments saved = em.persist(PostComments.of(post, author, parent, "대댓글", createdAt));
         em.flush();
         em.clear();
 
