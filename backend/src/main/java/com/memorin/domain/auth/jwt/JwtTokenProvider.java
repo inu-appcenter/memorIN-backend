@@ -6,6 +6,8 @@ import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,14 +72,17 @@ public class JwtTokenProvider {
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token);
 
             return true;
 
-        } catch (Exception e) {
-            return false;
+        } catch (ExpiredJwtException e) {
+            throw new BusinessException(ErrorCode.AUTH_003);
+
+        } catch (JwtException e) {
+            throw new BusinessException(ErrorCode.AUTH_004);
         }
     }
 

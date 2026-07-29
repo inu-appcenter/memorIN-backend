@@ -18,24 +18,27 @@ import java.util.UUID;
 
 // presigned-upload-url 발급 시 만든 pending 예약을, 실제로 게시물에 첨부되는 시점(커밋)에
 // 검증하고 확정한다. 클라이언트가 선언한 contentLength는 여기서 전혀 신뢰하지 않고,
-// MinIO statObject로 확인한 실제 업로드 크기만 사용한다.
+// MinIO statObject로 확인한 실제 업로드 크기만 사용해 단일 파일 상한과 유저 전체 quota를
+// 다시 검증한다.
 // (presigned PUT은 서명이 body 크기를 강제하지 않아 클라이언트가 발급 시 선언한 값보다
-//  훨씬 큰 파일을 그대로 업로드할 수 있다 - 이 지점이 그걸 막는 유일한 검증 지점이다.)
+//  훨씬 큰 파일을 그대로 업로드할 수 있다 - 이 지점이 그걸 막는 검증 지점이다.)
 @Service
 public class MediaUploadCommitService {
 
     private final MinioClient minioClient;
     private final MinioProperties minioProperties;
     private final PendingUploadRepository pendingUploadRepository;
+    private final StorageQuotaService storageQuotaService;
     private final Clock clock;
 
     @Autowired
     public MediaUploadCommitService(
             @Qualifier("minioClient") MinioClient minioClient,
             MinioProperties minioProperties,
-            PendingUploadRepository pendingUploadRepository
+            PendingUploadRepository pendingUploadRepository,
+            StorageQuotaService storageQuotaService
     ) {
-        this(minioClient, minioProperties, pendingUploadRepository, Clock.systemUTC());
+        this(minioClient, minioProperties, pendingUploadRepository, storageQuotaService, Clock.systemUTC());
     }
 
     MediaUploadCommitService(
@@ -43,11 +46,13 @@ public class MediaUploadCommitService {
             MinioClient minioClient,
             MinioProperties minioProperties,
             PendingUploadRepository pendingUploadRepository,
+            StorageQuotaService storageQuotaService,
             Clock clock
     ) {
         this.minioClient = minioClient;
         this.minioProperties = minioProperties;
         this.pendingUploadRepository = pendingUploadRepository;
+        this.storageQuotaService = storageQuotaService;
         this.clock = clock;
     }
 
@@ -65,6 +70,7 @@ public class MediaUploadCommitService {
         if (actualBytes > minioProperties.maxUploadSizeBytes()) {
             throw new UploadSizeExceededException(actualBytes, minioProperties.maxUploadSizeBytes());
         }
+        storageQuotaService.assertCommitWithinLimit(requesterId, reservation.getReservedBytes(), actualBytes);
 
         pendingUploadRepository.delete(reservation);
         return actualBytes;
