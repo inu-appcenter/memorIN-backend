@@ -40,6 +40,7 @@ public enum ErrorCode {
     COMMENT_003(HttpStatus.NOT_FOUND, "부모 댓글이 존재하지 않습니다."),
     COMMENT_004(HttpStatus.BAD_REQUEST, "대댓글에는 답글을 달 수 없습니다."),
     COMMENT_005(HttpStatus.FORBIDDEN, "비공개 게시물에는 댓글을 달 수 없습니다."),
+    COMMENT_006(HttpStatus.FORBIDDEN, "삭제된 댓글은 수정할 수 없습니다."),
 
     // 미디어 (media)
     MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다"),

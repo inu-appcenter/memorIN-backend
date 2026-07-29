@@ -1,5 +1,6 @@
 package com.memorin.domain.post_comments.service;
 
+import com.memorin.domain.post_comments.dto.response.PostCommentResponse;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import com.memorin.domain.posts.entity.Post;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -25,7 +28,7 @@ public class PostCommentService {
     private final UserRepository userRepository;
 
     @Transactional
-    public PostComments create(UUID postId, UUID authorId, UUID parentId, String body) {
+    public PostCommentResponse create(UUID postId, UUID authorId, UUID parentId, String body) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
@@ -49,8 +52,37 @@ public class PostCommentService {
             }
         }
 
-        return postCommentsRepository.save(PostComments.of(post, author, parent, body));
+        LocalDateTime createdAt = LocalDateTime.now();
+
+        PostComments saved = postCommentsRepository.save(PostComments.of(post, author, parent, body, createdAt));
+        return PostCommentResponse.from(saved);
     }
+
+    // 목록(스레드) 조회
+    public List<PostCommentResponse> getThread(UUID postId, UUID requesterId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
+
+        PostAccessPolicy.assertReadable(post, requesterId); // 가시성 검사
+
+        return postCommentsRepository.findThreadByPostId(postId).stream()
+            .map(PostCommentResponse::from)
+            .toList();
+    }
+
+    @Transactional
+    public PostCommentResponse update(UUID commentId, UUID requesterId, String body) {
+        PostComments comment = postCommentsRepository.findActiveById(commentId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_001, "댓글이 존재하지 않습니다.: " + commentId));
+
+        if (!comment.getUser().getId().equals(requesterId)) {
+            throw new BusinessException(ErrorCode.COMMENT_002, "본인만 댓글을 수정할 수 있습니다.");
+        }
+
+        comment.updateBody(body); // 삭제된 댓글이면 엔티티 내부에서 COMMENT_006 던짐
+        return PostCommentResponse.from(comment);
+    }
+
 
     @Transactional
     public void delete(UUID commentId, UUID requesterId) {
