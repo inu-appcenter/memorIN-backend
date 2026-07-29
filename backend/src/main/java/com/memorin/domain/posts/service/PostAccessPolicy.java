@@ -12,6 +12,8 @@ import java.util.UUID;
  */
 public class PostAccessPolicy {
 
+    private PostAccessPolicy() {} // 유틸 클래스이므로 인스턴스화 방지
+
     public static void assertReadable(Post post, UUID requesterId) {
         switch (post.getVisibility()) {
             case PUBLIC -> { /* 누구나 접근 가능 */ }
