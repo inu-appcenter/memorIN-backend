@@ -3,6 +3,7 @@ package com.memorin.global.media.service;
 import com.memorin.domain.pending_upload.entity.PendingUpload;
 import com.memorin.domain.pending_upload.repository.PendingUploadRepository;
 import com.memorin.global.media.MinioProperties;
+import com.memorin.global.media.exception.StorageQuotaExceededException;
 import com.memorin.global.media.exception.UploadReservationInvalidException;
 import com.memorin.global.media.exception.UploadSizeExceededException;
 import io.minio.MinioClient;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -41,13 +43,16 @@ class MediaUploadCommitServiceTest {
     @Mock
     private PendingUploadRepository pendingUploadRepository;
 
+    @Mock
+    private StorageQuotaService storageQuotaService;
+
     private final MinioProperties properties = new MinioProperties(
             "http://minio:9000", "http://localhost:9000", "us-east-1",
             "key", "secret", "bucket", 600, 300, 1000L, List.of("image/png")
     );
 
     private MediaUploadCommitService service() {
-        return new MediaUploadCommitService(minioClient, properties, pendingUploadRepository, FIXED_CLOCK);
+        return new MediaUploadCommitService(minioClient, properties, pendingUploadRepository, storageQuotaService, FIXED_CLOCK);
     }
 
     private PendingUpload reservation(UUID userId, String objectKey, LocalDateTime expiresAt) {
@@ -94,6 +99,39 @@ class MediaUploadCommitServiceTest {
 
         assertThatThrownBy(() -> service().commitUpload(owner, "key"))
                 .isInstanceOf(UploadSizeExceededException.class);
+    }
+
+    @Test
+    void 실제_업로드_크기가_유저_전체_quota를_넘으면_예외를_던지고_예약을_지우지_않는다() throws Exception {
+        // 클라이언트가 예약 시 작은 값(reservedBytes)을 선언해 quota 체크를 통과시켜놓고,
+        // 단일 파일 상한 이내에서 실제로는 훨씬 큰 파일을 업로드해 유저 전체 quota를 넘기는 상황.
+        UUID owner = UUID.randomUUID();
+        PendingUpload reservation = reservation(owner, "key", LocalDateTime.now(FIXED_CLOCK).plusMinutes(10));
+        given(pendingUploadRepository.findByObjectKey("key")).willReturn(Optional.of(reservation));
+        StatObjectResponse stat = mock(StatObjectResponse.class);
+        given(stat.size()).willReturn(900L); // 단일 파일 상한(1000L) 이내지만 유저 전체 quota는 넘김
+        given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(stat);
+        willThrow(new StorageQuotaExceededException(owner, 200L, 900L, 1000L))
+                .given(storageQuotaService).assertCommitWithinLimit(owner, 500L, 900L);
+
+        assertThatThrownBy(() -> service().commitUpload(owner, "key"))
+                .isInstanceOf(StorageQuotaExceededException.class);
+
+        verify(pendingUploadRepository, org.mockito.Mockito.never()).delete(any());
+    }
+
+    @Test
+    void 정상_커밋시_실제_크기로_quota를_재검증한다() throws Exception {
+        UUID owner = UUID.randomUUID();
+        PendingUpload reservation = reservation(owner, "key", LocalDateTime.now(FIXED_CLOCK).plusMinutes(10));
+        given(pendingUploadRepository.findByObjectKey("key")).willReturn(Optional.of(reservation));
+        StatObjectResponse stat = mock(StatObjectResponse.class);
+        given(stat.size()).willReturn(777L);
+        given(minioClient.statObject(any(StatObjectArgs.class))).willReturn(stat);
+
+        service().commitUpload(owner, "key");
+
+        verify(storageQuotaService).assertCommitWithinLimit(owner, 500L, 777L);
     }
 
     @Test

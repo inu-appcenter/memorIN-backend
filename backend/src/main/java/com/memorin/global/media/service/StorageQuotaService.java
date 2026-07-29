@@ -84,4 +84,22 @@ public class StorageQuotaService {
         LocalDateTime expiresAt = LocalDateTime.now(clock).plusSeconds(properties.pendingTtlSeconds());
         return pendingUploadRepository.save(PendingUpload.of(userId, objectKey, incomingBytes, expiresAt));
     }
+
+    // 커밋 시점 재검증: presigned PUT은 서명이 body 크기를 강제하지 않아 실제 업로드 크기(actualBytes)가
+    // 예약 시 선언값(reservedBytes)보다 클 수 있다. getUsedBytes()의 pending 합산엔 이 예약이 여전히
+    // reservedBytes로 잡혀 있으므로, 그 선언값을 실제 크기로 바꿔치기해서 다시 합산해야
+    // "선언은 작게 하고 실제로는 상한까지 올려 quota를 우회"하는 경로를 막을 수 있다.
+    // reserveUpload와 동일하게 유저 행을 잠그고 검증한다 (TOCTOU 방지).
+    @Transactional
+    public void assertCommitWithinLimit(UUID userId, long reservedBytes, long actualBytes) {
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + userId));
+
+        long usedBytesExcludingThisReservation = getUsedBytes(userId) - reservedBytes;
+        long limitBytes = properties.defaultLimitBytes();
+
+        if (usedBytesExcludingThisReservation + actualBytes > limitBytes) {
+            throw new StorageQuotaExceededException(userId, usedBytesExcludingThisReservation, actualBytes, limitBytes);
+        }
+    }
 }
