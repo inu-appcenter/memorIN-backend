@@ -1,5 +1,6 @@
 package com.memorin.domain.users.service;
 
+import com.memorin.domain.users.dto.MyPageResponseDto;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
@@ -8,6 +9,8 @@ import com.memorin.domain.users.dto.UserFollowResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.dto.UserSearchResponse;
 import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +44,18 @@ public class UserService {
         }
 
         return response;
+    }
+
+    public MyPageResponseDto getMyPage(UUID userId) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+
+        return new MyPageResponseDto(
+            user.getUsername(),
+            user.getDisplayName(),
+            user.getBio()
+        );
     }
 
     public UserFollowPageResponse getFollowers(UUID userId, UUID cursor, int size) {
