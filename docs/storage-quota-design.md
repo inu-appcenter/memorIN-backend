@@ -1,5 +1,7 @@
 # Storage Quota 설계 초안
 
+> 이 문서는 구현 전 초안이며, 실제 구현된 최신 정책은 [`docs/storage-quota-policy.md`](storage-quota-policy.md)를 기준으로 한다.
+
 ## 배경
 
 미디어 업로드 기능에 사용자별 저장 공간 제한(Quota)을 적용하기 위해, 구현 전에 사용량 집계 기준과 환경변수 초안을 정리한다.

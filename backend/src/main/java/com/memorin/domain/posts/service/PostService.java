@@ -58,7 +58,7 @@ public class PostService {
 
         Post post = Post.create(author, request.content(), request.visibilityType(),
                 request.timeslotType(), recordedDate);
-        postRepository.save(post);
+        postRepository.saveAndFlush(post);
 
         List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
 

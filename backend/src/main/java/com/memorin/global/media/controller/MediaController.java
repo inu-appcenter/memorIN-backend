@@ -1,6 +1,8 @@
 package com.memorin.global.media.controller;
 
+import com.memorin.global.media.MediaCompressionProperties;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
+import com.memorin.global.media.dto.response.CompressionPolicyResponse;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
 import com.memorin.global.media.dto.response.PresignedUploadResponse;
 import com.memorin.global.media.dto.response.QuotaResponse;
@@ -27,15 +29,18 @@ public class MediaController {
     private final PresignedUploadService presignedUploadService;
     private final PresignedDownloadService presignedDownloadService;
     private final StorageQuotaService storageQuotaService;
+    private final MediaCompressionProperties compressionProperties;
 
     public MediaController(
             PresignedUploadService presignedUploadService,
             PresignedDownloadService presignedDownloadService,
-            StorageQuotaService storageQuotaService
+            StorageQuotaService storageQuotaService,
+            MediaCompressionProperties compressionProperties
     ) {
         this.presignedUploadService = presignedUploadService;
         this.presignedDownloadService = presignedDownloadService;
         this.storageQuotaService = storageQuotaService;
+        this.compressionProperties = compressionProperties;
     }
 
     @PostMapping("/presigned-upload-url")
@@ -46,6 +51,17 @@ public class MediaController {
         return ResponseEntity.ok(
                 presignedUploadService.createUploadUrl(userDetails.getUserId(), request)
         );
+    }
+
+    // 서버는 업로드 파일 바이트를 직접 만지지 않으므로(presigned PUT), 실제 압축은 클라이언트가 수행한다.
+    // 이 값들은 클라이언트가 업로드 전 압축 시 참고할 가이드일 뿐 서버가 강제하지 않는다.
+    @GetMapping("/compression-policy")
+    public ResponseEntity<CompressionPolicyResponse> getCompressionPolicy() {
+        return ResponseEntity.ok(new CompressionPolicyResponse(
+                compressionProperties.imageQualityPercent(),
+                compressionProperties.imageMaxWidthPx(),
+                compressionProperties.imageMaxHeightPx()
+        ));
     }
 
     @GetMapping("/quota")

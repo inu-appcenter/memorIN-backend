@@ -155,3 +155,9 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_room_id ON messages (room_id, sent_at DESC) WHERE deleted_at IS NULL;
+
+CREATE TABLE refresh_token (
+    user_id       UUID         PRIMARY KEY,
+    refresh_token VARCHAR(500) NOT NULL,
+    CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

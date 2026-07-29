@@ -5,9 +5,11 @@ import com.memorin.global.common.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -18,6 +20,22 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // 등록되지 않은 경로 → 404 (Spring 6.1+에서는 NoHandlerFoundException이 아니라 NoResourceFoundException)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(NoResourceFoundException e) {
+        log.warn("미등록 경로: {}", e.getResourcePath());
+        return ResponseEntity.status(ErrorCode.COMMON_004.getStatus())
+                .body(ApiResponse.fail(ErrorCode.COMMON_004));
+    }
+
+    // 등록된 경로를 잘못된 HTTP 메서드로 호출 → 405
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        log.warn("허용되지 않는 메서드: {}", e.getMethod());
+        return ResponseEntity.status(ErrorCode.COMMON_005.getStatus())
+                .body(ApiResponse.fail(ErrorCode.COMMON_005));
+    }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {

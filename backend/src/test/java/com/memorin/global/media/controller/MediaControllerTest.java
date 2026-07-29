@@ -7,6 +7,7 @@ import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import com.memorin.global.exception.UserDetailsImpl;
+import com.memorin.global.media.MediaCompressionProperties;
 import com.memorin.global.media.dto.request.PresignedUploadRequest;
 import com.memorin.global.media.dto.response.QuotaResponse;
 import com.memorin.global.media.exception.MediaAccessDeniedException;
@@ -19,6 +20,7 @@ import com.memorin.global.media.service.PresignedUploadService;
 import com.memorin.global.media.service.StorageQuotaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -44,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // 필터 자체를 목으로 만들면 doFilter가 아무것도 하지 않아 요청이 컨트롤러까지 도달하지 못한다.
 @WebMvcTest(MediaController.class)
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
+@EnableConfigurationProperties(MediaCompressionProperties.class)
 class MediaControllerTest {
 
     @Autowired
@@ -148,6 +151,29 @@ class MediaControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("MEDIA_001"))
                 .andExpect(jsonPath("$.error.message").exists());
+    }
+
+    @Test
+    void getCompressionPolicy_인증이_없으면_401을_반환한다() throws Exception {
+        // when
+        // then
+        mockMvc.perform(get("/api/media/compression-policy"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("AUTH_001"));
+    }
+
+    @Test
+    void getCompressionPolicy_인증된_사용자에게_설정된_압축_가이드값을_반환한다() throws Exception {
+        // when
+        // then
+        // application.properties 기본값(80 / 1920 / 1920)이 그대로 바인딩되어 내려오는지 확인한다.
+        mockMvc.perform(get("/api/media/compression-policy")
+                        .with(user(principalOf(UUID.randomUUID()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imageQualityPercent").value(80))
+                .andExpect(jsonPath("$.imageMaxWidthPx").value(1920))
+                .andExpect(jsonPath("$.imageMaxHeightPx").value(1920));
     }
 
     @Test
