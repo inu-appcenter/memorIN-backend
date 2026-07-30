@@ -1,7 +1,7 @@
 package com.memorin.domain.users.controller;
 
 import com.memorin.domain.users.dto.UserFollowPageResponse;
-import com.memorin.domain.users.dto.UserSearchResponse;
+import com.memorin.domain.users.dto.UserSearchPageResponse;
 import com.memorin.domain.users.service.UserService;
 import com.memorin.domain.users.dto.MyPageResponseDto;
 import com.memorin.global.common.ApiResponse;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -32,9 +31,13 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public ApiResponse<List<UserSearchResponse>> search(@RequestParam String keyword) {
-        List<UserSearchResponse> users = userService.searchUsers(keyword);
-        return ApiResponse.ok(users);
+    public ApiResponse<UserSearchPageResponse> search(
+        @RequestParam String keyword,
+        @RequestParam(required = false) UUID cursor,
+        @RequestParam(required = false) Integer size
+    ) {
+        UserSearchPageResponse response = userService.searchUsers(keyword, cursor, size);
+        return ApiResponse.ok(response);
     }
 
     @GetMapping("/{userId}/followers")
