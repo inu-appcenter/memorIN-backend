@@ -2,8 +2,9 @@ package com.memorin.global.media.dto.response;
 
 public record QuotaResponse(
         long usedBytes,
-        long limitBytes,
+        long totalQuotaBytes,
         long remainingBytes,
-        double usagePercentage
+        double usagePercent,
+        boolean warning
 ) {
 }
