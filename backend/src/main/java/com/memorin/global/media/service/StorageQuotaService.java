@@ -59,11 +59,12 @@ public class StorageQuotaService {
 
     public QuotaResponse getQuotaStatus(UUID userId) {
         long usedBytes = getUsedBytes(userId);
-        long limitBytes = properties.defaultLimitBytes();
-        long remainingBytes = Math.max(limitBytes - usedBytes, 0);
-        double usagePercentage = limitBytes == 0 ? 0.0 : (usedBytes * 100.0) / limitBytes;
+        long totalQuotaBytes = properties.defaultLimitBytes();
+        long remainingBytes = Math.max(totalQuotaBytes - usedBytes, 0);
+        double usagePercent = totalQuotaBytes == 0 ? 0.0 : (usedBytes * 100.0) / totalQuotaBytes;
+        boolean warning = usagePercent >= properties.warningThresholdPercent();
 
-        return new QuotaResponse(usedBytes, limitBytes, remainingBytes, usagePercentage);
+        return new QuotaResponse(usedBytes, totalQuotaBytes, remainingBytes, usagePercent, warning);
     }
 
     // TOCTOU 방지: 유저 행을 잠그고 committed+pending 합산 -> 한도 체크 -> pending 삽입까지

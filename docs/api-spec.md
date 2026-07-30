@@ -400,6 +400,37 @@ GET /api/media/compression-policy
 
 동영상(`video/mp4`, `video/quicktime`)은 현재 압축 가이드 대상이 아니다.
 
+### 4-4. 스토리지 사용량 조회 (대시보드)
+
+인증된 사용자 본인의 스토리지 사용 현황을 조회한다. `usedBytes`는 커밋된 미디어(`post_media`)와 만료 전 pending 예약(`pending_uploads`)의 합산값이며, 별도 집계 테이블 없이 요청 시점에 계산한다(`StorageQuotaService.getUsedBytes`, `docs/storage-quota-policy.md` 참고).
+
+```http
+GET /api/media/quota
+Authorization: Bearer {accessToken}
+```
+
+응답:
+
+```json
+{
+  "usedBytes": 2147483648,
+  "totalQuotaBytes": 5368709120,
+  "remainingBytes": 3221225472,
+  "usagePercent": 40.0,
+  "warning": false
+}
+```
+
+| 필드 | 설명 |
+|---|---|
+| `usedBytes` | 현재 사용 중인 바이트(커밋 + pending 예약 합산) |
+| `totalQuotaBytes` | 전체 할당 용량(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`) |
+| `remainingBytes` | 남은 용량. 사용량이 한도를 넘어도 음수가 되지 않고 0으로 고정된다 |
+| `usagePercent` | 사용률(%). `usedBytes / totalQuotaBytes * 100`. 한도 초과 시 100을 넘을 수 있다 |
+| `warning` | 사용률이 경고 임계값(`STORAGE_QUOTA_WARNING_THRESHOLD_PERCENT`, 기본 80%) 이상이면 `true` |
+
+요청 바디는 없으며, 대상 사용자는 request 파라미터가 아니라 JWT(SecurityContext)의 인증 정보로 결정된다(quota 우회 방지). 인증 없이 호출하면 401을 반환한다.
+
 ## 5. 환경 변수
 
 ### 5-1. JWT

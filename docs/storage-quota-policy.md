@@ -59,7 +59,12 @@ presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 
 |---|---:|---|
 | `STORAGE_QUOTA_DEFAULT_LIMIT_BYTES` | `1073741824` (1GiB) | 사용자 전체 저장 용량 한도 |
 | `STORAGE_QUOTA_PENDING_TTL_SECONDS` | `900` (15분) | pending 예약이 커밋 없이 유지되는 최대 시간 |
+| `STORAGE_QUOTA_WARNING_THRESHOLD_PERCENT` | `80` | 사용률이 이 값(%) 이상이면 `GET /api/media/quota` 응답의 `warning`이 `true`가 된다 |
 | `MINIO_MAX_UPLOAD_SIZE_BYTES` | `52428800` (50MiB) | **단일 파일** 상한. 전체 quota(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)와 별개 설정이다 |
+
+## 사용량 조회 (대시보드)
+
+`GET /api/media/quota`가 `usedBytes`/`totalQuotaBytes`/`remainingBytes`/`usagePercent`/`warning`을 반환한다(`StorageQuotaService.getQuotaStatus`). 요청/응답 예시는 `docs/api-spec.md` §4-4를 기준으로 한다.
 
 
 ## 관련 문서
