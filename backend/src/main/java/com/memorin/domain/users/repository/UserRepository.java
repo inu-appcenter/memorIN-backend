@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,4 +29,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.id = :userId")
     Optional<User> findByIdForUpdate(@Param("userId") UUID userId);
+
+    @Query("""
+        SELECT u FROM User u
+        WHERE (u.username LIKE %:keyword%
+            OR u.displayName LIKE %:keyword%)
+        AND (:cursorId IS NULL OR u.id < :cursorId)
+        ORDER BY u.id DESC
+        """)
+    List<User> searchUsersWithCursor(
+        @Param("keyword") String keyword,
+        @Param("cursorId") UUID cursorId,
+        Pageable pageable
+    );
 }
