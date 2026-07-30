@@ -214,9 +214,16 @@ for (Follows follow : follows) {
 | `findUserFeed` 키셋 페이징<br>(`(recorded_date, id) < (...) ORDER BY recorded_date DESC, id DESC`) | `idx_posts_user_date (user_id, recorded_date DESC)` | tie-break `id` 미포함 → `(user_id, recorded_date DESC, id DESC)`로 확장 검토 |
 | 댓글 스레드 `findThreadByPostId`<br>(tombstone 포함, `deleted_at` 필터 없음) | `idx_post_comments_post ... WHERE deleted_at IS NULL` (부분) | 부분 인덱스 조건 불일치 → 스레드 쿼리는 이 인덱스를 못 씀. 대형 스레드 정렬 비용. |
 
-### 5-5. ⚠️ 리뷰 중 발견(검증 필요) — 네이티브 쿼리 오타
+### 5-5. 🔴 리뷰 중 발견 → 확인됨: 추천 피드 전면 장애 (#118)
 
-`PostRepository.findRecommendationCandidates`의 `AND p.created_at <= : asOf` — **콜론과 파라미터 사이 공백**. Hibernate가 `:asOf` 바인딩을 못 잡아 추천 피드 실행 시 SQL 오류가 날 수 있음. **실측(추천 피드 실제 호출/테스트)으로 확인 필요.**
+`PostRepository.findRecommendationCandidates`의 `AND p.created_at <= : asOf`(콜론-파라미터 공백)에서 시작해 **실측한 결과, 추천 피드(`GET /api/posts/recommend`)는 지금까지 한 번도 동작한 적이 없는 전면 500 장애**로 확인됨.
+
+- 오타 → `PSQLException: syntax error at or near ":"` (실측)
+- 오타 수정 후 → `Instant` 파라미터 vs `created_at`(LocalDateTime) 불일치 `QueryArgumentException` (실측)
+- 좋아요/댓글 카운트 쿼리(`countGroupedByPostIds`)도 동일한 Instant/LocalDateTime 불일치
+- `RecommendedFeedService.computeScore`의 `Duration.between(LocalDateTime, Instant)` → 런타임 예외
+
+근본 원인은 서비스가 시간을 `Instant`로 다루는데 엔티티/컬럼은 `LocalDateTime`인 점. → **별도 버그 이슈 #118**에서 처리(피드 담당 검토 권장). 교훈: 목록/피드 API는 **실행 경로를 타는 테스트가 없으면 배포 후 첫 호출까지 장애가 숨는다** — 섹션 3의 실측 원칙이 정확히 이걸 잡았다.
 
 ---
 
