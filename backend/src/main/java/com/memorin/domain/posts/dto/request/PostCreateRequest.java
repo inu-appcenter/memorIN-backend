@@ -2,6 +2,7 @@ package com.memorin.domain.posts.dto.request;
 
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
+import com.memorin.global.validation.ValidJson;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +16,7 @@ import java.util.List;
 public record PostCreateRequest(
 
         @NotBlank(message = "게시글 내용을 입력해주세요.")
+        @ValidJson(message = "게시글 내용이 올바른 JSON 형식이 아닙니다.")
         String content,
 
         @NotNull(message = "공개 범위를 선택해주세요.")
