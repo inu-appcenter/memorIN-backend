@@ -44,8 +44,14 @@ CREATE TABLE IF NOT EXISTS posts (
     deleted_at    TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_posts_user_id     ON posts (user_id, recorded_date DESC) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_posts_content_gin ON posts USING GIN (content);
+-- 유저 피드(findUserFeed): user_id 필터 + recorded_date DESC 정렬 + 키셋 페이징 tie-break(id DESC)까지 인덱스로 커버.
+CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id, recorded_date DESC, id DESC) WHERE deleted_at IS NULL;
+
+-- 추천 피드(findRecommendationCandidates): 최근 PUBLIC 글을 created_at 범위 + created_at DESC로 스캔.
+CREATE INDEX IF NOT EXISTS idx_posts_reco ON posts (created_at DESC) WHERE deleted_at IS NULL AND visibility = 'PUBLIC';
+
+-- (제거됨) idx_posts_content_gin: content(jsonb)는 어떤 쿼리의 WHERE/ORDER/JOIN 조건에도 쓰이지 않아
+-- 조회 이득 0 + insert/update 유지비용만 있는 죽은 GIN 인덱스였다. 실제 본문 검색 요구가 생기면 그때 재도입.
 
 -- post_media
 CREATE TABLE IF NOT EXISTS post_media (
@@ -102,8 +108,11 @@ CREATE TABLE IF NOT EXISTS post_comments (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_post_comments_post   ON post_comments (post_id, created_at) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_post_comments_parent ON post_comments (parent_id)           WHERE parent_id IS NOT NULL;
+-- 댓글 스레드(findThreadByPostId)는 tombstone(소프트삭제) 포함 전체를 post_id로 모아 created_at 정렬한다.
+-- 부분 인덱스(WHERE deleted_at IS NULL)는 이 쿼리를 못 타므로 비부분으로 둔다.
+-- 활성 카운트 쿼리(deleted_at IS NULL 필터)도 이 인덱스 위에서 필터로 처리된다.
+CREATE INDEX IF NOT EXISTS idx_post_comments_post   ON post_comments (post_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_post_comments_parent ON post_comments (parent_id) WHERE parent_id IS NOT NULL;
 
 -- follows
 CREATE TABLE IF NOT EXISTS follows (
