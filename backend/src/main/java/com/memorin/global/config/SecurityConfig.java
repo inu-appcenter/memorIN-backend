@@ -39,10 +39,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                         .accessDeniedHandler(restAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/auth/signup",
-                                "/auth/login"
-                        ).permitAll()
+                        .requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         // /api/media/**는 JWT 필터 도입에 맞춰 permitAll에서 제외했다.
                         // Quota 검증 대상 userId를 토큰에서 받으므로 인증 없이 열어두면 남의 quota로 업로드가 가능해진다.
                         .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
