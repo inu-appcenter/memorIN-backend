@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,8 +24,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,5 +95,23 @@ class PostErrorResponseTest {
     void PostCursor는_깨진_값을_받으면_InvalidCursorException을_던진다() {
         assertThatThrownBy(() -> PostCursor.decode("!!!not-base64!!!"))
                 .isInstanceOf(PostExceptions.InvalidCursorException.class);
+    }
+
+    // content는 jsonb 컬럼에 매핑되므로, 유효한 JSON이 아니면 DB 저장 단계 500이 아니라
+    // @ValidJson 검증에서 400(COMMON_002)으로 걸러져야 한다. (이슈 #77)
+    @Test
+    void 게시글_content가_유효한_JSON이_아니면_400과_COMMON_002를_반환한다() throws Exception {
+        String body = """
+                {"content":"평문 텍스트","visibilityType":"PUBLIC","timeslotType":"AM","attachments":[]}
+                """;
+
+        mockMvc.perform(post("/api/posts")
+                        .with(user(principalOf(UUID.randomUUID())))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_002"));
     }
 }

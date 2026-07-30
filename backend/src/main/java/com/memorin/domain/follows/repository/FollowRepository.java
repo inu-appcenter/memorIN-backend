@@ -4,6 +4,7 @@ import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,16 +24,28 @@ public interface FollowRepository extends JpaRepository<Follows, UUID> {
 
     Optional<Follows> findByIdAndStatus(UUID id, Follow_state status);
 
-    // 팔로워 목록
+    // 팔로워 목록 (following_id = userId 인 관계들).
+    // 상대(follower) 유저를 JOIN FETCH로 함께 로드 → 목록 매핑 시 유저당 SELECT N번(N+1) 방지.
+    @Query("""
+        SELECT f FROM Follows f
+        JOIN FETCH f.follower
+        WHERE f.following.id = :userId AND f.status = :status
+        """)
     List<Follows> findByFollowingIdAndStatus(
-        UUID userId,
-        Follow_state status
+        @Param("userId") UUID userId,
+        @Param("status") Follow_state status
     );
 
-    // 팔로잉 목록
+    // 팔로잉 목록 (follower_id = userId 인 관계들).
+    // 상대(following) 유저를 JOIN FETCH로 함께 로드 → N+1 방지.
+    @Query("""
+        SELECT f FROM Follows f
+        JOIN FETCH f.following
+        WHERE f.follower.id = :userId AND f.status = :status
+        """)
     List<Follows> findByFollowerIdAndStatus(
-        UUID userId,
-        Follow_state status
+        @Param("userId") UUID userId,
+        @Param("status") Follow_state status
     );
 
     @Query("""

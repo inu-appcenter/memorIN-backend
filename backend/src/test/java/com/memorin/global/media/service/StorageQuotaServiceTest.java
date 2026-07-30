@@ -47,7 +47,7 @@ class StorageQuotaServiceTest {
     @Test
     void getQuotaStatus_committed와_pending을_합산한다() {
         // given
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(300L);
@@ -58,15 +58,16 @@ class StorageQuotaServiceTest {
 
         // then
         assertThat(response.usedBytes()).isEqualTo(400L);
-        assertThat(response.limitBytes()).isEqualTo(1_000L);
+        assertThat(response.totalQuotaBytes()).isEqualTo(1_000L);
         assertThat(response.remainingBytes()).isEqualTo(600L);
-        assertThat(response.usagePercentage()).isCloseTo(40.0, within(0.01));
+        assertThat(response.usagePercent()).isCloseTo(40.0, within(0.01));
+        assertThat(response.warning()).isFalse();
     }
 
     @Test
     void getQuotaStatus_사용량이_한도를_초과해도_잔여량은_음수가_되지_않는다() {
         // given
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(1_500L);
@@ -76,13 +77,46 @@ class StorageQuotaServiceTest {
 
         // then
         assertThat(response.remainingBytes()).isZero();
-        assertThat(response.usagePercentage()).isCloseTo(150.0, within(0.01));
+        assertThat(response.usagePercent()).isCloseTo(150.0, within(0.01));
+        assertThat(response.warning()).isTrue();
+    }
+
+    @Test
+    void getQuotaStatus_사용률이_경고_임계값_미만이면_warning은_false다() {
+        // given
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
+        StorageQuotaService service = service(properties);
+        UUID userId = UUID.randomUUID();
+        given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(799L);
+
+        // when
+        QuotaResponse response = service.getQuotaStatus(userId);
+
+        // then
+        assertThat(response.usagePercent()).isCloseTo(79.9, within(0.01));
+        assertThat(response.warning()).isFalse();
+    }
+
+    @Test
+    void getQuotaStatus_사용률이_경고_임계값_이상이면_warning은_true다() {
+        // given
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
+        StorageQuotaService service = service(properties);
+        UUID userId = UUID.randomUUID();
+        given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(800L);
+
+        // when
+        QuotaResponse response = service.getQuotaStatus(userId);
+
+        // then
+        assertThat(response.usagePercent()).isCloseTo(80.0, within(0.01));
+        assertThat(response.warning()).isTrue();
     }
 
     @Test
     void reserveUpload_한도_이내면_pending을_저장한다() {
         // given
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
@@ -100,7 +134,7 @@ class StorageQuotaServiceTest {
     @Test
     void reserveUpload_committed와_pending_합이_한도를_넘으면_예외를_던진다() {
         // given: committed 300 + 기존 pending 400 + 새 요청 400 = 1100 > 1000
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
@@ -115,7 +149,7 @@ class StorageQuotaServiceTest {
     @Test
     void assertCommitWithinLimit_선언값보다_실제_크기가_커도_한도_이내면_통과한다() {
         // given: committed 300 + (pending 합 500, 그중 이 예약의 선언값 200을 실제 400으로 대체) = 700 <= 1000
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
@@ -130,7 +164,7 @@ class StorageQuotaServiceTest {
     void assertCommitWithinLimit_선언값보다_실제_크기가_커서_한도를_넘으면_예외를_던진다() {
         // given: committed 300 + (pending 합 500, 그중 이 예약의 선언값 200을 실제 900으로 대체) = 1200 > 1000
         // 클라이언트가 예약 시 작은 값(200)을 선언해 quota 체크를 통과시켜놓고 실제로는 900을 업로드한 상황.
-        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L, 80);
         StorageQuotaService service = service(properties);
         UUID userId = UUID.randomUUID();
         given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
