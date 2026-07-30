@@ -59,4 +59,24 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             @Param("candidatePoolSize") int candidatePoolSize
     );
 
+    @Query(value = """
+        SELECT *
+        FROM posts p
+        WHERE p.user_id IN (:userIds)
+          AND p.deleted_at IS NULL
+          AND p.visibility IN ('PUBLIC','FRIENDS')
+          AND (
+                CAST(:cursorRecordedDate AS date) IS NULL
+                OR (p.recorded_date, p.id)
+                    < (CAST(:cursorRecordedDate AS date), CAST(:cursorId AS uuid))
+              )
+        ORDER BY p.recorded_date DESC, p.id DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Post> findFriendFeed(
+        @Param("userIds") List<UUID> userIds,
+        @Param("cursorRecordedDate") Date cursorRecordedDate,
+        @Param("cursorId") UUID cursorId,
+        @Param("limit") int limit
+    );
 }

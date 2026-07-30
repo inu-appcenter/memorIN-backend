@@ -228,4 +228,88 @@ public class PostService {
 
         return first || second;
     }
+
+    public PostListResponse friendFeed(UUID userId, String cursor, Integer size) {
+
+        List<UUID> followingIds = followRepository.findFollowingIds(userId);
+
+        if (followingIds.isEmpty()) {
+            return new PostListResponse(List.of(), null, false);
+        }
+
+        int limit = normalizeSize(size);
+
+        Date cursorRecordedDate = null;
+        UUID cursorId = null;
+
+        if (cursor != null && !cursor.isBlank()) {
+            PostCursor.Cursor decoded = PostCursor.decode(cursor);
+            cursorRecordedDate = decoded.recordedDate();
+            cursorId = UUID.fromString(decoded.postId());
+        }
+
+        List<Post> rows = postRepository.findFriendFeed(
+            followingIds,
+            cursorRecordedDate,
+            cursorId,
+            limit + 1
+        );
+
+        boolean hasNext = false;
+
+        if (rows.size() == limit + 1) {
+            hasNext = true;
+        }
+
+        List<Post> pageContent = rows;
+
+        if (hasNext) {
+            pageContent = rows.subList(0, limit);
+        }
+
+        List<UUID> postIds = new ArrayList<>();
+
+        for (Post post : pageContent) {
+            postIds.add(post.getId());
+        }
+
+        List<PostMedia> mediaList = postMediaRepository.findByPostIdInOrderByOrderIndexAsc(postIds);
+
+        Map<UUID, List<PostMedia>> mediaByPostId = new HashMap<>();
+
+        for (PostMedia media : mediaList) {
+            UUID postId = media.getPost().getId();
+
+            if (!mediaByPostId.containsKey(postId)) {
+                mediaByPostId.put(postId, new ArrayList<>());
+            }
+
+            mediaByPostId.get(postId).add(media);
+        }
+
+        List<PostSummaryResponse> items = new ArrayList<>();
+
+        for (Post post : pageContent) {
+            List<PostMedia> media = mediaByPostId.get(post.getId());
+
+            if (media == null) {
+                media = new ArrayList<>();
+            }
+
+            items.add(PostSummaryResponse.of(post, toMediaResponses(media)));
+        }
+
+        String nextCursor = null;
+
+        if (hasNext) {
+            Post last = pageContent.get(pageContent.size() - 1);
+
+            nextCursor = PostCursor.encode(
+                last.getRecordedDate(),
+                last.getId().toString()
+            );
+        }
+
+        return new PostListResponse(items, nextCursor, hasNext);
+    }
 }

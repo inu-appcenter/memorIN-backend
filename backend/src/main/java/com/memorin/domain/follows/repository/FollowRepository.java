@@ -3,6 +3,7 @@ package com.memorin.domain.follows.repository;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -33,4 +34,12 @@ public interface FollowRepository extends JpaRepository<Follows, UUID> {
         UUID userId,
         Follow_state status
     );
+
+    @Query("""
+    SELECT f.following.id
+    FROM Follows f
+    WHERE f.follower.id = :userId
+      AND f.status = com.memorin.domain.follows.entity.Follow_state.ACCEPTED
+    """)
+    List<UUID> findFollowingIds(UUID userId);
 }
