@@ -1,5 +1,7 @@
 package com.memorin.domain.posts.service;
 
+import com.memorin.domain.follows.entity.Follow_state;
+import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.domain.posts.entity.Post;
@@ -37,10 +39,12 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
+    private final FollowRepository followRepository;
     private final PresignedDownloadService presignedDownloadService;
     private final PresignedUploadService presignedUploadService;
     private final StorageQuotaService storageQuotaService;
     private final MediaUploadCommitService mediaUploadCommitService;
+    private final PostAccessPolicy postAccessPolicy;
 
     // 글 등록
     @Transactional
@@ -54,7 +58,7 @@ public class PostService {
 
         Post post = Post.create(author, request.content(), request.visibilityType(),
                 request.timeslotType(), recordedDate);
-        postRepository.save(post);
+        postRepository.saveAndFlush(post);
 
         List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
 
@@ -68,7 +72,7 @@ public class PostService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new PostExceptions.PostNotFoundException(postId.toString()));
 
-        PostAccessPolicy.assertReadable(post, requesterId);
+        postAccessPolicy.assertReadable(post, requesterId);
 
         // 작성자 본인이 아닐 때만 조회수 증가 (읽기 API인데 굳이 트랜잭션 열어서 처리)
         if (requesterId == null || !post.isOwnedBy(requesterId)) {
@@ -100,8 +104,13 @@ public class PostService {
 
         // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
         List<Post> rows = postRepository.findUserFeed(
-                userId, includeAllVisibility, cursorRecordedDate, cursorId, limit + 1
-        );
+                userId,
+                requesterId,
+                includeAllVisibility,
+                cursorRecordedDate,
+                cursorId,
+                limit + 1
+            );
 
         boolean hasNext = rows.size() > limit;
         List<Post> pageContent = hasNext ? rows.subList(0, limit) : rows;
@@ -203,5 +212,20 @@ public class PostService {
         return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 
+    private boolean isFriend(UUID userId, UUID postUserId) {
 
+        boolean first = followRepository.existsByFollowerIdAndFollowingIdAndStatus(
+                userId,
+                postUserId,
+                Follow_state.ACCEPTED
+            );
+
+        boolean second = followRepository.existsByFollowerIdAndFollowingIdAndStatus(
+                postUserId,
+                userId,
+                Follow_state.ACCEPTED
+            );
+
+        return first || second;
+    }
 }

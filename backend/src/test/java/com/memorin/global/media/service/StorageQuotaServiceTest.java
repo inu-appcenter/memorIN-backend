@@ -111,4 +111,34 @@ class StorageQuotaServiceTest {
         assertThatThrownBy(() -> service.reserveUpload(userId, "uploads/2026/07/22/key.png", 400L))
                 .isInstanceOf(StorageQuotaExceededException.class);
     }
+
+    @Test
+    void assertCommitWithinLimit_선언값보다_실제_크기가_커도_한도_이내면_통과한다() {
+        // given: committed 300 + (pending 합 500, 그중 이 예약의 선언값 200을 실제 400으로 대체) = 700 <= 1000
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaService service = service(properties);
+        UUID userId = UUID.randomUUID();
+        given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
+        given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(300L);
+        given(pendingUploadRepository.sumReservedBytesByUserId(any(), any())).willReturn(500L);
+
+        // when // then
+        service.assertCommitWithinLimit(userId, 200L, 400L);
+    }
+
+    @Test
+    void assertCommitWithinLimit_선언값보다_실제_크기가_커서_한도를_넘으면_예외를_던진다() {
+        // given: committed 300 + (pending 합 500, 그중 이 예약의 선언값 200을 실제 900으로 대체) = 1200 > 1000
+        // 클라이언트가 예약 시 작은 값(200)을 선언해 quota 체크를 통과시켜놓고 실제로는 900을 업로드한 상황.
+        StorageQuotaProperties properties = new StorageQuotaProperties(1_000L, 900L);
+        StorageQuotaService service = service(properties);
+        UUID userId = UUID.randomUUID();
+        given(userRepository.findByIdForUpdate(userId)).willReturn(java.util.Optional.of(mock(User.class)));
+        given(postMediaRepository.sumFileSizeBytesByUserId(userId)).willReturn(300L);
+        given(pendingUploadRepository.sumReservedBytesByUserId(any(), any())).willReturn(500L);
+
+        // when // then
+        assertThatThrownBy(() -> service.assertCommitWithinLimit(userId, 200L, 900L))
+                .isInstanceOf(StorageQuotaExceededException.class);
+    }
 }

@@ -2,6 +2,8 @@ package com.memorin.domain.post_comments.entity;
 
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.users.entity.User;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import jakarta.persistence.Table;
@@ -53,14 +55,23 @@ public class PostComments {
     private LocalDateTime deletedAt; // 삭제된 날짜
 
     // 최상위 댓글은 parent에 null을 넘긴다.
-    public static PostComments of(Post post, User author, PostComments parent, String body) {
+    public static PostComments of(Post post, User author, PostComments parent, String body, LocalDateTime createdAt) {
         PostComments comment = new PostComments();
         comment.post = post;
         comment.user = author;
         comment.parent = parent;
         comment.body = body;
+        comment.createdAt = createdAt;
         return comment;
     }
+
+    public void updateBody(String body) {
+        if (isDeleted()) {
+            throw new BusinessException(ErrorCode.COMMENT_006, "삭제된 댓글은 수정할 수 없습니다.");
+        }
+        this.body = body;
+    }
+
 
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();

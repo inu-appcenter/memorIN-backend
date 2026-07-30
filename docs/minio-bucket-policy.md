@@ -24,14 +24,6 @@
 
 ## 4. Quota 관리 방향
 
-사용자별 Quota는 MinIO bucket quota가 아니라 백엔드 DB 기반으로 관리하는 방향을 제안한다.
+사용자별 Quota는 MinIO bucket quota가 아니라 백엔드 DB 기반으로 관리한다(`memorin-media` 단일 버킷에 여러 사용자의 파일을 저장하므로, 버킷 전체 제한보다 사용자별 제한에 DB 기반 관리가 적합).
 
-이유:
-- `memorin-media` 단일 버킷에 여러 사용자의 파일을 저장할 예정
-- MinIO bucket quota는 사용자별 제한보다 버킷 전체 제한에 적합
-- 서비스 사용자별 사용량은 백엔드가 DB에서 관리하는 것이 적절
-
-업로드 전 백엔드에서 다음 조건을 검사한다.
-
-```text
-현재 사용량 + 업로드 예정 파일 크기 <= 사용자 저장 용량 제한
+세부 산정 기준·검증 시점·동시성 보장은 `docs/storage-quota-policy.md`를 기준으로 한다.

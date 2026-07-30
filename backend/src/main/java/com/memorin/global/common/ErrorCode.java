@@ -10,11 +10,14 @@ public enum ErrorCode {
     COMMON_001(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다"),
     COMMON_002(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다"),
     COMMON_003(HttpStatus.FORBIDDEN, "해당 요청에 대한 권한이 없습니다"),
+    COMMON_004(HttpStatus.NOT_FOUND, "요청하신 경로를 찾을 수 없습니다"),
+    COMMON_005(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않는 요청 메서드입니다"),
 
     // 인증 (auth)
     AUTH_001(HttpStatus.UNAUTHORIZED, "인증이 필요합니다"),
     AUTH_002(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
-    AUTH_003(HttpStatus.UNAUTHORIZED, "유효하지 않은 인증 정보입니다. 다시 로그인해주세요."),
+    AUTH_003(HttpStatus.UNAUTHORIZED, "다시 로그인하여 주세요."),
+    AUTH_004(HttpStatus.UNAUTHORIZED, "유효하지 않은 인증 정보입니다."),
 
     // 회원 (member)
     USER_001(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다"),
@@ -38,6 +41,7 @@ public enum ErrorCode {
     COMMENT_003(HttpStatus.NOT_FOUND, "부모 댓글이 존재하지 않습니다."),
     COMMENT_004(HttpStatus.BAD_REQUEST, "대댓글에는 답글을 달 수 없습니다."),
     COMMENT_005(HttpStatus.FORBIDDEN, "비공개 게시물에는 댓글을 달 수 없습니다."),
+    COMMENT_006(HttpStatus.FORBIDDEN, "삭제된 댓글은 수정할 수 없습니다."),
 
     // 미디어 (media)
     MEDIA_001(HttpStatus.BAD_REQUEST, "허용되지 않는 파일 형식입니다"),

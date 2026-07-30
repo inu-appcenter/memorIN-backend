@@ -19,7 +19,7 @@ import java.util.List;
 
 // 커밋(게시물 첨부) 없이 pendingTtlSeconds가 지난 예약을 정리한다.
 // 그대로 두면 파일만 MinIO에 올라간 채 quota/DB엔 흔적이 없는 "고아 오브젝트 + 회계 드리프트"가
-// 영구히 남는다 (docs/storage-quota-design.md 확인 필요 항목: PENDING 만료 데이터 정리 정책).
+// 영구히 남는다 (docs/storage-quota-policy.md §만료된 예약 정리).
 @Component
 public class PendingUploadCleanupJob {
 

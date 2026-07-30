@@ -6,13 +6,13 @@
 
 ## 1. 문서 범위
 
-이 문서는 `docs/auth-jwt-design.md`와 `docs/presigned-upload-api.md`를 API 명세서 형식으로 통합한 문서다.
+이 문서는 `docs/auth-jwt-design.md`와 (삭제된) `docs/presigned-upload-api.md` 초안을 API 명세서 형식으로 통합한 문서다.
 
 | 구분 | 상태 | 비고 |
 |---|---|---|
 | 인증/회원가입 API | 일부 구현, JWT 발급은 예정 | `POST /auth/signup`, `POST /auth/login` |
 | JWT 재발급/로그아웃 API | 설계 예정 | JWT 구현 PR에서 추가 |
-| 미디어 Presigned Upload API | 구현됨 | 현재 JWT 필터 도입 전까지 임시 permitAll |
+| 미디어 Presigned Upload / 업로드 커밋 / Storage Quota | 구현됨 | JWT 인증 필수, `/api/media/**` permitAll 제외됨 |
 
 ## 2. 공통 규칙
 
@@ -38,7 +38,7 @@ JWT 적용 후 인증이 필요한 API는 아래 헤더를 사용한다.
 Authorization: Bearer {accessToken}
 ```
 
-현재 `SecurityConfig`는 `/api/media/**`를 임시로 허용하고 있다. JWT 필터 도입 시 `POST /api/media/presigned-upload-url`은 인증 필수 API로 전환한다.
+`/api/media/**`는 JWT 필터 도입에 맞춰 `permitAll`에서 제외됐다. `POST /api/media/presigned-upload-url`을 포함한 미디어 API는 인증 필수다.
 
 ### 2-4. 공통 응답 포맷
 
@@ -291,9 +291,7 @@ Authorization: Bearer {accessToken}
 
 #### 인증
 
-JWT 적용 후 필수.
-
-현재 구현은 `SecurityConfig`에서 `/api/media/**`가 임시 `permitAll`로 열려 있다. JWT 필터 도입 시 인증 필수로 변경한다.
+필수. `/api/media/**`는 `permitAll` 예외 없이 JWT 인증을 거친다.
 
 #### 요청 Body
 
@@ -358,43 +356,49 @@ Content-Type: image/jpeg
 |---:|---|---|
 | 400 | `{ "message": "Invalid presigned upload request." }` | 필수 필드 누락 또는 `contentLength < 1` |
 | 400 | `{ "message": "..." }` | 허용되지 않는 MIME 타입, 최대 크기 초과 등 요청 정책 위반 |
-| 401 | 공통 인증 오류 | JWT 적용 후 인증 누락/만료/위조 |
+| 401 | 공통 인증 오류 | 인증 누락/만료/위조 |
 | 500 | `{ "message": "Failed to create presigned upload URL." }` | MinIO URL 발급 실패 |
 
-### 4-2. 업로드 완료 Confirm API 예정
+### 4-2. 업로드 완료 커밋
+
+별도의 `/api/media/uploads/confirm` API는 만들지 않았다. 대신 게시물 생성/수정 API(`POST /api/posts` 등, `docs/api-spec-domains.md` 참고)가 `attachments`로 전달된 `fileKey` 목록을 받아 첨부 시점에 커밋을 수행한다(`PostService.saveMedia` → `MediaUploadCommitService.commitUpload`).
+
+Presigned URL 발급만으로는 실제 업로드 성공 여부, 저장된 객체 크기, 사용자 quota 사용량을 확정할 수 없으므로, 커밋 시 다음을 검증한다.
+
+1. pending 예약(`pending_uploads`)의 소유자·만료 여부를 확인한다.
+2. MinIO `statObject`로 실제 업로드 크기(`actualBytes`)를 확인한다. 클라이언트가 선언한 `contentLength`는 신뢰하지 않는다.
+3. `actualBytes`가 단일 파일 상한(`MINIO_MAX_UPLOAD_SIZE_BYTES`) 이하인지 확인한다.
+4. `actualBytes` 기준으로 사용자 전체 quota(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)를 재검증한다(`StorageQuotaService.assertCommitWithinLimit`).
+5. `pending_uploads` 행을 삭제하고, `actualBytes`를 `post_media.file_size_bytes`에 기록한다.
+
+세부 동작·동시성 보장·알려진 한계는 `docs/storage-quota-policy.md`를 기준으로 한다.
+
+### 4-3. 압축 가이드 정책
+
+서버는 presigned PUT으로 업로드되는 파일 바이트를 직접 만지지 않으므로 서버 사이드 압축은 하지 않는다.
+대신 클라이언트(앱/웹)가 업로드 전 이미지를 압축할 때 참고할 가이드 값을 아래 API로 내려준다. **서버가 강제하는 값이 아니며**, 클라이언트가 이 값보다 큰 파일을 올려도 `MINIO_MAX_UPLOAD_SIZE_BYTES`/Quota 검증만 통과하면 업로드는 성공한다.
 
 ```http
-POST /api/media/uploads/confirm
-Authorization: Bearer {accessToken}
-Content-Type: application/json
+GET /api/media/compression-policy
 ```
 
-#### 상태
-
-아직 구현 전이다.
-
-#### 필요성
-
-Presigned URL 발급만으로는 실제 업로드 성공 여부, 저장된 객체 크기, 사용자 quota 사용량, 게시물과의 연결 상태를 확정할 수 없다. 클라이언트 업로드 성공 후 백엔드에 confirm 요청을 보내고, 백엔드는 MinIO object stat과 DB 상태를 검증해야 한다.
-
-#### 요청 Body 초안
+응답:
 
 ```json
 {
-  "objectKey": "uploads/2026/07/01/{uuid}/daily-photo.jpg",
-  "contentType": "image/jpeg",
-  "contentLength": 1048576,
-  "purpose": "POST_MEDIA"
+  "imageQualityPercent": 80,
+  "imageMaxWidthPx": 1920,
+  "imageMaxHeightPx": 1920
 }
 ```
 
-#### 처리 규칙 초안
+| 이름 | 기본값 | 설명 |
+|---|---:|---|
+| `MEDIA_COMPRESSION_IMAGE_QUALITY_PERCENT` | `80` | 이미지 압축 품질(1~100) |
+| `MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX` | `1920` | 이미지 최대 가로 픽셀 |
+| `MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX` | `1920` | 이미지 최대 세로 픽셀 |
 
-1. 인증 사용자와 `objectKey` 소유자를 확인한다.
-2. MinIO에서 객체 존재 여부와 실제 크기를 확인한다.
-3. 실제 MIME 타입 검증 또는 비동기 스캐닝 정책을 적용한다.
-4. 사용자 quota를 최종 검증한다.
-5. 미디어 메타데이터를 DB에 저장하거나 PENDING 상태를 COMPLETE로 변경한다.
+동영상(`video/mp4`, `video/quicktime`)은 현재 압축 가이드 대상이 아니다.
 
 ## 5. 환경 변수
 
@@ -419,13 +423,9 @@ Presigned URL 발급만으로는 실제 업로드 성공 여부, 저장된 객�
 
 Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만, 호스트 브라우저나 앱은 보통 `MINIO_PUBLIC_ENDPOINT=http://localhost:9000`으로 접근해야 한다.
 
-### 5-3. Storage Quota 예정
+### 5-3. Storage Quota
 
-| 이름 | 기본값 | 설명 |
-|---|---:|---|
-| `STORAGE_QUOTA_DEFAULT_LIMIT_BYTES` | `1073741824` | 사용자 기본 저장 용량 제한, 1GiB |
-| `STORAGE_QUOTA_MAX_SINGLE_UPLOAD_BYTES` | `52428800` | 단일 업로드 최대 크기, 50MiB |
-| `STORAGE_QUOTA_PENDING_TTL_SECONDS` | `900` | PENDING 업로드 메타데이터 만료 시간, 15분 |
+구현됨. 환경 변수 전체 목록과 각 값의 의미는 `docs/storage-quota-policy.md` §환경 변수를 기준으로 한다(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`, `STORAGE_QUOTA_PENDING_TTL_SECONDS`, `MINIO_MAX_UPLOAD_SIZE_BYTES`). 이 문서에서는 중복 표기하지 않는다.
 
 ## 6. 구현 체크리스트
 
@@ -437,22 +437,20 @@ Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만
 - Refresh Token 발급과 Redis 저장을 추가한다.
 - `JwtTokenProvider`를 추가해 발급/검증을 담당하게 한다.
 - `JwtAuthenticationFilter`를 추가해 `Authorization: Bearer` 토큰을 검증한다.
-- `/api/media/**` 임시 `permitAll`을 제거하고 필요한 경로만 인증 예외로 둔다.
+- `/api/media/**` 임시 `permitAll`을 제거하고 필요한 경로만 인증 예외로 둔다. **완료**
 - `POST /auth/reissue`, `POST /auth/logout`을 추가한다.
 
 ### 6-2. 미디어 업로드
 
 - `POST /api/media/presigned-upload-url` 구현 완료.
-- JWT 적용 후 인증 사용자 기반 object key 정책으로 변경한다.
-- 업로드 완료 confirm API를 추가한다.
-- confirm 단계에서 MinIO object stat 기반 실제 크기 검증을 수행한다.
-- 사용자별 quota 정책을 적용한다.
+- JWT 적용 후 인증 사용자 기반 object key 정책으로 변경한다. **완료**
+- 업로드 완료 커밋을 게시물 생성 API 경로(`attachments`)로 구현한다. **완료** (§4-2)
+- 커밋 단계에서 MinIO object stat 기반 실제 크기 검증을 수행한다. **완료** (§4-2)
+- 사용자별 quota 정책을 적용한다(예약 시 선언값 기준 + 커밋 시 실제 크기 기준 재검증). **완료** (`docs/storage-quota-policy.md`)
 - 운영 전 MIME 타입 신뢰 경계를 정리하고 검증/스캐닝 정책을 결정한다.
 
 ## 7. 관련 문서
 
 - `docs/auth-jwt-design.md`: JWT 설계 초안. 최신 API 명세는 이 문서를 우선한다.
-- `docs/presigned-upload-api.md`: Presigned Upload 초안. 최신 API 명세는 이 문서를 우선한다.
-- `docs/storage-quota-design.md`: 업로드 confirm 및 quota 설계 초안 (보존용).
 - `docs/storage-quota-policy.md`: 구현된 Storage Quota 정책 (사용량 산정, 동시성 보장, 환경 변수, 알려진 한계).
 - `docs/minio-bucket-policy.md`: MinIO private bucket 운영 정책 참고.

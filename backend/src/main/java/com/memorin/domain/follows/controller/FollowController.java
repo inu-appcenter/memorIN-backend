@@ -4,6 +4,7 @@ import com.memorin.domain.follows.dto.FollowRequest;
 import com.memorin.domain.follows.service.FollowService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.common.ApiResponse;
+import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,22 +21,22 @@ public class FollowController {
 
     // 팔로우 요청
     @PostMapping
-    public ApiResponse<Void> request(@RequestBody @Valid FollowRequest request, @AuthenticationPrincipal User user) {
-        followService.request(user.getId(), request.followingId());
+    public ApiResponse<Void> request(@RequestBody @Valid FollowRequest request, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        followService.request(userDetails.getUserId(), request.followingId());
         return ApiResponse.ok();
     }
 
     // 팔로우 수락
     @PatchMapping("/{followId}/accept")
-    public ApiResponse<Void> accept(@PathVariable UUID followId, @AuthenticationPrincipal User user){
-        followService.accept(followId, user.getId());
+    public ApiResponse<Void> accept(@PathVariable UUID followId, @AuthenticationPrincipal UserDetailsImpl userDetails){
+        followService.accept(followId, userDetails.getUserId());
         return ApiResponse.ok();
     }
 
     // 팔로우 거절
     @DeleteMapping("/{followingId}")
-    public ApiResponse<Void> reject(@PathVariable UUID followingId, @AuthenticationPrincipal User user) {
-        followService.reject(user.getId(), followingId);
+    public ApiResponse<Void> reject(@PathVariable UUID followingId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        followService.reject(userDetails.getUserId(), followingId);
         return ApiResponse.ok();
     }
 }
