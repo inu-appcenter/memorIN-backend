@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -44,10 +45,10 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
             """)
     List<PostCommentCountRow> countGroupedByPostIds(
             @Param("postIds") Collection<UUID> postIds,
-            @Param("asOf") Instant asOf
+            @Param("asOf") LocalDateTime asOf
     );
 
-    default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds, Instant asOf) {
+    default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds, LocalDateTime asOf) {
         if (postIds == null || postIds.isEmpty()) return Map.of();
         return countGroupedByPostIds(postIds, asOf).stream()
                 .collect(Collectors.toMap(PostCommentCountRow::getPostId, PostCommentCountRow::getCommentCount));
