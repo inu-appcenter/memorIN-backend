@@ -18,7 +18,6 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class RecommendedFeedQueryTest extends PostgresTestSupport {
 
     @Autowired
