@@ -1,19 +1,18 @@
 package com.memorin.domain.users.service;
 
-import com.memorin.domain.users.dto.MyPageResponseDto;
+import com.memorin.domain.users.dto.*;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
-import com.memorin.domain.users.dto.UserFollowPageResponse;
-import com.memorin.domain.users.dto.UserFollowResponse;
 import com.memorin.domain.users.entity.User;
-import com.memorin.domain.users.dto.UserSearchResponse;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Pageable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,23 +26,41 @@ public class UserService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
 
-    public List<UserSearchResponse> searchUsers(String keyword) {
+    @Transactional(readOnly = true)
+    public UserSearchPageResponse searchUsers(String keyword, UUID cursor, Integer size) {
 
-        List<User> users = userRepository.findByUsernameOrDisplayName(keyword, keyword);
-        List<UserSearchResponse> response = new ArrayList<>();
+        int limit = size == null ? 20 : size;
+        Pageable pageable = PageRequest.of(0, limit + 1);
 
-        for (User user : users) {
-            UserSearchResponse userResponse = new UserSearchResponse(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getDisplayName(),
-                    user.getBio()
-            );
+        List<User> users = userRepository.searchUsersWithCursor(keyword, cursor, pageable);
 
-            response.add(userResponse);
+        boolean hasNext = false;
+
+        if (users.size() == limit + 1) {
+            hasNext = true;
+            users.remove(limit);
         }
 
-        return response;
+        List<UserSearchResponse> items = new ArrayList<>();
+
+        for (User user : users) {
+            UserSearchResponse response = new UserSearchResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getBio()
+            );
+
+            items.add(response);
+        }
+
+        UUID nextCursor = null;
+
+        if (hasNext && items.size() > 0) {
+            nextCursor = items.get(items.size() - 1).id();
+        }
+
+        return new UserSearchPageResponse(items, nextCursor, hasNext);
     }
 
     public MyPageResponseDto getMyPage(UUID userId) {

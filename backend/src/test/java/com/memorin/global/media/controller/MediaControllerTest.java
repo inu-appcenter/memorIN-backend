@@ -191,7 +191,7 @@ class MediaControllerTest {
         // given
         UUID userId = UUID.randomUUID();
         given(storageQuotaService.getQuotaStatus(userId))
-                .willReturn(new QuotaResponse(300_000_000L, 1_073_741_824L, 773_741_824L, 27.94));
+                .willReturn(new QuotaResponse(300_000_000L, 1_073_741_824L, 773_741_824L, 27.94, false));
 
         // when
         // then
@@ -199,9 +199,10 @@ class MediaControllerTest {
                         .with(user(principalOf(userId))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.usedBytes").value(300_000_000L))
-                .andExpect(jsonPath("$.limitBytes").value(1_073_741_824L))
+                .andExpect(jsonPath("$.totalQuotaBytes").value(1_073_741_824L))
                 .andExpect(jsonPath("$.remainingBytes").value(773_741_824L))
-                .andExpect(jsonPath("$.usagePercentage").value(27.94));
+                .andExpect(jsonPath("$.usagePercent").value(27.94))
+                .andExpect(jsonPath("$.warning").value(false));
     }
 
     @Test

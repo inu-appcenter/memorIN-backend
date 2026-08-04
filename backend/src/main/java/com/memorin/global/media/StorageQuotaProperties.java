@@ -1,5 +1,6 @@
 package com.memorin.global.media;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -11,6 +12,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "storage.quota")
 public record StorageQuotaProperties(
         @Min(1) long defaultLimitBytes,
-        @Min(1) long pendingTtlSeconds
+        @Min(1) long pendingTtlSeconds,
+        @Min(0) @Max(100) int warningThresholdPercent
 ) {
 }
