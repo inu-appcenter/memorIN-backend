@@ -5,6 +5,7 @@ import com.memorin.global.exception.BusinessException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -16,10 +17,10 @@ public class RecommendFeedCursor {
 
     private RecommendFeedCursor() {}
 
-    public record Cursor(Instant asOf, double score, UUID postId) {}
+    public record Cursor(LocalDateTime asOf, double score, UUID postId) {}
 
-    public static String encode(Instant asOf, double score, UUID postId) {
-        String raw = asOf.toEpochMilli() + ":" + score + ":" + postId;
+    public static String encode(LocalDateTime asOf, double score, UUID postId) {
+        String raw = asOf + ":" + score + ":" + postId;
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
@@ -28,7 +29,7 @@ public class RecommendFeedCursor {
         try {
             String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
             String[] parts = raw.split(":", 3);
-            return new Cursor(Instant.ofEpochMilli(Long.parseLong(parts[0])), Double.parseDouble(parts[1]), UUID.fromString(parts[2]));
+            return new Cursor(LocalDateTime.parse(parts[0]), Double.parseDouble(parts[1]), UUID.fromString(parts[2]));
         } catch (Exception e) {
             // 커서는 서버가 발급한 불투명 문자열이므로, 파싱 실패는 항상 클라이언트 잘못이다.
             // 원인 예외 메시지는 응답에 싣지 않고 cause로만 넘겨 로그에 남긴다.
