@@ -1,8 +1,12 @@
 # memorIN API 명세서
 
-> 최신 기준 문서: 2026-07-10
+> 최신 기준 문서: 2026-08-04
 >
 > Notion API 명세서에 남아 있는 이전 주제/초안 내용은 잔재일 수 있다. 최신 명세는 이 레포의 `docs/` 문서를 기준으로 확인한다.
+
+> **전체 엔드포인트의 정본(live)은 Swagger UI다.** 앱 실행 후 `http://localhost:8080/swagger-ui/index.html`에서
+> 그룹(인증·게시물·댓글·팔로우·사용자·미디어·FCM 토큰)별 최신 목록과 요청/응답 스키마를 확인한다.
+> 이 문서는 그 위에 **공통 규칙·인증 정책·에러코드**처럼 Swagger가 자동 생성하지 못하는 맥락을 보충한다.
 
 ## 1. 문서 범위
 
@@ -10,9 +14,11 @@
 
 | 구분 | 상태 | 비고 |
 |---|---|---|
-| 인증/회원가입 API | 일부 구현, JWT 발급은 예정 | `POST /auth/signup`, `POST /auth/login` |
-| JWT 재발급/로그아웃 API | 설계 예정 | JWT 구현 PR에서 추가 |
+| 인증/회원가입 API | **구현됨** | `POST /auth/signup`, `POST /auth/login` (JWT 발급) |
+| JWT 재발급 API | **구현됨** | `POST /auth/refresh` (Access/Refresh 재발급) |
+| 로그아웃 API | 설계 예정 | 저장소 Refresh Token 삭제 방식 검토 |
 | 미디어 Presigned Upload / 업로드 커밋 / Storage Quota | 구현됨 | JWT 인증 필수, `/api/media/**` permitAll 제외됨 |
+| 게시물·댓글·팔로우·사용자 API | 구현됨 | 도메인 상세는 `docs/api-spec-domains.md` + Swagger UI 참고 |
 
 ## 2. 공통 규칙
 
@@ -135,9 +141,7 @@ Content-Type: application/json
 
 #### 설명
 
-이메일과 비밀번호를 검증하고 Access Token을 반환한다.
-
-현재 코드는 로그인 성공 시 임시 문자열 `"로그인 성공"`을 `accessToken` 필드에 반환한다. JWT 구현 이후 실제 Access Token으로 교체한다.
+이메일과 비밀번호를 검증하고 **Access Token과 Refresh Token을 함께 발급**한다. 두 토큰 모두 HS256으로 서명한 실제 JWT다.
 
 #### 인증
 
@@ -161,25 +165,14 @@ Content-Type: application/json
 
 #### 응답
 
-Status: `200 OK`
+Status: `200 OK` — 공통 `ApiResponse` 봉투로 감싸 반환한다.
 
 ```json
 {
   "success": true,
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9..."
-  },
-  "error": null
-}
-```
-
-현재 임시 응답:
-
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "로그인 성공"
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
   },
   "error": null
 }
@@ -211,18 +204,26 @@ Authorization: Bearer {accessToken}
 
 Access Token 클레임은 `sub`(user/member id), `iat`, `exp`만 우선 사용한다. 권한 정보는 도메인 요구가 생기면 추가한다.
 
-### 3-4. 토큰 재발급 예정
+### 3-4. 토큰 재발급
 
 ```http
-POST /auth/reissue
+POST /auth/refresh
 Content-Type: application/json
 ```
 
 #### 상태
 
-아직 구현 전이다.
+**구현됨.** (경로는 `/auth/reissue`가 아니라 `/auth/refresh`다.)
 
-#### 요청 Body 초안
+#### 인증
+
+불필요. Refresh Token 자체를 Body로 전달한다. (SecurityConfig에서 이 경로는 permitAll)
+
+#### 요청 Body
+
+| 필드 | 타입 | 필수 | 설명 |
+|---|---|---:|---|
+| `refreshToken` | string | O | 로그인 시 발급받은 Refresh Token |
 
 ```json
 {
@@ -230,32 +231,24 @@ Content-Type: application/json
 }
 ```
 
-#### 응답 Body 초안
+#### 응답 Body
+
+Status: `200 OK`
+
+> ⚠️ 현재 이 API는 로그인과 달리 **공통 `ApiResponse` 봉투 없이** `LoginResponse`(토큰 쌍)를 그대로 반환한다.
+> 응답 포맷 일관성은 후속 API 정리 시 맞춘다.
 
 ```json
 {
-  "success": true,
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
-  },
-  "error": null
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
-#### 처리 규칙 초안
+#### 처리 규칙
 
 1. Refresh Token 서명과 만료를 검증한다.
-2. 서버 저장소의 토큰과 요청 토큰이 일치하는지 확인한다.
-3. Access Token과 Refresh Token을 모두 새로 발급한다.
-4. 저장소의 Refresh Token 값을 새 토큰으로 갱신한다.
-
-Refresh Token 저장소는 Redis를 우선 권장한다.
-
-```text
-refresh:{userId} -> refreshToken
-TTL: 7 days
-```
+2. Access Token과 Refresh Token을 새로 발급해 반환한다.
 
 ### 3-5. 로그아웃 예정
 
@@ -464,12 +457,13 @@ Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만
 
 - `POST /auth/signup` 구현 완료.
 - `POST /auth/login` 비밀번호 검증 구현 완료.
-- 로그인 성공 응답의 임시 문자열을 실제 Access Token으로 교체한다.
-- Refresh Token 발급과 Redis 저장을 추가한다.
-- `JwtTokenProvider`를 추가해 발급/검증을 담당하게 한다.
-- `JwtAuthenticationFilter`를 추가해 `Authorization: Bearer` 토큰을 검증한다.
+- 로그인 응답을 실제 Access/Refresh Token 발급으로 교체. **완료**
+- `JwtTokenProvider`로 발급/검증 담당. **완료**
+- `JwtAuthenticationFilter`로 `Authorization: Bearer` 토큰 검증. **완료**
 - `/api/media/**` 임시 `permitAll`을 제거하고 필요한 경로만 인증 예외로 둔다. **완료**
-- `POST /auth/reissue`, `POST /auth/logout`을 추가한다.
+- `POST /auth/refresh` 토큰 재발급 추가. **완료** (§3-4)
+- Refresh Token 서버 저장(Redis) — 미적용. 후속 검토.
+- `POST /auth/logout` — 미구현. 후속 검토.
 
 ### 6-2. 미디어 업로드
 

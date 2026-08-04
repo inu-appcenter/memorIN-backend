@@ -20,8 +20,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.UUID;
 
+@Tag(name = "미디어", description = "presigned 업로드/다운로드 URL · 저장용량 · 압축 가이드")
 @RestController
 @RequestMapping("/api/media")
 public class MediaController {
@@ -43,6 +47,7 @@ public class MediaController {
         this.compressionProperties = compressionProperties;
     }
 
+    @Operation(summary = "업로드 URL 발급", description = "클라이언트가 MinIO에 직접 PUT 업로드할 presigned URL을 발급한다.")
     @PostMapping("/presigned-upload-url")
     public ResponseEntity<PresignedUploadResponse> createPresignedUploadUrl(
             @Valid @RequestBody PresignedUploadRequest request,
@@ -55,6 +60,7 @@ public class MediaController {
 
     // 서버는 업로드 파일 바이트를 직접 만지지 않으므로(presigned PUT), 실제 압축은 클라이언트가 수행한다.
     // 이 값들은 클라이언트가 업로드 전 압축 시 참고할 가이드일 뿐 서버가 강제하지 않는다.
+    @Operation(summary = "압축 가이드 조회", description = "클라이언트 업로드 전 이미지 압축 참고값(서버 강제 아님).")
     @GetMapping("/compression-policy")
     public ResponseEntity<CompressionPolicyResponse> getCompressionPolicy() {
         return ResponseEntity.ok(new CompressionPolicyResponse(
@@ -64,6 +70,7 @@ public class MediaController {
         ));
     }
 
+    @Operation(summary = "저장용량 조회", description = "로그인 사용자의 스토리지 사용량/한도를 조회한다.")
     @GetMapping("/quota")
     public ResponseEntity<QuotaResponse> getQuota(
             @AuthenticationPrincipal UserDetailsImpl userDetails
@@ -71,6 +78,7 @@ public class MediaController {
         return ResponseEntity.ok(storageQuotaService.getQuotaStatus(userDetails.getUserId()));
     }
 
+    @Operation(summary = "다운로드 URL 발급", description = "postMediaId의 미디어를 내려받을 presigned URL을 발급한다.")
     @GetMapping("/{postMediaId}/presigned-download-url")
     public ResponseEntity<PresignedDownloadResponse> createPresignedDownloadUrl(
             @PathVariable UUID postMediaId,
