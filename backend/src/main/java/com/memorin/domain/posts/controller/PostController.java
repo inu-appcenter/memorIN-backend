@@ -91,5 +91,18 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
+    @GetMapping("/friends")
+    public ResponseEntity<ApiResponse<PostListResponse>> getFriendFeed(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size,
+        @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        PostListResponse response = postService.friendFeed(
+                userDetails.getUserId(),
+                cursor,
+                size
+            );
 
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 }
