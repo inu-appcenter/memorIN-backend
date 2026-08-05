@@ -71,6 +71,8 @@ class PresignedDownloadServiceTest {
     @Autowired
     private PostMediaRepository postMediaRepository;
 
+    private com.memorin.domain.posts.service.PostAccessPolicy postAccessPolicy = new com.memorin.domain.posts.service.PostAccessPolicy(mock(com.memorin.domain.follows.repository.FollowRepository.class));
+
     private PresignedDownloadService service() throws Exception {
         MinioClient minioClient = mock(MinioClient.class);
         given(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
@@ -79,7 +81,8 @@ class PresignedDownloadServiceTest {
                 "http://minio:9000", "http://localhost:9000", "us-east-1",
                 "key", "secret", "bucket", 600, 300, 1024, List.of("image/png")
         );
-        return new PresignedDownloadService(minioClient, properties, postMediaRepository, Clock.systemUTC());
+
+        return new PresignedDownloadService(minioClient, properties, postMediaRepository, Clock.systemUTC(), postAccessPolicy);
     }
 
     private User persistUser(String suffix) {
