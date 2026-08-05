@@ -1,10 +1,13 @@
 package com.memorin.global.media.service;
 
+import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.domain.posts.service.PostAccessPolicy;
+import com.memorin.global.exception.PostExceptions;
 import com.memorin.global.media.MinioProperties;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
+import com.memorin.global.media.exception.MediaAccessDeniedException;
 import com.memorin.global.media.exception.MediaStorageException;
 import com.memorin.global.media.exception.PostMediaNotFoundException;
 import io.minio.GetPresignedObjectUrlArgs;
@@ -38,7 +41,11 @@ public class PresignedDownloadService {
             PostMediaRepository postMediaRepository,
             PostAccessPolicy postAccessPolicy
     ) {
-        this(presignedUrlMinioClient, properties, postMediaRepository, Clock.systemUTC(), postAccessPolicy);
+        this(presignedUrlMinioClient,
+            properties,
+            postMediaRepository,
+            Clock.systemUTC(),
+            postAccessPolicy);
     }
 
     // 단건 API용 - id만 아는 경우. 요청자가 게시물 소유자이거나 게시물이 PUBLIC일 때만 발급한다.
@@ -47,8 +54,11 @@ public class PresignedDownloadService {
         PostMedia postMedia = postMediaRepository.findById(postMediaId)
                 .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
 
-        postAccessPolicy.assertReadable(postMedia.getPost(), requesterId);
-
+        try {
+            postAccessPolicy.assertReadable(postMedia.getPost(), requesterId);
+        } catch (PostExceptions.PostAccessDeniedException e) {
+            throw new MediaAccessDeniedException(postMediaId);
+        }
 
         return createDownloadUrl(postMedia);
     }
@@ -58,7 +68,8 @@ public class PresignedDownloadService {
             MinioProperties properties,
             PostMediaRepository postMediaRepository,
             Clock clock,
-            PostAccessPolicy postAccessPolicy) {
+            PostAccessPolicy postAccessPolicy
+    ) {
         this.presignedUrlMinioClient = presignedUrlMinioClient;
         this.properties = properties;
         this.postMediaRepository = postMediaRepository;
