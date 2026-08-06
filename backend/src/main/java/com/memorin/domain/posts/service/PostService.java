@@ -255,17 +255,9 @@ public class PostService {
             limit + 1
         );
 
-        boolean hasNext = false;
-
-        if (rows.size() == limit + 1) {
-            hasNext = true;
-        }
-
-        List<Post> pageContent = rows;
-
-        if (hasNext) {
-            pageContent = rows.subList(0, limit);
-        }
+        // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
+        boolean hasNext = rows.size() > limit;
+        List<Post> pageContent = hasNext ? rows.subList(0, limit) : rows;
 
         List<UUID> postIds = new ArrayList<>();
 
@@ -279,12 +271,10 @@ public class PostService {
 
         for (PostMedia media : mediaList) {
             UUID postId = media.getPost().getId();
-
-            if (!mediaByPostId.containsKey(postId)) {
-                mediaByPostId.put(postId, new ArrayList<>());
-            }
-
-            mediaByPostId.get(postId).add(media);
+            // computeIfAbsent(key, k -> new ArrayList<>())의 뜻
+            // => map에서 키가 없으면 빈 ArrayList를 만들고, 
+            // 있으면 그 값을 그대로 꺼내옴. 그리고 거기에 media를 add
+            mediaByPostId.computeIfAbsent(postId, k -> new ArrayList<>()).add(media);
         }
 
         List<PostSummaryResponse> items = new ArrayList<>();
