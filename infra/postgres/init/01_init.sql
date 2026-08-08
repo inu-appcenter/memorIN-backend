@@ -7,11 +7,12 @@
 -- ENUM 타입
 -- 문자열로 저장하면 오타 발생 시 대응하기 어렵기 때문에 ENUM으로 선언
 -- 각 타입이 유효범위 밖의 값이 저장되는 것을 막는다.
-CREATE TYPE visibility_type AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE visibility_type  AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
 CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
+CREATE TYPE emoji_type       AS ENUM ('HEART', 'DISLIKE', 'LIKE', 'NO', 'CHECK', 'FIRE');
 
 -- users
 CREATE TABLE IF NOT EXISTS users (
@@ -169,4 +170,13 @@ CREATE TABLE refresh_token (
     user_id       UUID         PRIMARY KEY,
     refresh_token VARCHAR(500) NOT NULL,
     CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE emoji (
+    id          UUID        PRIMARY KEY DEFAULT uuidv7(),
+    user_id     UUID        NOT NULL REFERENCES users(id),
+    comment_id  UUID        NOT NULL REFERENCES post_comments(id),
+    emoji_type  emoji_type  NOT NULL DEFAULT 'HEART',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_comment_emoji UNIQUE (user_id, comment_id, emoji_type)
 );
