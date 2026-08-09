@@ -47,4 +47,12 @@ public interface FollowRepository extends JpaRepository<Follows, UUID> {
         @Param("userId") UUID userId,
         @Param("status") Follow_state status
     );
+
+    @Query("""
+    SELECT f.following.id
+    FROM Follows f
+    WHERE f.follower.id = :userId
+      AND f.status = com.memorin.domain.follows.entity.Follow_state.ACCEPTED
+    """)
+    List<UUID> findFollowingIds(UUID userId);
 }

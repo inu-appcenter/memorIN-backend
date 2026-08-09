@@ -91,5 +91,20 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
+    // 친구 게시물 피드 조회
+    @Operation(summary = "친구 피드 조회", description = "내가 팔로우한(ACCEPTED) 사용자들의 게시물만 커서 페이지네이션으로 조회한다.")
+    @GetMapping("/friends")
+    public ResponseEntity<ApiResponse<PostListResponse>> getFriendFeed(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size,
+        @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        PostListResponse response = postService.friendFeed(
+                userDetails.getUserId(),
+                cursor,
+                size
+            );
 
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 }

@@ -1,7 +1,10 @@
 package com.memorin.global.media.service;
 
+import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
+import com.memorin.domain.posts.service.PostAccessPolicy;
+import com.memorin.global.exception.PostExceptions;
 import com.memorin.global.media.MinioProperties;
 import com.memorin.global.media.dto.response.PresignedDownloadResponse;
 import com.memorin.global.media.exception.MediaAccessDeniedException;
@@ -29,14 +32,20 @@ public class PresignedDownloadService {
     private final MinioProperties properties;
     private final PostMediaRepository postMediaRepository;
     private final Clock clock;
+    private final PostAccessPolicy postAccessPolicy;
 
     @Autowired
     public PresignedDownloadService(
             @Qualifier("presignedUrlMinioClient") MinioClient presignedUrlMinioClient,
             MinioProperties properties,
-            PostMediaRepository postMediaRepository
+            PostMediaRepository postMediaRepository,
+            PostAccessPolicy postAccessPolicy
     ) {
-        this(presignedUrlMinioClient, properties, postMediaRepository, Clock.systemUTC());
+        this(presignedUrlMinioClient,
+            properties,
+            postMediaRepository,
+            Clock.systemUTC(),
+            postAccessPolicy);
     }
 
     // 단건 API용 - id만 아는 경우. 요청자가 게시물 소유자이거나 게시물이 PUBLIC일 때만 발급한다.
@@ -44,9 +53,13 @@ public class PresignedDownloadService {
     public PresignedDownloadResponse createDownloadUrl(UUID postMediaId, UUID requesterId) {
         PostMedia postMedia = postMediaRepository.findById(postMediaId)
                 .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
-        if (!postMedia.getPost().isVisibleTo(requesterId)) {
+
+        try {
+            postAccessPolicy.assertReadable(postMedia.getPost(), requesterId);
+        } catch (PostExceptions.PostAccessDeniedException e) {
             throw new MediaAccessDeniedException(postMediaId);
         }
+
         return createDownloadUrl(postMedia);
     }
 
@@ -54,12 +67,14 @@ public class PresignedDownloadService {
             MinioClient presignedUrlMinioClient,
             MinioProperties properties,
             PostMediaRepository postMediaRepository,
-            Clock clock
+            Clock clock,
+            PostAccessPolicy postAccessPolicy
     ) {
         this.presignedUrlMinioClient = presignedUrlMinioClient;
         this.properties = properties;
         this.postMediaRepository = postMediaRepository;
         this.clock = clock;
+        this.postAccessPolicy = postAccessPolicy;
     }
 
     // 목록용 - 이미 엔티티를 손에 든 경우 DB 재조회 없음.

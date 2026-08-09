@@ -4,7 +4,6 @@ import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.global.exception.PostExceptions;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -15,10 +14,14 @@ import java.util.UUID;
  * 전부 이 로직을 그대로 재사용해야 "조회는 막혔는데 상호작용은 열려있는" 문제가 재발하지 않는다.
  */
 @Component
-@RequiredArgsConstructor
 public class PostAccessPolicy {
 
     private final FollowRepository followRepository;
+
+    public PostAccessPolicy(FollowRepository followRepository) {
+
+        this.followRepository = followRepository;
+    }
 
     public void assertReadable(Post post, UUID requesterId) {
         switch (post.getVisibility()) {

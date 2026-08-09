@@ -6,9 +6,9 @@
 
 ## 핵심 설계 결정
 
-| 결정 | 선택 | 이유 |
-|---|---|---|
-| PK 타입 | `UUID v7` | 정렬 가능 + 분산 환경 충돌 없음. PG18 내장 `uuidv7()` + 앱(Hibernate)에서 v7 생성 → H2/PG18 공통 동작 |
+| 결정 | 선택         | 이유 |
+|----|---|---|
+| PK 타입 | `UUID v7`  | 정렬 가능 + 분산 환경 충돌 없음. PG18 내장 `uuidv7()` + 앱(Hibernate)에서 v7 생성 → H2/PG18 공통 동작 |
 | 게시물 본문 | `JSONB content[]` | 텍스트·이미지·비디오 블록 혼합 지원 |
 | 친구 관계 | 단방향 follow (+ 상태 enum) | DM은 direct room으로 처리, 팔로우 비대칭 허용. 맞팔(친구)은 앱에서 상호 accepted로 판정 |
 | 좋아요/댓글 | `post_likes` / `post_comments` 별도 테이블 | 댓글은 `parent_id`로 대댓글(1단계) 지원 |
@@ -16,7 +16,8 @@
 | 읽음 처리 | `chat_room_members.last_read_at` 단일 필드 | watermark 방식. 그룹 "읽음 N"도 멤버별 last_read_at 비교로 계산 |
 | 인증 | `password_hash` NULL 허용 | 소셜/학번(INU SSO) 로그인 유저는 비밀번호 없음 |
 | Soft Delete | `deleted_at TIMESTAMPTZ` | users, posts, post_media, post_comments, messages 적용. Quota 집계는 `deleted_at IS NULL`만 |
-| 타임존 | UTC 저장 → 클라이언트 변환 | |
+| 이모지| 중복 불가 + 여러 이모지 태그 가능 | 다양한 반응을 사용하여 간단한 대화를 할 수 있게 함. |
+| 타임존 | UTC 저장 → 클라이언트 변환 |   |
 
 ---
 
@@ -119,6 +120,14 @@ erDiagram
         timestamptz deleted_at
     }
 
+    emoji {
+        uuid        id              PK
+        uuid        user_id         FK
+        uuid        comment_id      FK
+        EmojiType   emoji_type      "HEART | DISLIKE | LIKE | NO | CHECK | FIRE"
+        timestamptz created_at
+    }
+
     %% 관계 정의
     users         ||--o{ posts              : "작성"
     posts         ||--o{ post_media         : "포함"
@@ -133,6 +142,8 @@ erDiagram
     chat_rooms    ||--o{ chat_room_members  : "구성"
     chat_rooms    ||--o{ messages           : "포함"
     users         ||--o{ messages           : "발신"
+    emoji         ||--o{ comment            : "반응"
+    emoji         ||--o{ chat               : "반응"
 ```
 
 ---
@@ -172,6 +183,7 @@ CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
+CREATE TYPE emoji_type       AS ENUM ('HEART', 'DISLIKE', 'LIKE', 'NO', 'CHECK', 'FIRE');
 
 -- ──────────────────────────────────────────────────────────────
 -- users
@@ -318,6 +330,19 @@ CREATE TABLE messages (
 );
 
 CREATE INDEX idx_messages_room_id ON messages (room_id, sent_at DESC) WHERE deleted_at IS NULL;
+
+-- ──────────────────────────────────────────────────────────────
+-- emoji
+-- ──────────────────────────────────────────────────────────────
+CREATE TABLE emoji (
+    id          UUID        PRIMARY KEY DEFAULT uuidv7(),
+    user_id     UUID        NOT NULL REFERENCES users(id),
+    comment_id  UUID        NOT NULL REFERENCES post_comments(id),
+    emoji_type  emoji_type  NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_comment_emoji UNIQUE (user_id, comment_id, emoji_type)
+);
+
 ```
 
 ---
