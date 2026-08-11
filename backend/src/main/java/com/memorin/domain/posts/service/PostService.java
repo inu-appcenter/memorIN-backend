@@ -231,7 +231,7 @@ public class PostService {
 
     public PostListResponse friendFeed(UUID userId, String cursor, Integer size) {
 
-        List<UUID> followingIds = followRepository.findFollowingIds(userId);
+        List<UUID> followingIds = followRepository.findFollowingIds(userId, Follow_state.ACCEPTED);
 
         if (followingIds.isEmpty()) {
             return new PostListResponse(List.of(), null, false);
