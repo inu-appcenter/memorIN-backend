@@ -83,12 +83,12 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
                 // FRIENDS 공개범위로 둔다 — 친구 피드가 실제로 노출해야 하는 대상
                 Post post = Post.create(author, "[]", VisibilityType.FRIENDS,
-                        TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)));
+                    TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)));
                 em.persist(post);
 
                 for (int m = 0; m < mediaPerPost; m++) {
                     em.persist(PostMedia.of(post, "uploads/%s-%d-%d.png".formatted(tag, a, m),
-                            "image/png", 1000L, (short) m, 100, 100));
+                        "image/png", 1000L, (short) m, 100, 100));
                 }
             }
             em.flush();
@@ -121,8 +121,8 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
         // 팔로잉이 3배 늘었는데 쿼리도 따라 늘면 N+1이다.
         assertThat(manyQueries)
-                .as("팔로잉 수에 비례해 쿼리가 늘어나면 N+1")
-                .isEqualTo(fewQueries);
+            .as("팔로잉 수에 비례해 쿼리가 늘어나면 N+1")
+            .isEqualTo(fewQueries);
     }
 
     @Test
@@ -140,7 +140,7 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
         // 미디어가 3배 늘었는데 쿼리도 따라 늘면 N+1이다.
         assertThat(manyQueries)
-                .as("미디어 장수에 비례해 쿼리가 늘어나면 N+1")
-                .isEqualTo(fewQueries);
+            .as("미디어 장수에 비례해 쿼리가 늘어나면 N+1")
+            .isEqualTo(fewQueries);
     }
 }
