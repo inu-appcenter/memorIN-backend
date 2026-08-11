@@ -14,10 +14,16 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Optional<Post> findByIdAndDeletedAtIsNull(UUID id);
 
+    // 캘린더 뷰: fromDate/toDate로 recorded_date 범위를 좁힌다. 둘 다 NULL이면 기존과 동일한 전체 조회.
+    // 하루만 보려면 fromDate == toDate로 준다(recorded_date는 date 컬럼이라 경계 포함이 안전하다).
+    // idx_posts_user_id (user_id, recorded_date DESC, id DESC)의 두 번째 컬럼이 recorded_date라
+    // user_id로 좁힌 뒤 범위 스캔이 그대로 인덱스를 탄다. 추가 인덱스가 필요 없다.
     @Query(value = """
             SELECT * FROM posts p
             WHERE p.user_id = CAST(:userId AS uuid)
               AND p.deleted_at IS NULL
+              AND (CAST(:fromDate AS date) IS NULL OR p.recorded_date >= CAST(:fromDate AS date))
+              AND (CAST(:toDate   AS date) IS NULL OR p.recorded_date <= CAST(:toDate   AS date))
               AND (:includeAllVisibility = TRUE OR p.visibility = 'PUBLIC'
               OR (p.visibility = 'FRIENDS'
               AND EXISTS (SELECT 1 FROM follows f WHERE f.status = 'ACCEPTED'
@@ -37,6 +43,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
             @Param("userId") UUID userId,
             @Param("requesterId") UUID requesterId,
             @Param("includeAllVisibility") boolean includeAllVisibility,
+            @Param("fromDate") Date fromDate,
+            @Param("toDate") Date toDate,
             @Param("cursorRecordedDate") Date cursorRecordedDate,
             @Param("cursorId") UUID cursorId,
             @Param("limit") int limit
