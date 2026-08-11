@@ -6,10 +6,11 @@ import com.memorin.domain.posts.entity.VisibilityType;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 public record PostSummaryResponse(
-        String postId,
-        String authorId,
+        UUID postId,
+        UUID authorId,
         String content,
         VisibilityType visibility,
         TimeslotType timeslot,
@@ -19,8 +20,8 @@ public record PostSummaryResponse(
 ) {
     public static PostSummaryResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostSummaryResponse(
-                post.getId().toString(),
-                post.getUser().getId().toString(),
+                post.getId(),
+                post.getUser().getId(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),
