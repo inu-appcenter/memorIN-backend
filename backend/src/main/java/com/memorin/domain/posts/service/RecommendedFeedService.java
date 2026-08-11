@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 
 @Service
@@ -28,7 +30,7 @@ public class RecommendedFeedService {
     public PostListResponse getRecommendedFeed(String cursor, Integer size) {
         int limit = normalizeSize(size);
 
-        Instant asOf;
+        LocalDateTime asOf;
         Double cursorScore = null;
         UUID cursorPostId = null;
 
@@ -38,7 +40,7 @@ public class RecommendedFeedService {
             cursorScore = decoded.score();
             cursorPostId = decoded.postId();
         } else {
-            asOf = Instant.now(); // 이 피드 세션의 기준 시각을 여기서 딱 한 번 정한다
+            asOf = LocalDateTime.now(); // 이 피드 세션의 기준 시각을 여기서 딱 한 번 정한다
         }
 
         // 1. 후보 풀 조회 (posts 도메인 단독)
@@ -91,7 +93,7 @@ public class RecommendedFeedService {
         return new PostListResponse(items, nextCursor, hasNext);
     }
 
-    private double computeScore(Post post, long likeCount, long commentCount, Instant asOf) {
+    private double computeScore(Post post, long likeCount, long commentCount, LocalDateTime asOf) {
         double engagement = 1 + likeCount * 3 + commentCount * 2 + post.getViewCount() * 0.1;
         double hoursSinceCreated = Duration.between(post.getCreatedAt(), asOf).toMinutes() / 60.0;
         return Math.log(engagement) / Math.pow(hoursSinceCreated + 2, GRAVITY);

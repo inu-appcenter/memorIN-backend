@@ -1,0 +1,12 @@
+-- 댓글 목록용 이모지 배치 집계 인덱스
+--
+-- CommentEmojiRepository.countByCommentIds는 comment_id IN (...) 으로 거른 뒤
+-- emoji_type으로 묶는다. 댓글 목록(스레드/패널)을 열 때마다 도는 경로다.
+--
+-- V2의 uk_comment_emoji는 (user_id, comment_id, emoji_type)이라 선두 컬럼이 user_id다.
+-- comment_id로 거르는 위 쿼리는 이 인덱스를 탈 수 없다.
+--
+-- emoji_type을 두 번째 컬럼으로 붙여 GROUP BY 정렬까지 커버한다.
+-- user_id까지 넣으면 index-only scan도 가능하지만, 쓰기 비용이 늘고 아직 실측 근거가 없어
+-- 2컬럼으로 둔다. 필요해지면 실측 후 확장한다.
+CREATE INDEX IF NOT EXISTS idx_comment_emoji_comment ON comment_emoji (comment_id, emoji_type);

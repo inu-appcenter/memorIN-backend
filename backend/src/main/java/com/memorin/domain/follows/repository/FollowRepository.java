@@ -49,13 +49,17 @@ public interface FollowRepository extends JpaRepository<Follows, UUID> {
         @Param("status") Follow_state status
     );
 
+    // status는 반드시 바인딩 파라미터로 받는다. JPQL에 enum 상수를 인라인으로 쓰면
+    // Hibernate가 'ACCEPTED'::Follow_state 처럼 자바 enum 클래스명으로 캐스팅을 붙이는데,
+    // 실제 Postgres 타입명은 follow_status라 type "follow_state" does not exist로 전면 실패한다.
+    // (이 리포지토리의 다른 메서드들이 이미 status를 파라미터로 받는 것과 같은 방식)
     @Query("""
     SELECT f.following.id
     FROM Follows f
     WHERE f.follower.id = :userId
-      AND f.status = com.memorin.domain.follows.entity.Follow_state.ACCEPTED
+      AND f.status = :status
     """)
-    List<UUID> findFollowingIds(UUID userId);
+    List<UUID> findFollowingIds(@Param("userId") UUID userId, @Param("status") Follow_state status);
 
     // 받은 팔로우 요청 조회
     // following_id = 로그인 사용자

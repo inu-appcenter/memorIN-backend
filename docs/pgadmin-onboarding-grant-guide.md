@@ -58,10 +58,13 @@ docker compose --profile tools up -d pgadmin
 
 접속 후 스키마 확인 경로:
 `Servers → memorIN (local) → Databases → memorin_db → Schemas → public → Tables`
-여기에 `01_init.sql`로 생성된 `users`, `posts`, `follows`, `chat_rooms`, `messages` 등이 보이면 정상이다.
+여기에 Flyway 마이그레이션(`backend/src/main/resources/db/migration`)으로 생성된 `users`, `posts`, `follows`, `chat_rooms`, `messages` 등이 보이면 정상이다.
 
-> 초기 DDL(`infra/postgres/init/01_init.sql`)은 **볼륨이 비어 있을 때(=최초 기동) 1회만** 실행된다.
-> 테이블이 안 보이면 볼륨을 초기화하고 다시 올린다:
+> 스키마는 더 이상 `docker-entrypoint-initdb.d` 초기 DDL이 아니라 Flyway가 관리한다 — 백엔드 컨테이너가
+> 기동할 때마다 아직 적용 안 된 마이그레이션(`V숫자__설명.sql`)을 자동으로 실행한다. 자세한 절차는
+> [`db-migration-guide.md`](db-migration-guide.md) 참고.
+> 테이블이 안 보이면 backend 컨테이너 로그에서 Flyway 마이그레이션이 실패하지 않았는지 먼저 확인한다.
+> 로컬 개발 데이터는 버려도 된다면 볼륨을 초기화하고 다시 올려도 된다:
 > ```bash
 > docker compose down -v && docker compose up -d
 > ```
@@ -128,7 +131,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE memorin_user IN SCHEMA public
 
 ### 4-4. ENUM 등 커스텀 타입 사용 권한
 
-`01_init.sql`은 `visibility_type`, `follow_status` 등 커스텀 ENUM을 만든다.
+초기 마이그레이션(`V1__init.sql`)은 `visibility_type`, `follow_status` 등 커스텀 ENUM을 만든다.
 비소유 롤이 이 타입이 걸린 테이블에 INSERT/UPDATE 하려면 타입 `USAGE`가 필요하다.
 
 ```sql

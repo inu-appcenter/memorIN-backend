@@ -34,7 +34,6 @@ public class UserDetailsImpl implements UserDetails {
         return null;
     }
 
-
     // 이름
     @Override
     public String getUsername() {

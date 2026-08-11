@@ -1,13 +1,14 @@
--- Sprint 0 초안 DDL — 팀 리뷰 전 임시 파일
--- 실제 확정 DDL은 수요일 DB 스키마 리뷰 이후 작성
-
+-- Flyway 이관: infra/postgres/init/01_init.sql (docker-entrypoint-initdb.d 기반 스키마)의
+-- 내용을 그대로 옮긴 초기 스키마. 이 파일 자체는 절대 수정하지 않는다 — 이미 이 버전으로
+-- 적용된(또는 baseline 처리된) DB가 있으므로, 변경이 필요하면 새 버전(V2, V3 ...)으로 추가한다.
+--
 -- UUID v7: PostgreSQL 18 내장 uuidv7() 사용 → 별도 확장/라이브러리 불필요.
 --          앱(Hibernate)에서도 v7을 생성하므로 아래 DEFAULT는 SQL 직접 INSERT용 안전망.
 
 -- ENUM 타입
 -- 문자열로 저장하면 오타 발생 시 대응하기 어렵기 때문에 ENUM으로 선언
 -- 각 타입이 유효범위 밖의 값이 저장되는 것을 막는다.
-CREATE TYPE visibility_type AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
+CREATE TYPE visibility_type  AS ENUM ('PUBLIC', 'FRIENDS', 'PRIVATE');
 CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
