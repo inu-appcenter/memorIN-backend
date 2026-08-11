@@ -1,6 +1,7 @@
 package com.memorin.domain.users.controller;
 
 import com.memorin.domain.users.dto.UserFollowPageResponse;
+import com.memorin.domain.users.dto.UserProfileResponse;
 import com.memorin.domain.users.dto.UserSearchPageResponse;
 import com.memorin.domain.users.service.UserService;
 import com.memorin.domain.users.dto.MyPageResponseDto;
@@ -64,5 +65,13 @@ public class UserController {
         @RequestParam(defaultValue = "20") int size
     ) {
         return ApiResponse.ok(userService.getFollowings(userId, cursor, size));
+    }
+
+    @GetMapping("/{userId}")
+    @Operation(summary = "사용자 공개 프로필 조회")
+    public ResponseEntity<UserProfileResponse> getPublicProfile(
+        @PathVariable UUID userId
+    ) {
+        return ResponseEntity.ok(userService.getPublicProfile(userId));
     }
 }
