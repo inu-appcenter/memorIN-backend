@@ -40,7 +40,9 @@ public class PostComments {
     @OnDelete(action = OnDeleteAction.CASCADE) // comment가 사라지면 Like도 삭제
     private PostComments parent; // FK
 
-    @Column(name = "body", nullable = false)
+    // 소프트 삭제 시 null로 비운다(tombstone). 그래서 nullable이다 — V5 마이그레이션 참고.
+    // 작성/수정 경로에서는 @NotBlank가 걸린 요청 DTO가 null을 막는다.
+    @Column(name = "body")
     private String body; // comment 내용
 
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
