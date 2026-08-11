@@ -7,11 +7,10 @@ import com.memorin.domain.posts.entity.VisibilityType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public record PostResponse(
-        UUID postId,
-        UUID authorId,
+        String postId,
+        String authorId,
         String content,
         VisibilityType visibility,
         TimeslotType timeslot,
@@ -23,8 +22,8 @@ public record PostResponse(
 ) {
     public static PostResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostResponse(
-                post.getId(),
-                post.getUser().getId(),
+                post.getId().toString(),
+                post.getUser().getId().toString(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),

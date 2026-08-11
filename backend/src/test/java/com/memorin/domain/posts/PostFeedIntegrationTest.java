@@ -81,7 +81,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
         em.flush();
 
         PostResponse response = postService.getOne(post.getId(), reader.getId());
-        assertThat(response.postId()).isEqualTo(post.getId());
+        assertThat(response.postId()).isEqualTo(post.getId().toString());
     }
 
     @Test
@@ -160,7 +160,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
         em.persist(post);
 
         PostResponse response = postService.getOne(post.getId(), follower.getId());
-        assertThat(response.postId()).isEqualTo(post.getId());
+        assertThat(response.postId()).isEqualTo(post.getId().toString());
     }
 
     @Test
@@ -224,7 +224,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
         PostListResponse response = postService.friendFeed(me.getId(), null, 20);
 
         assertThat(response.items()).hasSize(1);
-        assertThat(response.items().get(0).postId()).isEqualTo(friendPost.getId());
+        assertThat(response.items().get(0).postId()).isEqualTo(friendPost.getId().toString());
     }
 
     @Test
