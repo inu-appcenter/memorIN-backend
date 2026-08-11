@@ -2,7 +2,7 @@ package com.memorin.domain.follows.controller;
 
 import com.memorin.domain.follows.dto.FollowRequest;
 import com.memorin.domain.follows.service.FollowService;
-import com.memorin.domain.users.entity.User;
+import com.memorin.domain.users.dto.UserFollowRequestResponse;
 import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "팔로우", description = "팔로우 요청 · 수락 · 거절/취소")
@@ -45,5 +46,10 @@ public class FollowController {
     public ApiResponse<Void> reject(@PathVariable UUID followingId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
         followService.reject(userDetails.getUserId(), followingId);
         return ApiResponse.ok();
+    }
+
+    @GetMapping("/requests")
+    public ApiResponse<List<UserFollowRequestResponse>> getReceivedRequests(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId()));
     }
 }

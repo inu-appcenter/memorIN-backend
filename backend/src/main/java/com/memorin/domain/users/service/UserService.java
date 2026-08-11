@@ -75,9 +75,26 @@ public class UserService {
         );
     }
 
+    @Transactional(readOnly = true)
     public UserFollowPageResponse getFollowers(UUID userId, UUID cursor, int size) {
 
-        List<Follows> follows = followRepository.findByFollowingIdAndStatus(userId, Follow_state.ACCEPTED);
+        int limit = size;
+        Pageable pageable = PageRequest.of(0, limit + 1);
+
+        List<Follows> follows = followRepository.findFollowersWithCursor(
+                userId,
+                Follow_state.ACCEPTED,
+                cursor,
+                pageable
+            );
+
+        boolean hasNext = false;
+
+        if (follows.size() == limit + 1) {
+            hasNext = true;
+            follows.remove(limit);
+        }
+
         List<UserFollowResponse> items = new ArrayList<>();
 
         for (Follows follow : follows) {
@@ -86,18 +103,10 @@ public class UserService {
             items.add(response);
         }
 
-        boolean hasNext = false;
-
-        if (items.size() == size + 1) {
-            hasNext = true;
-        }
-
         UUID nextCursor = null;
 
-        if (hasNext) {
-            UserFollowResponse lastUser = items.get(items.size() - 1);
-            nextCursor = lastUser.id();
-            items.remove(items.size() - 1);
+        if (hasNext && items.size() > 0) {
+            nextCursor = follows.get(follows.size() - 1).getId();
         }
 
         return new UserFollowPageResponse(
@@ -107,9 +116,26 @@ public class UserService {
         );
     }
 
+    @Transactional(readOnly = true)
     public UserFollowPageResponse getFollowings(UUID userId, UUID cursor, int size) {
 
-        List<Follows> follows = followRepository.findByFollowerIdAndStatus(userId, Follow_state.ACCEPTED);
+        int limit = size;
+        Pageable pageable = PageRequest.of(0, limit + 1);
+
+        List<Follows> follows = followRepository.findFollowingsWithCursor(
+                userId,
+                Follow_state.ACCEPTED,
+                cursor,
+                pageable
+            );
+
+        boolean hasNext = false;
+
+        if (follows.size() == limit + 1) {
+            hasNext = true;
+            follows.remove(limit);
+        }
+
         List<UserFollowResponse> items = new ArrayList<>();
 
         for (Follows follow : follows) {
@@ -118,18 +144,10 @@ public class UserService {
             items.add(response);
         }
 
-        boolean hasNext = false;
-
-        if (items.size() == size + 1) {
-            hasNext = true;
-        }
-
         UUID nextCursor = null;
 
-        if (hasNext) {
-            UserFollowResponse lastUser = items.get(items.size() - 1);
-            nextCursor = lastUser.id();
-            items.remove(items.size() - 1);
+        if (hasNext && items.size() > 0) {
+            nextCursor = follows.get(follows.size() - 1).getId();
         }
 
         return new UserFollowPageResponse(

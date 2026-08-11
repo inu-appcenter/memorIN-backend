@@ -3,6 +3,7 @@ package com.memorin.domain.follows.service;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
+import com.memorin.domain.users.dto.UserFollowRequestResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -72,5 +75,18 @@ public class FollowService {
                         .orElseThrow(() -> new BusinessException(ErrorCode.FOLLOW_001));
 
         followRepository.delete(follows);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserFollowRequestResponse> getFollowRequests(UUID userId) {
+
+        List<Follows> follows = followRepository.findReceivedRequests(userId, Follow_state.PENDING);
+        List<UserFollowRequestResponse> responses = new ArrayList<>();
+
+        for (Follows follow : follows) {
+            responses.add(UserFollowRequestResponse.from(follow));
+        }
+
+        return responses;
     }
 }
