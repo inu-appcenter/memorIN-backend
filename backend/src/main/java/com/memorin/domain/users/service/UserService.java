@@ -156,4 +156,12 @@ public class UserService {
             hasNext
         );
     }
+
+    @Transactional(readOnly = true)
+    public UserProfileResponse getPublicProfile(UUID userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+
+        return UserProfileResponse.from(user);
+    }
 }
