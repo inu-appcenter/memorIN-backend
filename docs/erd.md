@@ -120,7 +120,7 @@ erDiagram
         timestamptz deleted_at
     }
 
-    emoji {
+    comment_emoji {
         uuid        id              PK
         uuid        user_id         FK
         uuid        comment_id      FK
@@ -142,8 +142,8 @@ erDiagram
     chat_rooms    ||--o{ chat_room_members  : "구성"
     chat_rooms    ||--o{ messages           : "포함"
     users         ||--o{ messages           : "발신"
-    emoji         ||--o{ comment            : "반응"
-    emoji         ||--o{ chat               : "반응"
+    post_comments ||--o{ comment_emoji      : "반응 대상"
+    users         ||--o{ comment_emoji      : "반응한 사람"
 ```
 
 ---
@@ -170,6 +170,13 @@ erDiagram
 ---
 
 ## SQL DDL 초안
+
+> ⚠️ **정본은 이 문서가 아니라 Flyway 마이그레이션(`backend/src/main/resources/db/migration/`)이다.**
+> #152에서 Flyway를 도입하면서 `infra/postgres/init/01_init.sql`은 삭제됐다. 아래 DDL은 설계 의도를
+>한눈에 보기 위한 참고용이며, 실제 스키마를 바꿀 때는 새 마이그레이션 파일을 추가한다.
+> 자세한 절차는 `docs/db-migration-guide.md` 참고.
+>
+> 아직 이 문서에 반영되지 않은 것: `fcm_tokens`(V3).
 
 ```sql
 -- UUID v7: PostgreSQL 18 내장 uuidv7() 사용 → 별도 확장/라이브러리 불필요.
@@ -332,16 +339,21 @@ CREATE TABLE messages (
 CREATE INDEX idx_messages_room_id ON messages (room_id, sent_at DESC) WHERE deleted_at IS NULL;
 
 -- ──────────────────────────────────────────────────────────────
--- emoji
+-- comment_emoji (댓글 반응)
+-- 반응 대상이 이름에 드러나야 채팅 반응(ChatEmoji, 미구현)이 chat_emoji로 갈라진다.
 -- ──────────────────────────────────────────────────────────────
-CREATE TABLE emoji (
+CREATE TABLE comment_emoji (
     id          UUID        PRIMARY KEY DEFAULT uuidv7(),
     user_id     UUID        NOT NULL REFERENCES users(id),
-    comment_id  UUID        NOT NULL REFERENCES post_comments(id),
-    emoji_type  emoji_type  NOT NULL,
+    comment_id  UUID        NOT NULL REFERENCES post_comments(id) ON DELETE CASCADE,
+    emoji_type  emoji_type  NOT NULL DEFAULT 'HEART',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_comment_emoji UNIQUE (user_id, comment_id, emoji_type)
 );
+
+-- 댓글 목록용 배치 집계(comment_id IN ... GROUP BY emoji_type)용.
+-- uk_comment_emoji는 선두가 user_id라 이 쿼리를 못 탄다.
+CREATE INDEX idx_comment_emoji_comment ON comment_emoji (comment_id, emoji_type);
 
 ```
 
