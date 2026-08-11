@@ -373,7 +373,12 @@ Authorization: Bearer {accessToken}
 | `cursor` | string(uuid) | X | §2-5 커서 |
 | `size` | number | X | §2-5 페이지 크기 |
 | `userId` | string(uuid) | X | 특정 유저의 게시물만 조회 |
-| `scope` | string(enum) | X | `ALL`\|`FOLLOWING`, 기본 `ALL` |
+| `scope` | string(enum) | X | `ALL`\|`FOLLOWING`, 기본 `ALL` — **미구현**(친구 피드는 `GET /api/posts/friends` 별도 경로) |
+| `from` | string(date) | X | `recorded_date` 시작일(포함), `yyyy-MM-dd` — 캘린더 뷰용 |
+| `to` | string(date) | X | `recorded_date` 종료일(포함), `yyyy-MM-dd` |
+
+캘린더에서 특정 하루를 탭한 경우 `from`과 `to`에 같은 날짜를 준다 (`?from=2026-08-11&to=2026-08-11`).
+범위 필터는 커서 페이지네이션과 함께 동작한다 — 페이지를 넘겨도 범위 밖 게시물은 섞이지 않는다.
 
 #### 응답
 
@@ -395,7 +400,7 @@ Status: `200 OK` — `data.items[]`는 6-2 스키마의 요약 형태다(집계 
 
 | HTTP Status | 코드 | 상황 |
 |---:|---|---|
-| 400 | `COMMON_002` | `size` 범위 초과, `cursor` 형식 오류 |
+| 400 | `COMMON_002` | `size` 범위 초과, `cursor` 형식 오류, `from`이 `to`보다 늦음, 날짜 형식 오류 |
 | 401 | `AUTH_001` | 인증 누락/만료 |
 
 ### 6-4. 게시물 수정

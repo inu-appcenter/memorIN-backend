@@ -1,0 +1,13 @@
+-- 댓글 소프트 삭제(tombstone)가 DB 제약에 걸려 항상 실패하던 문제 수정
+--
+-- PostComments.softDelete()는 deleted_at을 찍고 body를 null로 비운다.
+-- "자리만 남기고 내용은 폐기"가 의도된 동작인데(엔티티 주석), V1의 body는 TEXT NOT NULL이라
+-- UPDATE 시점에 null value in column "body" ... violates not-null constraint로 터졌다.
+-- 즉 DELETE /api/comments/{commentId}가 항상 500이었다.
+--
+-- 삭제 경로를 실행하는 테스트가 없어 드러나지 않았다.
+-- CommentThreadQueryCountTest.삭제된_댓글은_작성자_정보를_감춘다()가 이 경로를 고정한다.
+--
+-- 응답에서는 PostCommentResponse가 body를 "삭제된 댓글입니다."로 바꿔 내려주므로
+-- 클라이언트가 null을 보는 일은 없다.
+ALTER TABLE post_comments ALTER COLUMN body DROP NOT NULL;

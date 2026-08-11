@@ -1,5 +1,8 @@
 package com.memorin.domain.post_comments.service;
 
+import com.memorin.domain.emoji.dto.response.EmojiCountDto;
+import com.memorin.domain.emoji.dto.response.EmojiSummary;
+import com.memorin.domain.emoji.repository.CommentEmojiRepository;
 import com.memorin.domain.post_comments.dto.response.PostCommentResponse;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
@@ -16,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class PostCommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final PostAccessPolicy postAccessPolicy;
+    private final CommentEmojiRepository commentEmojiRepository;
 
     @Transactional
     public PostCommentResponse create(UUID postId, UUID authorId, UUID parentId, String body) {
@@ -60,15 +66,38 @@ public class PostCommentService {
     }
 
     // 목록(스레드) 조회
+    //
+    // 이모지는 댓글마다 따로 묻지 않고 한 번에 집계한다. 개별 조회로 두면 FE가 댓글 N개마다
+    // GET /api/comments/{id}/emojis를 N번 호출하는 HTTP 레벨 N+1이 된다.
+    // 댓글 수와 무관하게 SQL은 (게시물 1 + 스레드 1 + 이모지 집계 1)로 고정된다.
     public List<PostCommentResponse> getThread(UUID postId, UUID requesterId) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
             .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
         postAccessPolicy.assertReadable(post, requesterId); // 가시성 검사
 
-        return postCommentsRepository.findThreadByPostId(postId).stream()
-            .map(PostCommentResponse::from)
+        List<PostComments> thread = postCommentsRepository.findThreadByPostId(postId);
+        if (thread.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, List<EmojiSummary>> emojisByCommentId = aggregateEmojis(thread, requesterId);
+
+        return thread.stream()
+            .map(c -> PostCommentResponse.of(c, emojisByCommentId.getOrDefault(c.getId(), List.of())))
             .toList();
+    }
+
+    // 스레드에 달린 이모지를 commentId 하나로 묶어 한 번에 가져온다.
+    // tombstone(삭제된 댓글)은 이모지를 새로 달 수 없지만 이미 달린 건 남아 있을 수 있어 그대로 집계한다.
+    private Map<UUID, List<EmojiSummary>> aggregateEmojis(List<PostComments> thread, UUID requesterId) {
+        List<UUID> commentIds = thread.stream().map(PostComments::getId).toList();
+
+        return commentEmojiRepository.countByCommentIds(commentIds, requesterId).stream()
+            .collect(Collectors.groupingBy(
+                EmojiCountDto::commentId,
+                Collectors.mapping(EmojiSummary::from, Collectors.toList())
+            ));
     }
 
     @Transactional
