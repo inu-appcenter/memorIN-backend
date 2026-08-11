@@ -41,6 +41,7 @@ public class CommentEmoji {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "emoji_type", nullable = false)
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.NAMED_ENUM) // DDL의 emoji_type은 Postgres 네이티브 ENUM
     private EmojiType emojiType; // 이모지 타입 종류
 
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.

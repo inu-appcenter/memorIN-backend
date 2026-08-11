@@ -123,8 +123,10 @@ docker compose --profile tools up -d
 ### 백엔드 로컬 개발 (Docker 없이)
 ```bash
 cd backend
-./gradlew bootRun      # 기본 프로파일은 H2 인메모리 DB 사용
+./gradlew bootRun      # 기본 프로파일은 H2 인메모리 DB 사용 (Flyway 마이그레이션은 Postgres 전용이라 미실행)
 ```
+> 엔티티가 `jsonb`/네이티브 ENUM/`uuidv7()` 등 Postgres 전용 기능에 의존하므로, 실제 DB 동작까지
+> 확인하려면 위 `docker compose up`으로 실제 Postgres에 붙여 실행하는 편이 안전하다.
 
 ---
 
@@ -136,14 +138,16 @@ cd backend
 │   ├── src/main/java/com/memorin/
 │   │   ├── MemorinApplication.java
 │   │   └── config/           # WebSocket, FCM 설정
+│   ├── src/main/resources/db/migration/  # Flyway DB 마이그레이션 (V1, V2 ...)
 │   ├── Dockerfile            # 멀티스테이지 빌드 (non-root 실행)
 │   └── build.gradle
 ├── infra/
 │   └── postgres/
-│       ├── init/             # 초기 DDL 스크립트
+│       ├── migrations/       # 과거 수동 실행 SQL 기록 (참고용, 더 이상 신규 추가 안 함)
 │       └── postgresql.conf   # io_uring 등 튜닝 설정
 ├── docs/
 │   ├── api-spec.md           # 인증/JWT + Presigned Upload 통합 API 명세
+│   ├── db-migration-guide.md # Flyway DB 마이그레이션 작성 절차
 │   ├── erd.md                # DB ERD 문서
 │   ├── minio-bucket-policy.md          # MinIO 버킷 정책 초안
 │   └── pgadmin-onboarding-grant-guide.md  # pgAdmin 온보딩 + GRANT 가이드

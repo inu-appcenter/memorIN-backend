@@ -1,6 +1,7 @@
--- Sprint 0 초안 DDL — 팀 리뷰 전 임시 파일
--- 실제 확정 DDL은 수요일 DB 스키마 리뷰 이후 작성
-
+-- Flyway 이관: infra/postgres/init/01_init.sql (docker-entrypoint-initdb.d 기반 스키마)의
+-- 내용을 그대로 옮긴 초기 스키마. 이 파일 자체는 절대 수정하지 않는다 — 이미 이 버전으로
+-- 적용된(또는 baseline 처리된) DB가 있으므로, 변경이 필요하면 새 버전(V2, V3 ...)으로 추가한다.
+--
 -- UUID v7: PostgreSQL 18 내장 uuidv7() 사용 → 별도 확장/라이브러리 불필요.
 --          앱(Hibernate)에서도 v7을 생성하므로 아래 DEFAULT는 SQL 직접 INSERT용 안전망.
 
@@ -12,7 +13,6 @@ CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
-CREATE TYPE emoji_type       AS ENUM ('HEART', 'DISLIKE', 'LIKE', 'NO', 'CHECK', 'FIRE');
 
 -- users
 CREATE TABLE IF NOT EXISTS users (
@@ -170,13 +170,4 @@ CREATE TABLE refresh_token (
     user_id       UUID         PRIMARY KEY,
     refresh_token VARCHAR(500) NOT NULL,
     CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE emoji (
-    id          UUID        PRIMARY KEY DEFAULT uuidv7(),
-    user_id     UUID        NOT NULL REFERENCES users(id),
-    comment_id  UUID        NOT NULL REFERENCES post_comments(id),
-    emoji_type  emoji_type  NOT NULL DEFAULT 'HEART',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uk_comment_emoji UNIQUE (user_id, comment_id, emoji_type)
 );

@@ -21,8 +21,13 @@ public interface PostCommentRepository extends JpaRepository<PostComments, UUID>
 
 
     // 스레드 전체 조회 (활성 + tombstone 포함) - 자식이 부모 없이 떠 있는 것처럼 보이지 않도록 tombstone도 함께 내려준다.
+    //
+    // JOIN FETCH c.user는 필수다. 응답에 작성자 닉네임·프로필이 들어가면서 c.getUser()의
+    // 프록시가 초기화되는데, FETCH가 없으면 댓글 1건당 users SELECT가 1번씩 붙어 N+1이 된다.
+    // (PK만 읽던 시절엔 프록시가 초기화되지 않아 안전했다 — 필드가 늘면서 조건이 바뀌었다.)
     @Query("""
         SELECT c FROM PostComments c
+        JOIN FETCH c.user
         WHERE c.post.id = :postId
         ORDER BY c.createdAt ASC
         """)

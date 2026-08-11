@@ -80,7 +80,8 @@ class PostErrorResponseTest {
 
     @Test
     void 잘못된_커서는_400과_POST_003을_반환한다() throws Exception {
-        given(postService.list(any(), any(), any(), any()))
+        // 컨트롤러는 날짜 범위(from/to)까지 받는 6인자 오버로드를 호출한다.
+        given(postService.list(any(), any(), any(), any(), any(), any()))
                 .willThrow(new PostExceptions.InvalidCursorException(new RuntimeException("broken")));
 
         mockMvc.perform(get("/api/posts")
