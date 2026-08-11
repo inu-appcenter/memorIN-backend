@@ -20,7 +20,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.utility.MountableFile;
 
 import java.sql.Date;
 import java.time.Clock;
@@ -46,11 +45,7 @@ import static org.mockito.Mockito.mock;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class PresignedDownloadServiceTest {
 
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
-            .withCopyFileToContainer(
-                    MountableFile.forHostPath("../infra/postgres/init/01_init.sql"),
-                    "/docker-entrypoint-initdb.d/01_init.sql"
-            );
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine");
 
     static {
         POSTGRES.start();
@@ -61,8 +56,9 @@ class PresignedDownloadServiceTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // 스키마는 위 init 스크립트가 이미 만들었으므로 hibernate는 손대지 않는다.
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+        // 스키마는 Flyway(src/main/resources/db/migration)가 만든다.
+        registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     }
 
     @Autowired

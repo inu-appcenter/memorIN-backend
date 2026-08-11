@@ -48,7 +48,7 @@ public class ChatRoomMembers {
     @Column(name = "joined_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime joinedAt;
 
-    @Column(name = "lastRead_at", nullable = false, columnDefinition = "timestamptz")
+    @Column(name = "last_read_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime lastReadAt;
 
     @Column(name = "left_at")
