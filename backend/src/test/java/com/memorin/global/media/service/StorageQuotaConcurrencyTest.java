@@ -13,7 +13,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.utility.MountableFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,11 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class StorageQuotaConcurrencyTest {
 
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
-            .withCopyFileToContainer(
-                    MountableFile.forHostPath("../infra/postgres/init/01_init.sql"),
-                    "/docker-entrypoint-initdb.d/01_init.sql"
-            );
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine");
 
     static {
         POSTGRES.start();
@@ -51,7 +46,9 @@ class StorageQuotaConcurrencyTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+        // 스키마는 Flyway(src/main/resources/db/migration)가 만든다.
+        registry.add("spring.flyway.enabled", () -> "true");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         // 이 테스트의 한도(1000L)만큼은 애플리케이션 기본 설정과 무관하게 고정해야 시나리오가 안정적이다.
         registry.add("storage.quota.default-limit-bytes", () -> "1000");
     }

@@ -11,7 +11,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     networks:

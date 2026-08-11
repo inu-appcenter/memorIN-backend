@@ -23,6 +23,11 @@ dependencies {
 	runtimeOnly 'com.h2database:h2'          // 로컬 개발용 인메모리 DB
 	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
 
+	// Flyway (DB 스키마 마이그레이션)
+	// flyway-database-postgresql: Flyway 10+ 부터 DB별 지원이 분리되어 Postgres는 별도 모듈 필요
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
 	// 테스트용 실제 PostgreSQL 컨테이너
 	// jsonb 컬럼과 Postgres 전용 네이티브 쿼리(행 비교 커서 페이징)를 쓰므로 H2로는 검증할 수 없다.
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
