@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +40,11 @@ public interface PostLikeRepository extends JpaRepository<PostLikes, UUID> {
             """)
     List<PostLikeCountRow> countGroupedByPostIds(
             @Param("postIds") Collection<UUID> postIds,
-            @Param("asOf") Instant asOf
+            @Param("asOf") LocalDateTime asOf
     );
 
     // RecommendedFeedService에서 바로 쓸 수 있도록 Map으로 변환해주는 default 메서드.
-    default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds, Instant asOf) {
+    default Map<UUID, Long> countAllByPostIdIn(Collection<UUID> postIds, LocalDateTime asOf) {
         if (postIds == null || postIds.isEmpty()) return Map.of();
         return countGroupedByPostIds(postIds, asOf).stream()
                 .collect(Collectors.toMap(PostLikeCountRow::getPostId, PostLikeCountRow::getLikeCount));

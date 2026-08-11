@@ -6,8 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.sql.Date;
-import java.time.Instant;
-import java.util.List;
+import java.time.LocalDateTime;import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,13 +48,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         WHERE p.deleted_at IS NULL
           AND p.visibility = 'PUBLIC'
           AND p.created_at > :windowStart
-          AND p.created_at <= : asOf
+          AND p.created_at <= :asOf
         ORDER BY p.created_at DESC
         LIMIT :candidatePoolSize
         """, nativeQuery = true)
     List<Post> findRecommendationCandidates(
-            @Param("windowStart") Instant windowStart,
-            @Param("asOf") Instant asOf,
+            @Param("windowStart") LocalDateTime windowStart,
+            @Param("asOf") LocalDateTime asOf,
             @Param("candidatePoolSize") int candidatePoolSize
     );
 
