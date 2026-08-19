@@ -13,7 +13,6 @@ CREATE TYPE timeslot_type    AS ENUM ('AM', 'PM');
 CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
-CREATE TYPE message_type     AS ENUM ('TEXT', 'IMAGE', 'POST_SHARE');
 
 
 
@@ -162,7 +161,6 @@ CREATE TABLE IF NOT EXISTS messages (
     id         UUID        PRIMARY KEY DEFAULT uuidv7(),
     room_id    UUID        NOT NULL REFERENCES chat_rooms(id),
     sender_id  UUID        NOT NULL REFERENCES users(id),
-    type       message_type NOT NULL DEFAULT 'TEXT',
     content    JSONB       NOT NULL,
     sent_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ
