@@ -27,13 +27,17 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     @Override
     public void commence(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            AuthenticationException authException
+        HttpServletRequest request,
+        HttpServletResponse response,
+        AuthenticationException authException
     ) throws IOException {
-        response.setStatus(ErrorCode.AUTH_001.getStatus().value());
+        writeError(response, ErrorCode.AUTH_001);
+    }
+
+    public void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.getStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(ErrorCode.AUTH_001));
+        objectMapper.writeValue(response.getWriter(), ApiResponse.fail(errorCode));
     }
 }
