@@ -54,7 +54,10 @@ public enum ErrorCode {
     MEDIA_007(HttpStatus.NOT_FOUND, "업로드 예약을 찾을 수 없거나 만료되었습니다"),
 
     // 댓글 이모지 (comment_emoji)
-    COMMENT_EMOJI_001(HttpStatus.FORBIDDEN, "삭제된 댓글에는 이모지를 달 수 없습니다.");
+    COMMENT_EMOJI_001(HttpStatus.FORBIDDEN, "삭제된 댓글에는 이모지를 달 수 없습니다."),
+
+    // 알람 (notifications)
+    NOTIFICATION_001(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;
