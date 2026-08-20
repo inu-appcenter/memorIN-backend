@@ -14,7 +14,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 도메인 | 컨트롤러 | 엔드포인트 | 이 문서 상태 |
 |---|---|---:|---|
 | 유저 / 프로필 | `UserController` | 5 | 구현 반영 (프로필 수정은 **미구현** — §5-3) |
-| 게시물 | `PostController` | 6 | 구현 반영 |
+| 게시물 | `PostController` | 7 | 구현 반영 (추천 피드 §6-6 노출) |
 | 댓글 | `PostCommentController` | 4 | 구현 반영 |
 | 댓글 이모지(반응) | `CommentEmojiController` | 3 | 구현 반영 (§8-5) |
 | 팔로우 | `FollowController` | 4 | 구현 반영 (§9-6 추가) |
@@ -22,10 +22,10 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 인증 | `AuthController` | 3 | `docs/api-spec.md` §3 |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
 | FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
-| 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7) |
+| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화. 자바 코드 제거 완료(§7) |
 | 채팅 | 없음(엔티티만) | 0 | 설계 초안 · Sprint 4 (§10) |
 
-합계 **33개**. **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+합계 **34개**. **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -64,7 +64,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 ## 2-6. 공통 응답 봉투를 쓰지 않는 엔드포인트 (현황)
 
 `docs/api-spec.md` §2-4는 응답을 `{success, data, error}` 봉투로 감싼다고 규정하지만,
-실제로는 **33개 중 8개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
+실제로는 **34개 중 8개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
 
 | 엔드포인트 | 실제 반환 | 비고 |
 |---|---|---|
@@ -315,7 +315,9 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**구현됨.** 비로그인도 공개 게시물은 조회된다.
+**구현됨.** 공개범위 판정 자체는 비로그인(`requesterId = null`)까지 지원하지만,
+`SecurityConfig`가 `anyRequest().authenticated()`라 **토큰 없이 호출하면 401**이다.
+비로그인 열람을 실제로 열려면 보안 설정에서 별도로 허용해야 한다 → §14
 
 #### 설명
 
@@ -516,6 +518,51 @@ Status: `200 OK`
 | 403 | `POST_002` | 작성자 아님 |
 | 404 | `POST_001` | 없거나 이미 삭제된 게시물 |
 
+### 6-6. 추천 피드 조회
+
+```http
+GET /api/posts/recommend?cursor={cursor}&size=20
+Authorization: Bearer {accessToken}
+```
+
+#### 상태
+
+**구현됨** (#148, 2026-08-20). 서비스 코드는 있었으나 노출 경로가 없어 호출할 수 없던 것을 엔드포인트로 열었다.
+
+#### 설명
+
+최근 **14일 내 전체공개** 게시물을 후보(최대 300건)로 모아 점수순으로 정렬한다.
+
+```
+engagement = 1 + 댓글수 × 2 + 조회수 × 0.1
+score      = log(engagement) / (경과시간h + 2)^1.6
+```
+
+- 분모가 시간이라 **오래될수록 점수가 내려간다**(새 글이 자연스럽게 위로 온다).
+- 정렬 기준은 `score DESC`, 동점이면 `postId DESC`.
+- 게시물 좋아요는 미채택이므로(§7) 점수에 반영되지 않는다. 게시물 단위 반응이 생기면 항을 되살린다.
+
+#### 커서
+
+`cursor`에는 **첫 요청의 기준 시각(asOf)** 이 함께 담긴다. 페이지를 넘기는 동안 새 글이 올라와도
+목록이 밀리거나 중복되지 않는다. 직전 응답의 `nextCursor`를 그대로 넣는다.
+
+#### 응답
+
+Status: `200 OK` — 구조는 §6-3 목록 응답과 같다(`items` · `nextCursor` · `hasNext`).
+`items[].attachments`에 첨부 미디어가 presigned 다운로드 URL과 함께 들어간다.
+
+`size`는 기본 20 · 최대 50이다.
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+
+> 후보 조회는 `idx_posts_reco (created_at DESC) WHERE deleted_at IS NULL AND visibility = 'PUBLIC'` 부분 인덱스를 탄다.
+> 미디어는 게시물마다 조회하지 않고 한 번의 `IN` 조회로 붙인다 — `RecommendedFeedQueryTest`가 쿼리 수를 고정한다(미디어 3배 → SQL 3개 불변).
+
 ---
 
 ## 7. 좋아요 API — 미채택 (Sprint 2 결정)
@@ -527,11 +574,18 @@ Status: `200 OK`
 - 이전 리비전의 7-1·7-2 설계 초안은 이 결정으로 폐기했다.
 - 실제 반응 API는 **§8-5 댓글 이모지**다.
 
-### 남은 정리 대상
+### 정리 결과 (#148, 2026-08-20)
 
-`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`(`toggleLike`/`countLikes`)가 코드에 남아 있으나
-**컨트롤러에 연결된 곳이 없다.** `NotificationType.LIKE` enum 값도 같은 이유로 쓰이지 않는다.
-제거는 이슈 #148에서 처리한다.
+`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`를 **삭제했다.** 어떤 컨트롤러에도 연결되지
+않은 채 스프린트 두 개를 넘어온 코드였다.
+
+추천 피드 점수 공식에 있던 `likeCount * 3` 항도 함께 걷어냈다 — 입력이 영구히 0이라 계산에 기여하지 않았다(§6-6).
+
+**DB는 이번 스프린트에서 건드리지 않는다.** `post_likes` 테이블과 `idx_post_likes_post` 인덱스는 그대로 둔다.
+스키마 변경은 PM 승인이 필요하다는 Sprint 0 게이트 규칙이 있고, 되돌리려면 또 다른 마이그레이션이 필요한
+파괴적 변경이기 때문이다. 테이블 드롭은 별도 안건으로 올린다.
+
+> `NotificationType.LIKE`(§11)도 이 결정으로 쓰이지 않는 값이 됐다. 알림 도메인 정리 시 함께 판단한다.
 
 ---
 
@@ -1390,7 +1444,8 @@ Status: `200 OK`
 | 7 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 유일하게 전체를 반환한다. 댓글이 많은 게시물에서 응답 크기가 제한 없이 커진다 |
 | 8 | **`content` JSONB 태그 키 표준** | Sprint 3 "태그/메타데이터 탐색 API"의 선행 조건. `@ValidJson`은 "유효한 JSON"만 보고 구조는 보지 않는다. Sprint 2에서 죽은 GIN 인덱스를 제거했으므로 재도입 여부도 함께 결정 |
 | 9 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음과 관계 없음이 같은 코드다 |
-| 10 | **채팅 REST/STOMP 경계**(§10) | PR #169가 `WebSocketConfig`를 함께 들고 온다. Sprint 4 착수 전에 범위를 나눠야 한다 |
+| 10 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 열 것인지 정해야 문서와 구현이 일치한다 |
+| 11 | **채팅 REST/STOMP 경계**(§10) | PR #169가 `WebSocketConfig`를 함께 들고 온다. Sprint 4 착수 전에 범위를 나눠야 한다 |
 
 이전 리비전의 "유저 엔티티 단일화 / 도메인 참조 방식 / 엔티티 필드 네이밍"은 구현이 이미 한 방향으로 굳었다.
 남은 것은 문서 정합성 정리(#41)이며, 이 표에서는 제외했다.

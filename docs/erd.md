@@ -11,7 +11,7 @@
 | PK 타입 | `UUID v7`  | 정렬 가능 + 분산 환경 충돌 없음. PG18 내장 `uuidv7()` + 앱(Hibernate)에서 v7 생성 → H2/PG18 공통 동작 |
 | 게시물 본문 | `JSONB content[]` | 텍스트·이미지·비디오 블록 혼합 지원 |
 | 친구 관계 | 단방향 follow (+ 상태 enum) | DM은 direct room으로 처리, 팔로우 비대칭 허용. 맞팔(친구)은 앱에서 상호 accepted로 판정 |
-| 좋아요/댓글 | `post_likes` / `post_comments` 별도 테이블 | 댓글은 `parent_id`로 대댓글(1단계) 지원 |
+| 좋아요/댓글 | `post_likes`(**미사용**, 아래 DDL 주석 참고) / `post_comments` 별도 테이블 | 댓글은 `parent_id`로 대댓글(1단계) 지원 |
 | 채팅 | ChatRoom + Members + Messages 3-테이블 | 1:1 / 그룹 채팅 공통 처리 |
 | 읽음 처리 | `chat_room_members.last_read_at` 단일 필드 | watermark 방식. 그룹 "읽음 N"도 멤버별 last_read_at 비교로 계산 |
 | 인증 | `password_hash` NULL 허용 | 소셜/학번(INU SSO) 로그인 유저는 비밀번호 없음 |
@@ -250,7 +250,10 @@ CREATE TABLE post_media (
 CREATE INDEX idx_post_media_post_id ON post_media (post_id, order_index) WHERE deleted_at IS NULL;
 
 -- ──────────────────────────────────────────────────────────────
--- post_likes (좋아요)
+-- post_likes (좋아요) — 미사용 (2026-08-20)
+--   반응 모델이 댓글 이모지로 단일화되면서(#145) 게시물 좋아요는 미채택이 됐다.
+--   자바 엔티티/리포지토리/서비스는 #148에서 제거했고, 테이블은 스키마 변경 승인 절차 때문에 남겨 뒀다.
+--   쓰는 코드가 없으므로 새 기능에서 참조하지 말 것.
 -- ──────────────────────────────────────────────────────────────
 CREATE TABLE post_likes (
     id         UUID        PRIMARY KEY DEFAULT uuidv7(),
@@ -364,7 +367,7 @@ CREATE INDEX idx_comment_emoji_comment ON comment_emoji (comment_id, emoji_type)
 | # | 결정 | 내용 |
 |---|---|---|
 | A | **UUID v7 생성 방식** | PG18 내장 `uuidv7()` 사용(확장 불필요). 앱은 `com.fasterxml.uuid:java-uuid-generator`로 v7 생성 → `@GeneratedUuidV7` 어노테이션(`global.support`)을 PK에 부착. DB `DEFAULT uuidv7()`는 SQL 직접 INSERT용 안전망. H2(로컬)·PG18(운영) 공통 동작. |
-| B | **좋아요/댓글** | `post_likes`(유저×게시물 UNIQUE) + `post_comments`(`parent_id`로 대댓글 1단계) 별도 테이블로 지금 추가. 개수는 `COUNT(*)`로 조회(비정규화 카운터는 트래픽 증가 후 도입). |
+| B | **좋아요/댓글** | `post_likes`(유저×게시물 UNIQUE) + `post_comments`(`parent_id`로 대댓글 1단계) 별도 테이블로 지금 추가. 개수는 `COUNT(*)`로 조회(비정규화 카운터는 트래픽 증가 후 도입). <br>**2026-08-20 갱신:** 반응은 댓글 이모지(`comment_emoji`)로 단일화됐고 게시물 좋아요는 미채택이다(#145·#148). `post_likes`를 쓰는 코드는 없다. |
 | C | **팔로우 방향** | 단방향 `follows` 유지. "맞팔(친구)"은 스키마가 아니라 앱에서 상호 `accepted` 여부로 판정 → 테이블 변경 없음. |
 | D | **읽음 처리** | `chat_room_members.last_read_at` 단일 필드(watermark)로 확정. 그룹 "읽음 N"도 멤버별 `last_read_at ≥ message.sent_at` 비교로 계산. `message_reads` 별도 테이블은 행 폭증으로 미채택. |
 | E | **인증 (password_hash)** | `NULL 허용`으로 변경. 소셜/학번(INU SSO) 로그인 유저는 비밀번호가 없음. 멀티 프로바이더(한 유저가 여러 로그인 수단 연결)용 `user_auth_providers` 테이블은 소셜 로그인 실제 구현 시 도입. |
