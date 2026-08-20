@@ -56,6 +56,12 @@ public class FollowController {
         return ApiResponse.ok();
     }
 
+    // 받은 요청 목록
+    @Operation(summary = "받은 팔로우 요청 목록",
+        description = """
+            내게 온 PENDING 상태의 팔로우 요청을 최신순으로 조회한다.
+            응답의 followId를 수락(PATCH /api/follows/{followId}/accept)에 그대로 쓴다.
+            페이지네이션이 없어 요청이 많으면 전부 내려간다 — 커서 페이징 전환은 별도 이슈.""")
     @GetMapping("/requests")
     public ApiResponse<List<UserFollowRequestResponse>> getReceivedRequests(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId()));

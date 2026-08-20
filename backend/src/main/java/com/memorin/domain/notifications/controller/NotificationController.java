@@ -15,13 +15,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
-@Tag(name = "Notifications", description = "알림 API")
+@Tag(name = "알림", description = "알림 히스토리 조회 · 읽음 처리")
 public class NotificationController {
 
     private final NotificationService notificationService;
 
     @GetMapping
-    @Operation(summary = "알림 히스토리 조회")
+    @Operation(summary = "알림 히스토리 조회",
+        description = "내 알림을 최신순 커서 페이지네이션으로 조회한다. cursor는 직전 페이지의 nextCursor를 그대로 넣는다.")
     public ApiResponse<NotificationPageResponse> getNotifications(
         @AuthenticationPrincipal UserDetailsImpl userDetails,
         @RequestParam(required = false) UUID cursor,
@@ -34,7 +35,7 @@ public class NotificationController {
     }
 
     @PatchMapping("/{notificationId}/read")
-    @Operation(summary = "알림 읽음 처리")
+    @Operation(summary = "알림 읽음 처리", description = "알림 하나를 읽음 상태로 바꾼다. 내 알림이 아니면 실패한다.")
     public ApiResponse<Void> read(
         @AuthenticationPrincipal UserDetailsImpl userDetails,
         @PathVariable UUID notificationId
@@ -45,7 +46,7 @@ public class NotificationController {
     }
 
     @PatchMapping("/read-all")
-    @Operation(summary = "알림 전체 읽음 처리")
+    @Operation(summary = "알림 전체 읽음 처리", description = "읽지 않은 내 알림을 모두 읽음 처리한다.")
     public ApiResponse<Void> readAll(
         @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
