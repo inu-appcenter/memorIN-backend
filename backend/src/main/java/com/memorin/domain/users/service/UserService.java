@@ -92,7 +92,7 @@ public class UserService {
 
     public MyPageResponseDto getMyPage(UUID userId) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         return new MyPageResponseDto(
@@ -182,7 +182,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getPublicProfile(UUID userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         return UserProfileResponse.from(user);
