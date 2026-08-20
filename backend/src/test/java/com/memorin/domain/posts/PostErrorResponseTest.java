@@ -5,6 +5,7 @@ import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.posts.controller.PostController;
 import com.memorin.domain.posts.service.PostCursor;
 import com.memorin.domain.posts.service.PostService;
+import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
@@ -42,6 +43,10 @@ class PostErrorResponseTest {
 
     @MockitoBean
     private PostService postService;
+
+    // 컨트롤러가 주입받는 협력자라 슬라이스 테스트에도 필요하다. 이 테스트에서 호출하지는 않는다.
+    @MockitoBean
+    private RecommendedFeedService recommendedFeedService;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
