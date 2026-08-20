@@ -40,11 +40,19 @@ public class FollowController {
         return ApiResponse.ok();
     }
 
-    // 팔로우 거절
-    @Operation(summary = "팔로우 거절/취소", description = "팔로우 요청을 거절하거나 기존 팔로우 관계를 해제한다.")
+    // 받은 팔로우 요청 거절
+    @Operation(summary = "팔로우 요청 거절", description = "받은 PENDING 팔로우 요청을 거절한다. 요청의 수신자만 처리할 수 있다.")
+    @DeleteMapping("/requests/{followId}")
+    public ApiResponse<Void> rejectReceivedRequest(@PathVariable UUID followId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        followService.reject(followId, userDetails.getUserId());
+        return ApiResponse.ok();
+    }
+
+    // 내가 보낸 팔로우 요청 취소 또는 언팔로우
+    @Operation(summary = "팔로우 취소/해제", description = "내가 보낸 PENDING 팔로우 요청을 취소하거나 기존 팔로우 관계를 해제한다.")
     @DeleteMapping("/{followingId}")
-    public ApiResponse<Void> reject(@PathVariable UUID followingId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        followService.reject(userDetails.getUserId(), followingId);
+    public ApiResponse<Void> cancelOrUnfollow(@PathVariable UUID followingId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        followService.cancelOrUnfollow(userDetails.getUserId(), followingId);
         return ApiResponse.ok();
     }
 
