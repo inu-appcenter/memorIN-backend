@@ -2,7 +2,7 @@
 
 > 작성: 2026-08-20 (Sprint 3 W8) · 작성자: 도영(BE 시니어)
 > 대상: Sprint 4(Week 9~10) 채팅 · 알림 도메인 착수 전 결정 사항
-> 근거: `origin/develop` @ `bbf7239` 코드 + PR [#169](https://github.com/inu-appcenter/MermorIN/pull/169)(미머지)
+> 근거: `origin/develop` @ `bbf7239` 코드 + PR [#169](https://github.com/inu-appcenter/memorIN-backend/pull/169)(미머지)
 
 Sprint 4는 지금까지와 성격이 다르다. 게시물·댓글·팔로우는 **요청 하나가 끝나면 서버에 아무것도 남지 않는**
 REST API였다. 채팅은 **연결이 살아 있는 동안 서버가 상태를 들고 있는다.** 그래서 지금까지 없던 실패 방식이 생긴다

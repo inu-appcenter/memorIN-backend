@@ -14,18 +14,18 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 도메인 | 컨트롤러 | 엔드포인트 | 이 문서 상태 |
 |---|---|---:|---|
 | 유저 / 프로필 | `UserController` | 5 | 구현 반영 (프로필 수정은 **미구현** — §5-3) |
-| 게시물 | `PostController` | 6 | 구현 반영 |
+| 게시물 | `PostController` | 7 | 구현 반영 (추천 피드 §6-6 노출) |
 | 댓글 | `PostCommentController` | 4 | 구현 반영 |
 | 댓글 이모지(반응) | `CommentEmojiController` | 3 | 구현 반영 (§8-5) |
-| 팔로우 | `FollowController` | 4 | 구현 반영 (§9-6 추가) |
+| 팔로우 | `FollowController` | 5 | 구현 반영. 받은 요청 거절 경로 신설(#174, §9-4) |
 | 알림 | `NotificationController` | 3 | 구현 반영 (§11) |
 | 인증 | `AuthController` | 3 | `docs/api-spec.md` §3 |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
 | FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
-| 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7) |
+| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화. 자바 코드 제거 완료(§7) |
 | 채팅 | 없음(엔티티만) | 0 | 설계 초안 · Sprint 4 (§10) |
 
-합계 **33개**. **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+합계 **35개**. **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -64,7 +64,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 ## 2-6. 공통 응답 봉투를 쓰지 않는 엔드포인트 (현황)
 
 `docs/api-spec.md` §2-4는 응답을 `{success, data, error}` 봉투로 감싼다고 규정하지만,
-실제로는 **33개 중 8개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
+실제로는 **35개 중 8개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
 
 | 엔드포인트 | 실제 반환 | 비고 |
 |---|---|---|
@@ -315,7 +315,9 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**구현됨.** 비로그인도 공개 게시물은 조회된다.
+**구현됨.** 공개범위 판정 자체는 비로그인(`requesterId = null`)까지 지원하지만,
+`SecurityConfig`가 `anyRequest().authenticated()`라 **토큰 없이 호출하면 401**이다.
+비로그인 열람을 실제로 열려면 보안 설정에서 별도로 허용해야 한다 → §14
 
 #### 설명
 
@@ -516,6 +518,51 @@ Status: `200 OK`
 | 403 | `POST_002` | 작성자 아님 |
 | 404 | `POST_001` | 없거나 이미 삭제된 게시물 |
 
+### 6-6. 추천 피드 조회
+
+```http
+GET /api/posts/recommend?cursor={cursor}&size=20
+Authorization: Bearer {accessToken}
+```
+
+#### 상태
+
+**구현됨** (#148, 2026-08-20). 서비스 코드는 있었으나 노출 경로가 없어 호출할 수 없던 것을 엔드포인트로 열었다.
+
+#### 설명
+
+최근 **14일 내 전체공개** 게시물을 후보(최대 300건)로 모아 점수순으로 정렬한다.
+
+```
+engagement = 1 + 댓글수 × 2 + 조회수 × 0.1
+score      = log(engagement) / (경과시간h + 2)^1.6
+```
+
+- 분모가 시간이라 **오래될수록 점수가 내려간다**(새 글이 자연스럽게 위로 온다).
+- 정렬 기준은 `score DESC`, 동점이면 `postId DESC`.
+- 게시물 좋아요는 미채택이므로(§7) 점수에 반영되지 않는다. 게시물 단위 반응이 생기면 항을 되살린다.
+
+#### 커서
+
+`cursor`에는 **첫 요청의 기준 시각(asOf)** 이 함께 담긴다. 페이지를 넘기는 동안 새 글이 올라와도
+목록이 밀리거나 중복되지 않는다. 직전 응답의 `nextCursor`를 그대로 넣는다.
+
+#### 응답
+
+Status: `200 OK` — 구조는 §6-3 목록 응답과 같다(`items` · `nextCursor` · `hasNext`).
+`items[].attachments`에 첨부 미디어가 presigned 다운로드 URL과 함께 들어간다.
+
+`size`는 기본 20 · 최대 50이다.
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+
+> 후보 조회는 `idx_posts_reco (created_at DESC) WHERE deleted_at IS NULL AND visibility = 'PUBLIC'` 부분 인덱스를 탄다.
+> 미디어는 게시물마다 조회하지 않고 한 번의 `IN` 조회로 붙인다 — `RecommendedFeedQueryTest`가 쿼리 수를 고정한다(미디어 3배 → SQL 3개 불변).
+
 ---
 
 ## 7. 좋아요 API — 미채택 (Sprint 2 결정)
@@ -527,11 +574,18 @@ Status: `200 OK`
 - 이전 리비전의 7-1·7-2 설계 초안은 이 결정으로 폐기했다.
 - 실제 반응 API는 **§8-5 댓글 이모지**다.
 
-### 남은 정리 대상
+### 정리 결과 (#148, 2026-08-20)
 
-`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`(`toggleLike`/`countLikes`)가 코드에 남아 있으나
-**컨트롤러에 연결된 곳이 없다.** `NotificationType.LIKE` enum 값도 같은 이유로 쓰이지 않는다.
-제거는 이슈 #148에서 처리한다.
+`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`를 **삭제했다.** 어떤 컨트롤러에도 연결되지
+않은 채 스프린트 두 개를 넘어온 코드였다.
+
+추천 피드 점수 공식에 있던 `likeCount * 3` 항도 함께 걷어냈다 — 입력이 영구히 0이라 계산에 기여하지 않았다(§6-6).
+
+**DB는 이번 스프린트에서 건드리지 않는다.** `post_likes` 테이블과 `idx_post_likes_post` 인덱스는 그대로 둔다.
+스키마 변경은 PM 승인이 필요하다는 Sprint 0 게이트 규칙이 있고, 되돌리려면 또 다른 마이그레이션이 필요한
+파괴적 변경이기 때문이다. 테이블 드롭은 별도 안건으로 올린다.
+
+> `NotificationType.LIKE`(§11)도 이 결정으로 쓰이지 않는 값이 됐다. 알림 도메인 정리 시 함께 판단한다.
 
 ---
 
@@ -863,21 +917,21 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**구현됨.** 단, 아래 결함(#163)으로 "받은 요청 거절"에는 쓸 수 없다.
+**구현됨.** #174에서 "받은 요청 거절"과 경로가 분리됐다.
 
 #### 설명
 
 path의 `followingId`는 **내가 팔로우한(또는 내가 요청을 보낸) 상대**다.
-서버는 `(follower = 나, following = path)` 행을 찾아 삭제한다.
+서버는 `(follower = 나, following = path)` 행을 찾아 삭제한다. 즉 이 API가 처리하는 것은 두 가지다.
 
-#### 🔴 알려진 결함 — 받은 요청 거절이 항상 실패한다 (#163)
+- 내가 보낸 `PENDING` 요청 취소
+- 이미 맺어진 `ACCEPTED` 관계 해제(언팔로우)
 
-받은 요청은 `(follower = 상대, following = 나)` 방향이다. 이 API는 반대 방향만 조회하므로
-거절하려 하면 행을 찾지 못해 **항상 404 `FOLLOW_001`** 이 난다.
+**받은 요청을 거절하는 용도가 아니다.** 그건 방향이 반대라 §9-4를 쓴다.
 
-- 수락(§9-3)은 `followId`(팔로우 행의 id)를 받는데 거절은 `followingId`(사용자 id)를 받아 **파라미터 의미도 서로 다르다.**
-- §9-6 목록이 `followId`를 내려주므로, 거절도 `DELETE /api/follows/{followId}` 형태로 맞추는 것이 자연스럽다.
-- Sprint 3 게이트 "소셜 탐색 흐름"이 이 결함에 걸려 있다.
+> 2026-08-20 이전에는 이 API 하나가 "거절"까지 담당하는 것으로 문서화돼 있었으나,
+> 받은 요청은 `(follower = 상대, following = 나)` 방향이라 행을 찾지 못해 항상 404였다(#163).
+> #174에서 거절 전용 경로를 신설해 해결했다.
 
 #### 인증
 
@@ -896,7 +950,7 @@ Status: `200 OK`
 | HTTP Status | 코드 | 상황 |
 |---:|---|---|
 | 401 | `AUTH_001` | 인증 누락/만료 |
-| 404 | `FOLLOW_001` | 해당 방향의 팔로우 관계가 없음 (없는 관계에 멱등하지 않다) |
+| 404 | `FOLLOW_001` | 그 방향의 팔로우 관계가 없음 (없는 관계에 멱등하지 않다) |
 
 ### 9-3. 팔로우 요청 수락
 
@@ -912,7 +966,7 @@ Authorization: Bearer {accessToken}
 #### 설명
 
 나에게 온 `PENDING` 팔로우 요청을 수락해 `ACCEPTED`로 바꾼다. 요청 대상(`following_id`)이 본인일 때만 가능하다.
-`followId`는 §9-6 목록 응답의 `followId`를 그대로 쓴다. 거절은 §9-2 참고(현재 결함 있음).
+`followId`는 §9-7 목록 응답의 `followId`를 그대로 쓴다. 거절은 §9-4다.
 
 #### 인증
 
@@ -936,7 +990,44 @@ Status: `200 OK`
 | 403 | `FOLLOW_004` | 내게 온 요청이 아님 |
 | 404 | `FOLLOW_001` | 존재하지 않는 팔로우 요청 |
 
-### 9-4. 팔로워 목록 조회
+### 9-4. 받은 팔로우 요청 거절
+
+```http
+DELETE /api/follows/requests/{followId}
+Authorization: Bearer {accessToken}
+```
+
+#### 상태
+
+**구현됨** (#174, 2026-08-20). #163 수정으로 신설된 경로다.
+
+#### 설명
+
+나에게 온 `PENDING` 요청을 거절한다. path의 `followId`는 **팔로우 행의 id**이며,
+§9-7 목록 응답의 `followId`를 그대로 넘긴다(수락 §9-3과 같은 값).
+
+수락과 거절이 같은 식별자를 쓰고, 취소/언팔로우(§9-2)만 상대 사용자 id를 쓴다.
+
+- 요청의 **수신자 본인**만 거절할 수 있다(아니면 403 `FOLLOW_004`).
+- 이미 `ACCEPTED`가 된 관계는 거절 대상이 아니다(404 `FOLLOW_001`). 이 경우 §9-2로 해제한다.
+
+#### 응답
+
+Status: `200 OK`
+
+```json
+{ "success": true, "data": null, "error": null }
+```
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 403 | `FOLLOW_004` | 내게 온 요청이 아님 |
+| 404 | `FOLLOW_001` | 존재하지 않거나 PENDING이 아닌 요청 |
+
+### 9-5. 팔로워 목록 조회
 
 ```http
 GET /api/users/{userId}/followers?cursor={uuid}&size=20
@@ -971,7 +1062,7 @@ Status: `200 OK`
 }
 ```
 
-### 9-5. 팔로잉 목록 조회
+### 9-6. 팔로잉 목록 조회
 
 ```http
 GET /api/users/{userId}/followings?cursor={uuid}&size=20
@@ -984,13 +1075,13 @@ Authorization: Bearer {accessToken}
 
 #### 설명
 
-해당 유저가 팔로우하는(=`follower_id = userId`, `status = ACCEPTED`) 사용자 목록을 조회한다. 응답 스키마는 9-4와 동일하다.
+해당 유저가 팔로우하는(=`follower_id = userId`, `status = ACCEPTED`) 사용자 목록을 조회한다. 응답 스키마는 §9-5와 동일하다.
 
 #### 인증
 
 필요
 
-### 9-6. 받은 팔로우 요청 목록
+### 9-7. 받은 팔로우 요청 목록
 
 ```http
 GET /api/follows/requests
@@ -1025,11 +1116,11 @@ Status: `200 OK`
 }
 ```
 
-`followId`를 수락(§9-3)에 그대로 넘긴다.
+`followId`를 수락(§9-3)·거절(§9-4)에 그대로 넘긴다.
 
 #### 제약
 
-- **페이지네이션이 없다.** 요청이 쌓이면 전부 내려간다. 팔로워/팔로잉 목록(§9-4·§9-5)은 커서 페이징으로
+- **페이지네이션이 없다.** 요청이 쌓이면 전부 내려간다. 팔로워/팔로잉 목록(§9-5·§9-6)은 커서 페이징으로
   전환했지만 이 API는 남아 있다 → §14
 - `JOIN FETCH`로 요청자를 함께 조회하므로 N+1은 없다.
 
@@ -1040,7 +1131,7 @@ Status: `200 OK`
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
 - 현재 구현: **없음(엔티티만).** 초기 `ChatController`/`ChatMessage` 에코 프로토타입은 STOMP 브로커 설정이 없어 배선되지 않은 죽은 코드였으므로 삭제했다. 실제 채팅 도메인은 Sprint 4다.
-- **진행 중:** 게시물 공유 API PR([#169](https://github.com/inu-appcenter/MermorIN/pull/169))이 `MessageController`·`WebSocketConfig`·메시지 content 타입(`TextContent`/`ImageContent`/`PostShareContent`)을 함께 들고 온다. 머지되면 이 절을 다시 갱신한다(2026-08-20 기준 미머지).
+- **진행 중:** 게시물 공유 API PR([#169](https://github.com/inu-appcenter/memorIN-backend/pull/169))이 `MessageController`·`WebSocketConfig`·메시지 content 타입(`TextContent`/`ImageContent`/`PostShareContent`)을 함께 들고 온다. 머지되면 이 절을 다시 갱신한다(2026-08-20 기준 미머지).
 - REST(방 생성/목록/메시지 조회)는 **설계 초안**이다.
 - 인증: `SecurityConfig`에 `/ws/**`, `/*.html` `permitAll` 매처가 남아 있으나 대응하는 엔드포인트가 없어 현재는 무효하다. WebSocket 토큰 인증은 채팅 착수 시 함께 설계한다(`docs/auth-jwt-design.md` §6).
 
@@ -1383,13 +1474,13 @@ Status: `200 OK`
 |---|---|---|
 | 1 | **공통 응답 봉투 통일 여부**(§2-6) | 8개 엔드포인트가 DTO를 직접 반환한다. 통일은 FE 파싱을 전부 바꾸는 파괴적 변경이라 스프린트 경계에서만 가능하다 |
 | 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지. #165와 직결 |
-| 3 | **받은 요청 거절의 경로 설계**(§9-2) | `followId`로 통일할지 `followingId`를 고칠지. #163 수정 방향이 여기서 갈린다 |
-| 4 | **`GET /api/follows/requests` 페이지네이션**(§9-6) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 |
-| 5 | **알림 저장 트리거 위치**(§11) | 팔로우/댓글 서비스가 직접 호출할지, 이벤트로 뺄지. 정하지 않으면 알림은 계속 빈 배열이다 |
-| 6 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다 |
-| 7 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 유일하게 전체를 반환한다. 댓글이 많은 게시물에서 응답 크기가 제한 없이 커진다 |
-| 8 | **`content` JSONB 태그 키 표준** | Sprint 3 "태그/메타데이터 탐색 API"의 선행 조건. `@ValidJson`은 "유효한 JSON"만 보고 구조는 보지 않는다. Sprint 2에서 죽은 GIN 인덱스를 제거했으므로 재도입 여부도 함께 결정 |
-| 9 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음과 관계 없음이 같은 코드다 |
+| 3 | **`GET /api/follows/requests` 페이지네이션**(§9-7) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 |
+| 4 | **알림 저장 트리거 위치**(§11) | 팔로우/댓글 서비스가 직접 호출할지, 이벤트로 뺄지. 정하지 않으면 알림은 계속 빈 배열이다 |
+| 5 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다 |
+| 6 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 유일하게 전체를 반환한다. 댓글이 많은 게시물에서 응답 크기가 제한 없이 커진다 |
+| 7 | **`content` JSONB 태그 키 표준** | Sprint 3 "태그/메타데이터 탐색 API"의 선행 조건. `@ValidJson`은 "유효한 JSON"만 보고 구조는 보지 않는다. Sprint 2에서 죽은 GIN 인덱스를 제거했으므로 재도입 여부도 함께 결정 |
+| 8 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음 · 관계 없음 · PENDING 아님 세 가지에 같은 코드가 쓰인다 |
+| 9 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 열 것인지 정해야 문서와 구현이 일치한다 |
 | 10 | **채팅 REST/STOMP 경계**(§10) | PR #169가 `WebSocketConfig`를 함께 들고 온다. Sprint 4 착수 전에 범위를 나눠야 한다 |
 
 이전 리비전의 "유저 엔티티 단일화 / 도메인 참조 방식 / 엔티티 필드 네이밍"은 구현이 이미 한 방향으로 굳었다.
