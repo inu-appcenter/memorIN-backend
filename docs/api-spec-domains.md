@@ -1131,7 +1131,7 @@ Status: `200 OK`
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
 - 현재 구현: **없음(엔티티만).** 초기 `ChatController`/`ChatMessage` 에코 프로토타입은 STOMP 브로커 설정이 없어 배선되지 않은 죽은 코드였으므로 삭제했다. 실제 채팅 도메인은 Sprint 4다.
-- **진행 중:** 게시물 공유 API PR([#169](https://github.com/inu-appcenter/MermorIN/pull/169))이 `MessageController`·`WebSocketConfig`·메시지 content 타입(`TextContent`/`ImageContent`/`PostShareContent`)을 함께 들고 온다. 머지되면 이 절을 다시 갱신한다(2026-08-20 기준 미머지).
+- **진행 중:** 게시물 공유 API PR([#169](https://github.com/inu-appcenter/memorIN-backend/pull/169))이 `MessageController`·`WebSocketConfig`·메시지 content 타입(`TextContent`/`ImageContent`/`PostShareContent`)을 함께 들고 온다. 머지되면 이 절을 다시 갱신한다(2026-08-20 기준 미머지).
 - REST(방 생성/목록/메시지 조회)는 **설계 초안**이다.
 - 인증: `SecurityConfig`에 `/ws/**`, `/*.html` `permitAll` 매처가 남아 있으나 대응하는 엔드포인트가 없어 현재는 무효하다. WebSocket 토큰 인증은 채팅 착수 시 함께 설계한다(`docs/auth-jwt-design.md` §6).
 

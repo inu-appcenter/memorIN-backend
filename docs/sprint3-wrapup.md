@@ -3,7 +3,7 @@
 > 작성: 2026-08-20 (Sprint 3 W8 목 · 리뷰 회의 입력용)
 > 최종 갱신: 2026-08-20 — #163 해결(#174) 반영
 > 범위: **백엔드만**. FE·디자인 항목은 이 문서에서 다루지 않는다.
-> 기준: `origin/develop` @ `3bc2575` + 미머지 PR [#169](https://github.com/inu-appcenter/MermorIN/pull/169)
+> 기준: `origin/develop` @ `3bc2575` + 미머지 PR [#169](https://github.com/inu-appcenter/memorIN-backend/pull/169)
 
 Sprint 3에서 무엇이 실제로 끝났고 무엇이 남았는지를 **코드로 확인한** 기록이다.
 Sprint 2 결산(`docs/sprint2-wrapup.md`)과 같은 방식으로, 문서의 체크박스가 아니라 실행 경로를 근거로 판정했다.
