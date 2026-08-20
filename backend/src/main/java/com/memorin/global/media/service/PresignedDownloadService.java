@@ -1,6 +1,5 @@
 package com.memorin.global.media.service;
 
-import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.domain.posts.service.PostAccessPolicy;
@@ -79,7 +78,11 @@ public class PresignedDownloadService {
 
     // 목록용 - 이미 엔티티를 손에 든 경우 DB 재조회 없음.
     public PresignedDownloadResponse createDownloadUrl(PostMedia postMedia) {
-        String objectKey = postMedia.getFileKey();
+        return createDownloadUrl(postMedia.getFileKey());
+    }
+
+    // 프로필 이미지처럼 PostMedia 엔티티가 없는 객체의 다운로드 URL 발급용.
+    public PresignedDownloadResponse createDownloadUrl(String objectKey) {
 
         try {
             String downloadUrl = presignedUrlMinioClient.getPresignedObjectUrl(
