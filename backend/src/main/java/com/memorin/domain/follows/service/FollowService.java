@@ -68,8 +68,28 @@ public class FollowService {
         follows.accept();
     }
 
-    // 팔로우 거절
-    public void reject(UUID followerId, UUID followingId) {
+    // 받은 팔로우 요청 거절
+    public void reject(UUID followId, UUID userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+
+        Follows follows = followRepository.findById(followId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FOLLOW_001));
+
+        if (!follows.getFollowing().getId().equals(user.getId())) {
+            throw new BusinessException(ErrorCode.FOLLOW_004);
+        }
+
+        if (follows.getStatus() != Follow_state.PENDING) {
+            throw new BusinessException(ErrorCode.FOLLOW_001);
+        }
+
+        followRepository.delete(follows);
+    }
+
+    // 내가 보낸 팔로우 요청 취소 또는 언팔로우
+    public void cancelOrUnfollow(UUID followerId, UUID followingId) {
 
         Follows follows = followRepository.findByFollowerIdAndFollowingId(followerId, followingId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.FOLLOW_001));
