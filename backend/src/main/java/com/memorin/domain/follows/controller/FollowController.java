@@ -40,14 +40,23 @@ public class FollowController {
         return ApiResponse.ok();
     }
 
-    // 팔로우 거절
-    @Operation(summary = "팔로우 거절/취소", description = "팔로우 요청을 거절하거나 기존 팔로우 관계를 해제한다.")
+    // 팔로우 취소/언팔로우
+    @Operation(summary = "팔로우 취소/언팔로우",
+        description = """
+            path의 followingId는 **내가 팔로우한(또는 요청한) 상대**다. (follower=나, following=path) 관계를 삭제한다.
+            받은 요청의 '거절'은 (follower=상대, following=나) 방향이라 이 API로는 처리되지 않는다 — 항상 FOLLOW_001이다(#163).""")
     @DeleteMapping("/{followingId}")
     public ApiResponse<Void> reject(@PathVariable UUID followingId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
         followService.reject(userDetails.getUserId(), followingId);
         return ApiResponse.ok();
     }
 
+    // 받은 요청 목록
+    @Operation(summary = "받은 팔로우 요청 목록",
+        description = """
+            내게 온 PENDING 상태의 팔로우 요청을 최신순으로 조회한다.
+            응답의 followId를 수락(PATCH /api/follows/{followId}/accept)에 그대로 쓴다.
+            페이지네이션이 없어 요청이 많으면 전부 내려간다 — 커서 페이징 전환은 별도 이슈.""")
     @GetMapping("/requests")
     public ApiResponse<List<UserFollowRequestResponse>> getReceivedRequests(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId()));
