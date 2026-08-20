@@ -5,6 +5,9 @@
 
 ### Gradle ###
 .gradle/
+# GRADLE_USER_HOME을 프로젝트 안으로 잡는 환경(IDE·샌드박스·CI 캐시)에서 생기는 래퍼 배포본.
+# 빌드 산출물이라 저장소에 들어가면 안 된다 (#174에서 빈 .lck/.part 두 개가 실제로 커밋됐다).
+.gradle-user-home/
 **/build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
