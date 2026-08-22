@@ -1,6 +1,10 @@
 package com.memorin.domain.chat_room_members.entity;
 
 import com.memorin.domain.chat_rooms.entity.ChatRooms;
+import com.memorin.domain.emoji.entity.CommentEmoji;
+import com.memorin.domain.emoji.entity.EmojiType;
+import com.memorin.domain.post_comments.entity.PostComments;
+import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
@@ -54,4 +58,13 @@ public class ChatRoomMembers {
     @Column(name = "left_at")
     private LocalDateTime leftAt;
 
+    public static ChatRoomMembers of(ChatRooms room, Post post, User member) {
+        ChatRoomMembers e = new ChatRoomMembers();
+        e.room = room;
+        e.user = member;
+        e.role = (post.getUser().getId() != member.getId()) ? Members_role.MEMBER : Members_role.OWNER;
+        e.joinedAt = LocalDateTime.now();
+        e.lastReadAt = LocalDateTime.now();
+        return e;
+    }
 }

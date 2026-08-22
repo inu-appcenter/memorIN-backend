@@ -24,6 +24,7 @@ public class PostAccessPolicy {
     }
 
     public void assertReadable(Post post, UUID requesterId) {
+
         switch (post.getVisibility()) {
             case PUBLIC:
                 return;

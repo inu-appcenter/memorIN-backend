@@ -85,7 +85,7 @@ public class Post {
         this.timeslot = timeslot;
         this.recordedDate = recordedDate;
         this.viewCount = viewCount;
-        this.createdAt = createdAt;
+        this.createdAt = LocalDateTime.now();
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
     }

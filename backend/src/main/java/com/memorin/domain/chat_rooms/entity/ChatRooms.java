@@ -3,6 +3,7 @@ package com.memorin.domain.chat_rooms.entity;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
@@ -42,6 +43,14 @@ public class ChatRooms {
     @UpdateTimestamp // UPDATE 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private LocalDateTime updatedAt; // 수정된 날짜
+
+    @Builder
+    public ChatRooms(String name, Chat_type type, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.name = name;
+        this.type = type;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 
 
 }
