@@ -8,6 +8,7 @@ import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
+import com.memorin.global.media.service.PresignedDownloadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final PresignedDownloadService presignedDownloadService;
 
     // PostService.normalizeSize와 같은 규칙. 클라이언트가 size=100000을 보내면 그대로
     // PageRequest에 실려 100만 행을 로드하고, size=-1이면 PageRequest.of가 예외를 던져 500이 된다.
@@ -92,7 +94,7 @@ public class UserService {
 
     public MyPageResponseDto getMyPage(UUID userId) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         return new MyPageResponseDto(
@@ -182,9 +184,21 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getPublicProfile(UUID userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
-        return UserProfileResponse.from(user);
+        return UserProfileResponse.from(user, resolveProfileImageUrl(user.getProfileImageKey()));
+    }
+
+    private String resolveProfileImageUrl(String profileImageKey) {
+        if (profileImageKey == null || profileImageKey.isBlank()) {
+            return null;
+        }
+
+        try {
+            return presignedDownloadService.createDownloadUrl(profileImageKey).downloadUrl();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

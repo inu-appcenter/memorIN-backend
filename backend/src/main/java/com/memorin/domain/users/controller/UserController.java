@@ -69,9 +69,9 @@ public class UserController {
 
     @GetMapping("/{userId}")
     @Operation(summary = "사용자 공개 프로필 조회")
-    public ResponseEntity<UserProfileResponse> getPublicProfile(
+    public ApiResponse<UserProfileResponse> getPublicProfile(
         @PathVariable UUID userId
     ) {
-        return ResponseEntity.ok(userService.getPublicProfile(userId));
+        return ApiResponse.ok(userService.getPublicProfile(userId));
     }
 }

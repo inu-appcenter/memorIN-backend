@@ -61,6 +61,9 @@ public enum ErrorCode {
 
     // 채팅방 멤버 (chat_room_members)
     CHAT_ROOM_MEMBERS_001(HttpStatus.FORBIDDEN, "존재하지 않는 참여자입니다.");
+  
+    // 알람 (notifications)
+    NOTIFICATION_001(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;

@@ -3,8 +3,8 @@ package com.memorin.domain.posts.service;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.posts.repository.PostRepository;
 import com.memorin.domain.posts.dto.response.PostListResponse;
+import com.memorin.domain.posts.dto.response.PostMediaResponse;
 import com.memorin.domain.posts.dto.response.PostSummaryResponse;
-import com.memorin.domain.post_likes.repository.PostLikeRepository;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,8 +24,8 @@ public class RecommendedFeedService {
     private static final double GRAVITY = 1.6;
 
     private final PostRepository postRepository;
-    private final PostLikeRepository postLikeRepository;
     private final PostCommentRepository postCommentRepository;
+    private final PostMediaAttacher postMediaAttacher;
 
     public PostListResponse getRecommendedFeed(String cursor, Integer size) {
         int limit = normalizeSize(size);
@@ -48,20 +48,17 @@ public class RecommendedFeedService {
                 asOf.minus(RECENCY_WINDOW), asOf, CANDIDATE_POOL_SIZE
         );
 
-        // 2. 좋아요/댓글 수 배치 조회 (도메인 경계를 넘지 않고 각 도메인의 배치 API 호출)
+        // 2. 댓글 수 배치 조회 (도메인 경계를 넘지 않고 댓글 도메인의 배치 API 호출)
         List<UUID> candidateIds = candidates.stream().map(Post::getId).toList();
-        Map<UUID, Long> likeCounts = postLikeRepository.countAllByPostIdIn(candidateIds, asOf);
         Map<UUID, Long> commentCounts = postCommentRepository.countAllByPostIdIn(candidateIds, asOf);
 
         // 3. 점수 계산 (자바에서)
-        record Scored(Post post, double score, long likeCount, long commentCount) {}
+        record Scored(Post post, double score, long commentCount) {}
 
         List<Scored> scoredList = candidates.stream()
                 .map(p -> {
-                    long likes = likeCounts.getOrDefault(p.getId(), 0L);
                     long comments = commentCounts.getOrDefault(p.getId(), 0L);
-                    double score = computeScore(p, likes, comments, asOf);
-                    return new Scored(p, score, likes, comments);
+                    return new Scored(p, computeScore(p, comments, asOf), comments);
                 })
                 // 4. 정렬: score desc, tie-break postId desc
                 .sorted(Comparator.<Scored>comparingDouble(Scored::score).reversed()
@@ -80,8 +77,14 @@ public class RecommendedFeedService {
         boolean hasNext = afterCursor.size() > limit;
         List<Scored> page = hasNext ? afterCursor.subList(0, limit) : afterCursor;
 
+        // 6. 첨부 미디어는 한 번의 IN 조회로 붙인다. 게시물마다 조회하면 그게 N+1이다.
+        Map<UUID, List<PostMediaResponse>> mediaByPostId =
+                postMediaAttacher.byPostId(page.stream().map(s -> s.post().getId()).toList());
+
         List<PostSummaryResponse> items = page.stream()
-                .map(s -> PostSummaryResponse.of(s.post(), List.of())) // 첨부파일 붙이려면 배치 조회 추가
+                .map(s -> PostSummaryResponse.of(
+                        s.post(),
+                        mediaByPostId.getOrDefault(s.post().getId(), List.of())))
                 .toList();
 
         String nextCursor = null;
@@ -93,8 +96,11 @@ public class RecommendedFeedService {
         return new PostListResponse(items, nextCursor, hasNext);
     }
 
-    private double computeScore(Post post, long likeCount, long commentCount, LocalDateTime asOf) {
-        double engagement = 1 + likeCount * 3 + commentCount * 2 + post.getViewCount() * 0.1;
+    // 반응 모델이 댓글 이모지로 단일화되면서(#145) 게시물 좋아요는 미채택으로 정리됐다.
+    // 원래 공식에 있던 likeCount * 3 항은 입력이 영구히 0이라 함께 걷어냈다.
+    // 게시물 단위 반응이 다시 생기면 그때 항을 되살린다.
+    private double computeScore(Post post, long commentCount, LocalDateTime asOf) {
+        double engagement = 1 + commentCount * 2 + post.getViewCount() * 0.1;
         double hoursSinceCreated = Duration.between(post.getCreatedAt(), asOf).toMinutes() / 60.0;
         return Math.log(engagement) / Math.pow(hoursSinceCreated + 2, GRAVITY);
     }
