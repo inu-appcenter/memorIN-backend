@@ -24,7 +24,7 @@ public class MessageController {
     @MessageMapping("/chat.sharePost")
     public void sharePost(@Payload PostShareRequest request,
                           @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        UUID senderId = UUID.fromString(userDetails.getUsername());
+        UUID senderId = userDetails.getUserId();
         MessageResponse response = messageService.sharePost(senderId, request);
         messagingTemplate.convertAndSend("/topic/rooms/" + request.roomId(), response);
     }

@@ -6,6 +6,6 @@ import org.springframework.data.repository.CrudRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ChatRoomsRepository extends CrudRepository<ChatRooms, Long> {
-    Optional<Object> findById(UUID uuid);
+public interface ChatRoomsRepository extends CrudRepository<ChatRooms, UUID> {
+    Optional<ChatRooms> findById(UUID uuid);
 }

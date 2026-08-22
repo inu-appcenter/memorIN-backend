@@ -36,9 +36,6 @@ public class MessageService {
     private final PostAccessPolicy postAccessPolicy;
     private final ObjectMapper objectMapper;
 
-
-
-
     // 게시물 공유 메세지 생성
     @Transactional
     public MessageResponse sharePost(UUID senderId, PostShareRequest request) {
@@ -51,6 +48,10 @@ public class MessageService {
 
         Post post = postRepository.findById(request.postId())
             .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: "));
+
+        if(post.isDeleted()){
+            throw new BusinessException(ErrorCode.POST_001, "삭제된 게시물은 공유할 수 없습니다.");
+        }
 
         postAccessPolicy.assertReadable(post, senderId);
 

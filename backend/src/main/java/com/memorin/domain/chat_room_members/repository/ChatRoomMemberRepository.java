@@ -5,6 +5,6 @@ import org.springframework.data.repository.CrudRepository;
 
 import java.util.UUID;
 
-public interface ChatRoomMemberRepository extends CrudRepository<ChatRoomMembers, Long> {
+public interface ChatRoomMemberRepository extends CrudRepository<ChatRoomMembers, UUID> {
     boolean existsByRoomIdAndUserId(UUID uuid, UUID senderId);
 }
