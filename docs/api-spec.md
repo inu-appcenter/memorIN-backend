@@ -1,11 +1,11 @@
 # memorIN API 명세서
 
-> 최신 기준 문서: 2026-08-04
+> 최신 기준 문서: 2026-08-20 (Sprint 3 W8 — 구현 대조 갱신)
 >
 > Notion API 명세서에 남아 있는 이전 주제/초안 내용은 잔재일 수 있다. 최신 명세는 이 레포의 `docs/` 문서를 기준으로 확인한다.
 
 > **전체 엔드포인트의 정본(live)은 Swagger UI다.** 앱 실행 후 `http://localhost:8080/swagger-ui/index.html`에서
-> 그룹(인증·게시물·댓글·팔로우·사용자·미디어·FCM 토큰)별 최신 목록과 요청/응답 스키마를 확인한다.
+> 그룹(인증·게시물·댓글·댓글 이모지·팔로우·사용자·알림·미디어·FCM 토큰)별 최신 목록과 요청/응답 스키마를 확인한다.
 > 이 문서는 그 위에 **공통 규칙·인증 정책·에러코드**처럼 Swagger가 자동 생성하지 못하는 맥락을 보충한다.
 
 ## 1. 문서 범위
@@ -19,6 +19,9 @@
 | 로그아웃 API | 설계 예정 | 저장소 Refresh Token 삭제 방식 검토 |
 | 미디어 Presigned Upload / 업로드 커밋 / Storage Quota | 구현됨 | JWT 인증 필수, `/api/media/**` permitAll 제외됨 |
 | 게시물·댓글·팔로우·사용자 API | 구현됨 | 도메인 상세는 `docs/api-spec-domains.md` + Swagger UI 참고 |
+| 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 반응은 댓글에만 붙는다(게시물 좋아요는 미채택) |
+| 알림 히스토리 API | 구현됨(조회) | `docs/api-spec-domains.md` §11. **알림을 생성하는 호출부가 아직 없다** |
+| 채팅 API | 미구현 | 엔티티만 존재. Sprint 4 |
 
 ## 2. 공통 규칙
 
@@ -73,7 +76,11 @@ Authorization: Bearer {accessToken}
 }
 ```
 
-미디어 presigned API는 현재 `PresignedUploadResponse`를 직접 반환하고, 일부 예외는 `{ "message": "..." }` 형태로 반환한다. 공통 응답 포맷 적용 여부는 추후 API 정리 시 결정한다.
+봉투를 쓰지 않고 DTO를 그대로 반환하는 엔드포인트가 **33개 중 8개** 있다(미디어 4개, 댓글 이모지 2개,
+`POST /auth/refresh`, `GET /api/users/{userId}`). 전체 목록은 `docs/api-spec-domains.md` §2-6에 있다.
+
+통일 여부는 아직 결정되지 않았다 — 봉투로 맞추면 FE 파싱이 전부 바뀌는 파괴적 변경이라
+스프린트 경계에서 한 번에 처리해야 한다(`docs/api-spec-domains.md` §14).
 
 ## 3. 인증 API
 

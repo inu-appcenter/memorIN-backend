@@ -1,5 +1,8 @@
 package com.memorin.domain.auth.jwt;
 
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.config.RestAuthenticationEntryPoint;
+import com.memorin.global.exception.BusinessException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Override
     protected void doFilterInternal(
@@ -27,9 +31,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = jwtTokenProvider.resolveToken(request);
 
         if (token != null) {
-            if (jwtTokenProvider.validateToken(token)) {
-                Authentication authentication = jwtTokenProvider.getAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                if (jwtTokenProvider.validateToken(token)) {
+                    Authentication authentication = jwtTokenProvider.getAuthentication(token);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (BusinessException e) {
+                ErrorCode errorCode = e.getErrorCode();
+
+                if (errorCode == ErrorCode.AUTH_003 || errorCode == ErrorCode.AUTH_004) {
+                    SecurityContextHolder.clearContext();
+                    restAuthenticationEntryPoint.writeError(response, errorCode);
+                    return;
+                }
+
+                throw e;
             }
         }
 
