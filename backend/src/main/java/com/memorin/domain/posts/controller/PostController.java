@@ -1,6 +1,7 @@
 package com.memorin.domain.posts.controller;
 
 import com.memorin.domain.posts.service.PostService;
+import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
 import com.memorin.domain.posts.dto.request.PostUpdateRequest;
 import com.memorin.domain.posts.dto.response.PostCreateResponse;
@@ -30,6 +31,7 @@ import java.util.UUID;
 public class PostController {
 
     private final PostService postService;
+    private final RecommendedFeedService recommendedFeedService;
 
 
     // 새 Post 생성
@@ -44,7 +46,7 @@ public class PostController {
     }
 
     // 게시물 단건 조회
-    @Operation(summary = "게시물 단건 조회", description = "postId로 게시물 하나를 조회한다. 비로그인도 공개 게시물은 조회 가능.")
+    @Operation(summary = "게시물 단건 조회", description = "postId로 게시물 하나를 조회한다. 공개범위 판정은 비로그인까지 지원하나, 현재 SecurityConfig가 모든 API에 인증을 요구하므로 토큰 없이 호출하면 401이다.")
     @GetMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> getPostOne(
             @PathVariable("postId") UUID postId,
@@ -121,5 +123,19 @@ public class PostController {
             );
 
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    // 추천 피드 조회
+    @Operation(summary = "추천 피드 조회",
+        description = """
+            최근 14일 내 전체공개 게시물 중 참여도와 최신성으로 점수를 매겨 정렬한다.
+            cursor는 첫 요청의 기준 시각까지 함께 담고 있어, 페이지를 넘기는 동안 새 글이 올라와도
+            목록이 밀리거나 중복되지 않는다. 직전 응답의 nextCursor를 그대로 넣는다.""")
+    @GetMapping("/recommend")
+    public ResponseEntity<ApiResponse<PostListResponse>> getRecommendedFeed(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(recommendedFeedService.getRecommendedFeed(cursor, size)));
     }
 }

@@ -227,6 +227,90 @@ for (Follows follow : follows) {
 
 ---
 
-## 6. 한 줄 요약
+## 6. Sprint 3 점검 — 소셜 도메인 쿼리 최적화 (Week 7)
+
+> 대상: 팔로워/팔로잉 목록(커서 페이징), 유저 검색.
+> 5절에서 "#102 담당에게 라우팅"으로 넘겼던 페이지네이션 버그가 고쳐진 뒤, 그 **고친 코드**를 실측한 결과.
+
+### 6-1. 새 교훈 — N+1이 없어도 느릴 수 있다
+
+5절까지 이 문서의 관심사는 "쿼리 개수"였다. 이번 건은 **쿼리 개수는 1개인데 느린** 경우다.
+
+`findFollowersWithCursor`는 SQL만 보면 정상적인 키셋 페이징이었다.
+
+```sql
+WHERE following_id = ? AND status = ? AND id < ?  ORDER BY id DESC  LIMIT 21
+```
+
+그런데 인덱스가 `idx_follows_following (following_id, status)` 뿐이라 **`id`가 없었다.** 그래서 Postgres는
+
+1. 조건에 맞는 팔로워를 **전부** 읽고
+2. JOIN FETCH로 **그 유저를 전부** 조회한 뒤
+3. 정렬하고
+4. 그제서야 `LIMIT 21`
+
+`LIMIT`이 아무 일도 하지 않는다. 쿼리는 1개니까 `FollowListQueryCountTest`는 통과한다.
+
+### 6-2. 실측
+
+팔로워 5만 명 / `follows` 15만 행. **바인드 파라미터 + `plan_cache_mode = force_generic_plan`** 으로 잰다 — 이게 중요하다. `EXPLAIN`에 값을 리터럴로 박아 넣으면 플래너가 상수를 보고 다른(더 좋은) 플랜을 골라서 **운영과 다른 결과**가 나온다. 실제로 리터럴로 쟀을 때는 정렬이 아예 안 나타나 문제를 놓칠 뻔했다.
+
+| | 1페이지 | 25,000번째 | 49,000번째 |
+|---|---|---|---|
+| 이전 | 40.6ms · 200,663 buffers · 5만 행 스캔 | 17.0ms · 100,656 buffers | 더 깊을수록 악화 |
+| 이후 | **0.142ms · 88 buffers · 21행** | **0.079ms · 88** | **0.059ms · 88** |
+
+수정 후에는 페이지 깊이와 무관하게 88 buffers로 **완전히 일정**하다.
+
+### 6-3. 수정 2가지 (하나만 해선 안 된다)
+
+**① 인덱스에 정렬 컬럼을 넣는다** — `V6__follows_cursor_pagination_index.sql`
+
+```sql
+CREATE INDEX idx_follows_following_id ON follows (following_id, status, id DESC);
+CREATE INDEX idx_follows_follower_id  ON follows (follower_id,  status, id DESC);
+```
+
+기존 2컬럼 인덱스는 새 인덱스의 정확한 prefix라 함께 DROP했다. 남겨두면 쓰기 비용만 두 배다.
+
+**② `(:cursor IS NULL OR ...)`를 쓰지 않는다** — 1페이지용/커서용 쿼리를 분리한다.
+
+Hibernate는 `:cursor`를 바인드 파라미터로 보낸다. 그러면 플래너는 `$3`이 NULL인지 알 수 없어 OR을 접지 못하고, 커서 조건이 `Index Cond`가 아니라 **`Filter`로 밀려난다**. 인덱스로 건너뛸 수 있었을 행을 전부 읽고 나서 버린다.
+
+| 25,000번째 페이지 (인덱스는 이미 적용된 상태) | 결과 |
+|---|---|
+| `(:cursor IS NULL OR f.id < :cursor)` | 1.973ms · 575 buffers · Rows Removed by Filter: 25,001 |
+| 1페이지/커서 쿼리 분리 | 0.079ms · 88 buffers · `Index Cond`에 `id < $3` 포함 |
+
+인덱스만 넣고 OR을 두면 깊은 페이지에서 이득의 상당 부분을 잃는다. 반대로 **OR만 제거하면 효과는 0이다**(43.7ms → 인덱스가 없으면 어차피 전부 읽는다). 둘 다 해야 한다.
+
+### 6-4. 목록 API 체크리스트에 추가
+
+4절 체크리스트에 다음을 더한다.
+
+- [ ] `ORDER BY` 컬럼이 인덱스의 **마지막 컬럼으로, 같은 방향으로** 들어가 있는가
+      (`WHERE a = ? AND b = ? ORDER BY c DESC` → `(a, b, c DESC)`)
+- [ ] 커서 조건을 `(:cursor IS NULL OR ...)`로 합치지 않았는가 → 1페이지/커서 쿼리를 분리
+- [ ] `EXPLAIN`을 **바인드 파라미터 + `force_generic_plan`** 으로 쟀는가 (리터럴로 재면 운영과 다른 플랜이 나온다)
+- [ ] `size`에 상한이 있는가 (`normalizeSize`) — 없으면 `?size=1000000`이 그대로 통한다
+- [ ] 쿼리 개수 테스트와 **별개로**, 페이지를 실제로 넘겨보는 테스트가 있는가
+      (`FollowCursorPaginationTest`. 개수 테스트는 커서를 통째로 무시해도 통과한다)
+
+### 6-5. 유저 검색 — 성능이 아니라 정확성 문제였다
+
+`searchUsersWithCursor`는 세 가지가 틀려 있었다. 셋 다 소셜 탐색 화면이 붙기 전에 잡아야 했던 것.
+
+| 문제 | 증상 |
+|---|---|
+| `deleted_at` 필터 없음 | 탈퇴한 유저가 검색 결과에 노출. users의 인덱스가 전부 `WHERE deleted_at IS NULL` 부분 인덱스인 것과도 어긋남 |
+| `LIKE`가 대소문자 구분 | "Kim"으로 "kim"이 안 잡힘 |
+| `%`·`_` 이스케이프 없음 | 검색창에 `%` 한 글자만 넣으면 **전체 유저 목록**이 나감 |
+
+`UserSearchTest`로 고정했다. 다만 `LIKE '%kw%'`는 선행 와일드카드라 **어떤 B-tree 인덱스도 못 탄다** — 여기서 고친 건 성능이 아니다. 유저 수가 늘어 검색이 느려지면 `pg_trgm` GIN 인덱스나 전문검색으로 가야 하고, 그건 실측 후 별도 판단한다.
+
+---
+
+## 7. 한 줄 요약
 
 **측정하지 않은 N+1 주장은 추측이다. 실측하고, 테스트로 고정하라.**
+**그리고 쿼리 개수가 1개여도 느릴 수 있다 — 개수뿐 아니라 읽은 buffer 수를 봐라.**

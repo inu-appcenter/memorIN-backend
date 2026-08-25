@@ -10,7 +10,7 @@ import java.util.UUID;
 
 /**
  * 게시물 가시성(visibility) 판단을 한 곳에서 관리한다.
- * 조회(PostService), 댓글(PostCommentsService), 좋아요(PostLikesService)가
+ * 조회(PostService), 댓글(PostCommentsService), 미디어 다운로드가
  * 전부 이 로직을 그대로 재사용해야 "조회는 막혔는데 상호작용은 열려있는" 문제가 재발하지 않는다.
  */
 @Component
@@ -24,6 +24,7 @@ public class PostAccessPolicy {
     }
 
     public void assertReadable(Post post, UUID requesterId) {
+
         switch (post.getVisibility()) {
             case PUBLIC:
                 return;

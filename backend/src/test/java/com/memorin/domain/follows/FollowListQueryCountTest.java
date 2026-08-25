@@ -22,7 +22,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // 팔로워 목록 조회가 팔로워 수에 비례해 SQL을 늘리지 않는지(N+1 없음) 실측한다.
-// findByFollowingIdAndStatus의 JOIN FETCH가 빠지면 팔로워 1명당 SELECT가 1번씩 더 나가 이 테스트가 깨진다.
+// findFollowersFirstPage의 JOIN FETCH가 빠지면 팔로워 1명당 SELECT가 1번씩 더 나가 이 테스트가 깨진다.
+//
+// 이 테스트는 SQL "개수"만 센다. 커서·size를 무시하고 전체를 로드해도 쿼리 개수는 1개라
+// 여기서는 통과한다. 페이징이 실제로 동작하는지는 FollowCursorPaginationTest가 본다.
 //
 // 주의: 데이터를 심는 트랜잭션과 측정 트랜잭션을 분리한다(1차 캐시가 조회를 가로채는 것 방지).
 @SpringBootTest

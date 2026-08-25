@@ -98,8 +98,8 @@ public class JwtTokenProvider {
 
     public Authentication getAuthentication(String token) {
         UUID userId = getUserId(token);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_004));
 
         // principal은 반드시 UserDetailsImpl로 넣는다.
         // User 엔티티를 그대로 넣으면 컨트롤러의 @AuthenticationPrincipal UserDetailsImpl이 null로 주입된다.

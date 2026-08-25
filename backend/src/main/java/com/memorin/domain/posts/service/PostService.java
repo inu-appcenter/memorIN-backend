@@ -228,7 +228,7 @@ public class PostService {
     }
 
     // isFriend()는 여기 있었으나 호출부가 하나도 없는 죽은 메서드였다(#141).
-    // 친구 판정은 PostAccessPolicy.assertReadable 하나로만 한다 — 단건·댓글·좋아요·미디어가
+    // 친구 판정은 PostAccessPolicy.assertReadable 하나로만 한다 — 단건·댓글·미디어가
     // 전부 그쪽을 쓰고, 목록(findUserFeed)도 같은 양방향 조건을 SQL로 갖고 있다.
     // 판정 로직을 다시 여기에 만들면 "목록엔 보이는데 눌러 들어가면 403"이 재발한다.
 
