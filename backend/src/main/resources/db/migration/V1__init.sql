@@ -14,8 +14,6 @@ CREATE TYPE follow_status    AS ENUM ('PENDING', 'ACCEPTED', 'BLOCKED');
 CREATE TYPE chat_type        AS ENUM ('DIRECT', 'GROUP');
 CREATE TYPE member_role      AS ENUM ('OWNER', 'MEMBER');
 
-
-
 -- users
 CREATE TABLE IF NOT EXISTS users (
     id                UUID         PRIMARY KEY DEFAULT uuidv7(),
