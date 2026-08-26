@@ -3,6 +3,8 @@ package com.memorin.domain.post_comments.service;
 import com.memorin.domain.emoji.dto.response.EmojiCountDto;
 import com.memorin.domain.emoji.dto.response.EmojiSummary;
 import com.memorin.domain.emoji.repository.CommentEmojiRepository;
+import com.memorin.domain.notifications.entity.NotificationType;
+import com.memorin.domain.notifications.service.NotificationService;
 import com.memorin.domain.post_comments.dto.response.PostCommentResponse;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
@@ -33,6 +35,7 @@ public class PostCommentService {
     private final UserRepository userRepository;
     private final PostAccessPolicy postAccessPolicy;
     private final CommentEmojiRepository commentEmojiRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public PostCommentResponse create(UUID postId, UUID authorId, UUID parentId, String body) {
@@ -62,6 +65,17 @@ public class PostCommentService {
         LocalDateTime createdAt = LocalDateTime.now();
 
         PostComments saved = postCommentsRepository.save(PostComments.of(post, author, parent, body, createdAt));
+        UUID recipientId = parent != null ? parent.getUser().getId() : post.getUser().getId();
+
+        if (!recipientId.equals(authorId)) {
+            notificationService.save(
+                recipientId, authorId, NotificationType.COMMENT,
+                parent != null ? "새 답글" : "새 댓글",
+                author.getDisplayName() + "님이 댓글을 남겼습니다.",
+                saved.getId()
+            );
+        }
+
         return PostCommentResponse.from(saved);
     }
 
