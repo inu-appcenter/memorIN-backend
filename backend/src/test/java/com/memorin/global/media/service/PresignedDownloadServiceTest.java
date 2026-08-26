@@ -89,7 +89,8 @@ class PresignedDownloadServiceTest {
 
     private Post persistPost(User author, VisibilityType visibility) {
         return em.persist(Post.create(
-                author, "[]", visibility, TimeslotType.values()[0], Date.valueOf(LocalDate.of(2026, 7, 20))
+                author, "[]", visibility, TimeslotType.values()[0], Date.valueOf(LocalDate.of(2026, 7, 20)),
+                List.of(com.memorin.domain.posts.entity.TagType.ECT)
         ));
     }
 

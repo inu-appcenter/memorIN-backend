@@ -9,6 +9,7 @@ import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.domain.posts.entity.TagType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,8 +60,8 @@ class PostDateRangeFilterTest extends PostgresTestSupport {
 
             // 8/1 ~ 8/10, 하루에 한 개씩
             for (int i = 0; i < 10; i++) {
-                em.persist(Post.create(author, "[]", VisibilityType.PUBLIC, TimeslotType.AM,
-                        Date.valueOf(DAY_1.plusDays(i))));
+                em.persist(Post.create(author, "[]", VisibilityType.PUBLIC,
+                    TimeslotType.AM, Date.valueOf(DAY_1.plusDays(i)), List.of(TagType.ECT)));
             }
             em.flush();
             authorId = author.getId();

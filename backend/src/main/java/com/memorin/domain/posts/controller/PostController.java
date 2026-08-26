@@ -1,5 +1,10 @@
 package com.memorin.domain.posts.controller;
 
+import com.memorin.domain.posts.dto.request.PostSearchRequest;
+import com.memorin.domain.posts.dto.response.PostSummaryResponse;
+import com.memorin.domain.posts.entity.TagType;
+import com.memorin.domain.posts.entity.TimeslotType;
+import com.memorin.domain.posts.repository.PostSearchRepository;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
@@ -11,6 +16,9 @@ import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,6 +30,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "게시물", description = "게시물 작성 · 조회 · 수정 · 삭제 및 피드")
@@ -138,4 +148,27 @@ public class PostController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(recommendedFeedService.getRecommendedFeed(cursor, size)));
     }
+
+    @Operation(summary = "게시물 필터링 검색",
+        description = """
+            게시물 전체 중에서 태그와 커스텀 메타데이터를 가진 게시물을 검색 UI에서 선택하여 검색할 수 있음.
+            태그는 한번에 최대 3개까지 선택 가능하며, 이는 게시물을 올리는 상황에서도 동일함.""")
+    @GetMapping("/search")
+    public Page<PostSummaryResponse> search(
+        @RequestParam(required = false) List<TagType> tags,
+        @RequestParam(required = false) TimeslotType timeslot,
+        @RequestParam(required = false) Integer viewCountMin,
+        @RequestParam(required = false) Integer viewCountMax,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+        @AuthenticationPrincipal UUID viewerId,
+        @PageableDefault(size = 20) Pageable pageable
+    ) {
+        if (tags != null && tags.size() > 3) {
+            throw new IllegalArgumentException("태그는 최대 3개까지 선택할 수 있습니다.");
+        }
+        PostSearchRequest condition = new PostSearchRequest(tags, timeslot, viewCountMin, viewCountMax, dateFrom, dateTo);
+        return postService.search(viewerId, condition, pageable);
+    }
+
 }

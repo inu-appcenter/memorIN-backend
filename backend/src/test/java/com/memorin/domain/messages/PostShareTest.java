@@ -15,6 +15,7 @@ import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.domain.posts.entity.TagType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import com.memorin.global.exception.PostExceptions;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,7 +82,7 @@ class PostShareTest extends PostgresTestSupport {
     private Post persistPost(User owner, VisibilityType visibility) {
         Post post = Post.create(owner,
             "[{\"type\":\"text\",\"text\":\"매우 사적인 일기 내용\"}]",
-            visibility, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)));
+            visibility, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)), List.of(TagType.ECT));
         em.persist(post);
         return post;
     }

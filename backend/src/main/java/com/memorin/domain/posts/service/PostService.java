@@ -4,11 +4,14 @@ import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
+import com.memorin.domain.posts.dto.request.PostSearchRequest;
 import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.repository.PostRepository;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
 import com.memorin.domain.posts.dto.request.PostUpdateRequest;
 import com.memorin.domain.posts.dto.response.*;
+import com.memorin.domain.posts.repository.PostSearchRepository;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
@@ -18,7 +21,10 @@ import com.memorin.global.media.service.MediaUploadCommitService;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
 import com.memorin.global.media.service.StorageQuotaService;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +43,7 @@ public class PostService {
     private static final int MAX_PAGE_SIZE = 50;
 
     private final PostRepository postRepository;
+    private final PostSearchRepository postSearchRepository;
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
@@ -56,8 +63,10 @@ public class PostService {
                 ? Date.valueOf(request.recordedDate())
                 : Date.valueOf(LocalDate.now());
 
+        @Size(max = 3, message = "태그는 최대 3개까지 선택할 수 있습니다.") List<TagType> tags = request.tags();
+
         Post post = Post.create(author, request.content(), request.visibilityType(),
-                request.timeslotType(), recordedDate);
+                request.timeslotType(), recordedDate, tags);
         postRepository.saveAndFlush(post);
 
         List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
@@ -148,6 +157,45 @@ public class PostService {
 
         return new PostListResponse(items, nextCursor, hasNext);
     }
+
+    public Page<PostSummaryResponse> search(UUID viewerId, PostSearchRequest condition, Pageable pageable) {
+        // postSearchRepository.search()가 "공개 글이거나 본인 글"로 이미 필터링해서 내려주므로,
+        // 여기서 만드는 미디어 URL도 전부 열람 권한이 확인된 게시물 소속이다.
+        // PresignedDownloadService의 단건 오버로드(postMediaId 기반)와 달리 이 목록 경로는
+        // 그 전제를 신뢰하고 별도 postAccessPolicy 재검증을 하지 않는다.
+        // (나중에 search()의 권한 필터를 건드릴 일이 있다면 이 부분도 같이 확인할 것)
+        Page<Post> posts = postSearchRepository.search(viewerId, condition, pageable);
+
+        List<UUID> postIds = posts.getContent().stream()
+            .map(Post::getId)
+            .toList();
+
+        Map<UUID, List<PostMedia>> mediaByPostId = postMediaRepository
+            .findByPostIdInOrderByOrderIndexAsc(postIds).stream()
+            .collect(Collectors.groupingBy(media -> media.getPost().getId()));
+
+        return posts.map(post -> {
+            List<PostMediaResponse> attachments = mediaByPostId
+                .getOrDefault(post.getId(), List.of())
+                .stream()
+                .map(this::toMediaResponse)
+                .toList();
+            return PostSummaryResponse.of(post, attachments);
+        });
+    }
+
+    // PostMediaResponse.url 주석("발급에 실패하면 null")대로, 파일 하나의 서명 실패가
+    // 검색 결과 페이지 전체를 500으로 끌고 내려가면 안 되므로 여기서 개별적으로 흡수한다.
+    private PostMediaResponse toMediaResponse(PostMedia media) {
+        String downloadUrl = null;
+        try {
+            downloadUrl = presignedDownloadService.createDownloadUrl(media).downloadUrl();
+        } catch (Exception e) {
+            return null;
+        }
+        return PostMediaResponse.from(media, downloadUrl);
+    }
+
 
     // ---- 수정 ----
     @Transactional
@@ -275,7 +323,7 @@ public class PostService {
         for (PostMedia media : mediaList) {
             UUID postId = media.getPost().getId();
             // computeIfAbsent(key, k -> new ArrayList<>())의 뜻
-            // => map에서 키가 없으면 빈 ArrayList를 만들고, 
+            // => map에서 키가 없으면 빈 ArrayList를 만들고,
             // 있으면 그 값을 그대로 꺼내옴. 그리고 거기에 media를 add
             mediaByPostId.computeIfAbsent(postId, k -> new ArrayList<>()).add(media);
         }

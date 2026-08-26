@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,7 +45,8 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
                 "[]",
                 VisibilityType.PUBLIC,
                 TimeslotType.values()[0],
-                Date.valueOf(LocalDate.of(2026, 7, 20))
+                Date.valueOf(LocalDate.of(2026, 7, 20)),
+                List.of(com.memorin.domain.posts.entity.TagType.ECT)
         );
         return em.persist(post);
     }
