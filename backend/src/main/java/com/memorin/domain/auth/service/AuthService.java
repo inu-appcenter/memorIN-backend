@@ -88,4 +88,8 @@ public class AuthService {
 
         return new LoginResponse(newAccessToken, newRefreshToken);
     }
+
+    public void logout(UUID userId) {
+        refreshTokenRepository.deleteById(userId);
+    }
 }
