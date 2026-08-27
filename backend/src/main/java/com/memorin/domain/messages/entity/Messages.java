@@ -70,6 +70,16 @@ public class Messages {
             .build();
     }
 
+    public static Messages createText(ChatRooms room, User sender, String contentJson) {
+        return Messages.builder()
+            .room(room)
+            .sender(sender)
+            .type(MessageType.TEXT)
+            .content(contentJson)
+            .sentAt(LocalDateTime.now())
+            .build();
+    }
+
     public boolean isDeleted() {
         return this.deletedAt != null;
     }
