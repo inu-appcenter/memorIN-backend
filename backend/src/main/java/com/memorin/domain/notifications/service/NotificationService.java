@@ -2,6 +2,7 @@ package com.memorin.domain.notifications.service;
 
 import com.memorin.domain.notifications.dto.NotificationPageResponse;
 import com.memorin.domain.notifications.dto.NotificationResponse;
+import com.memorin.domain.notifications.dto.PushNotificationRequested;
 import com.memorin.domain.notifications.entity.Notification;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.repository.NotificationRepository;
@@ -10,6 +11,7 @@ import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void save(UUID userId, UUID actorId, NotificationType type, String title, String message, UUID referenceId) {
@@ -45,6 +48,9 @@ public class NotificationService {
         Notification notification = new Notification(user, actor, type, title, message, referenceId);
 
         notificationRepository.save(notification);
+        eventPublisher.publishEvent(new PushNotificationRequested(
+            userId, actorId, type, title, message, referenceId
+        ));
     }
 
     public NotificationPageResponse getNotifications(UUID userId, UUID cursor, Integer size) {
