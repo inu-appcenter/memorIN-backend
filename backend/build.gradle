@@ -85,6 +85,9 @@ dependencies {
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'com.google.firebase:firebase-admin:9.4.3'
+    implementation 'nl.martijndwars:web-push:5.1.1'
 }
 
 tasks.named('test') {
