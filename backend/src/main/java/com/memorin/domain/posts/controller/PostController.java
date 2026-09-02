@@ -2,9 +2,9 @@ package com.memorin.domain.posts.controller;
 
 import com.memorin.domain.posts.dto.request.PostSearchRequest;
 import com.memorin.domain.posts.dto.response.PostSummaryResponse;
+import com.memorin.domain.posts.entity.PostSortType;
 import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.entity.TimeslotType;
-import com.memorin.domain.posts.repository.PostSearchRepository;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
@@ -13,6 +13,8 @@ import com.memorin.domain.posts.dto.response.PostCreateResponse;
 import com.memorin.domain.posts.dto.response.PostListResponse;
 import com.memorin.domain.posts.dto.response.PostResponse;
 import com.memorin.global.common.ApiResponse;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +45,6 @@ public class PostController {
     private final PostService postService;
     private final RecommendedFeedService recommendedFeedService;
 
-
-    // 새 Post 생성
     @Operation(summary = "게시물 작성", description = "본문(content)과 첨부(attachments)로 게시물을 생성한다.")
     @PostMapping
     public ResponseEntity<ApiResponse<PostCreateResponse>> create(
@@ -55,7 +55,6 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
-    // 게시물 단건 조회
     @Operation(summary = "게시물 단건 조회", description = "postId로 게시물 하나를 조회한다. 공개범위 판정은 비로그인까지 지원하나, 현재 SecurityConfig가 모든 API에 인증을 요구하므로 토큰 없이 호출하면 401이다.")
     @GetMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> getPostOne(
@@ -95,7 +94,6 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // 게시물 수정
     @Operation(summary = "게시물 수정", description = "작성자 본인만 수정할 수 있다.")
     @PatchMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> update(
@@ -135,7 +133,6 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // 추천 피드 조회
     @Operation(summary = "추천 피드 조회",
         description = """
             최근 14일 내 전체공개 게시물 중 참여도와 최신성으로 점수를 매겨 정렬한다.
@@ -155,19 +152,22 @@ public class PostController {
             태그는 한번에 최대 3개까지 선택 가능하며, 이는 게시물을 올리는 상황에서도 동일함.""")
     @GetMapping("/search")
     public Page<PostSummaryResponse> search(
+        @RequestParam(required = false) String keyword,
         @RequestParam(required = false) List<TagType> tags,
         @RequestParam(required = false) TimeslotType timeslot,
-        @RequestParam(required = false) Integer viewCountMin,
-        @RequestParam(required = false) Integer viewCountMax,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+        @RequestParam(required = false) PostSortType sort,
         @AuthenticationPrincipal UUID viewerId,
         @PageableDefault(size = 20) Pageable pageable
     ) {
         if (tags != null && tags.size() > 3) {
-            throw new IllegalArgumentException("태그는 최대 3개까지 선택할 수 있습니다.");
+            throw new BusinessException(ErrorCode.POST_003, "태그는 최대 3개까지 선택할 수 있습니다.");
         }
-        PostSearchRequest condition = new PostSearchRequest(tags, timeslot, viewCountMin, viewCountMax, dateFrom, dateTo);
+        String trimmedKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        boolean hasTagsParam = tags != null && !tags.isEmpty();
+        if (sort == PostSortType.ACCURACY_DESC && trimmedKeyword == null && !hasTagsParam) {
+            throw new BusinessException(ErrorCode.POST_003, "정확도순 정렬은 검색어 또는 태그 중 하나는 필요합니다.");
+        }
+        PostSearchRequest condition = new PostSearchRequest(trimmedKeyword, tags, timeslot, sort);
         return postService.search(viewerId, condition, pageable);
     }
 

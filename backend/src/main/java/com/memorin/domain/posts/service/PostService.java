@@ -6,6 +6,7 @@ import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.domain.posts.dto.request.PostSearchRequest;
 import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.PostSortType;
 import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.repository.PostRepository;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
@@ -159,6 +160,12 @@ public class PostService {
     }
 
     public Page<PostSummaryResponse> search(UUID viewerId, PostSearchRequest condition, Pageable pageable) {
+        boolean hasKeyword = condition.keyword() != null && !condition.keyword().isBlank();
+        boolean hasTags = condition.tags() != null && !condition.tags().isEmpty();
+
+        if (condition.sort() == PostSortType.ACCURACY_DESC && !hasKeyword && !hasTags) {
+            throw new BusinessException(ErrorCode.POST_003, "정확도순 정렬은 검색어 또는 태그 중 하나는 필요합니다.");
+        }
         // postSearchRepository.search()가 "공개 글이거나 본인 글"로 이미 필터링해서 내려주므로,
         // 여기서 만드는 미디어 URL도 전부 열람 권한이 확인된 게시물 소속이다.
         // PresignedDownloadService의 단건 오버로드(postMediaId 기반)와 달리 이 목록 경로는
