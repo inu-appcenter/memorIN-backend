@@ -91,5 +91,27 @@ dependencies {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		// 스트레스 테스트는 하트비트 주기만큼 기다리는 구간이 있어 CI에서는 제외한다. → stressTest
+		excludeTags 'stress'
+	}
+}
+
+// WebSocket 생명주기 스트레스 테스트 (docs/ws-stress-test.md)
+// 힙을 작게 고정해야 세션 누수가 늦게 드러나지 않는다.
+tasks.register('stressTest', Test) {
+	description = 'WebSocket 세션 생명주기·힙 실측 (수동 실행)'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'stress'
+	}
+	maxHeapSize = '512m'
+	jvmArgs '-XX:+HeapDumpOnOutOfMemoryError', '-XX:HeapDumpPath=build/stress-heapdump.hprof'
+	testLogging {
+		showStandardStreams = true
+		events 'passed', 'failed'
+	}
+	shouldRunAfter tasks.named('test')
 }
