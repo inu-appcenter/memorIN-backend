@@ -53,6 +53,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	testImplementation 'org.springframework.security:spring-security-test'
 
+	// STOMP @MessageMapping에서 @AuthenticationPrincipal을 해석하려면 필요 (없으면 인자 리졸버가 없어
+	// 페이로드 바인딩으로 fallback되면서 principal이 아니라 빈 객체가 주입된다)
+	implementation 'org.springframework.security:spring-security-messaging'
+
 	// JWT (develop 확정 버전 0.12.7로 통일)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
@@ -81,6 +85,9 @@ dependencies {
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'com.google.firebase:firebase-admin:9.4.3'
+    implementation 'nl.martijndwars:web-push:5.1.1'
 }
 
 tasks.named('test') {

@@ -2,6 +2,7 @@ package com.memorin.domain.messages.controller;
 
 import com.memorin.domain.messages.dto.response.MessageResponse;
 import com.memorin.domain.messages.dto.request.PostShareRequest;
+import com.memorin.domain.messages.dto.request.TextRequest;
 import com.memorin.domain.messages.service.MessageService;
 import com.memorin.global.exception.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,14 @@ public class MessageController {
                           @AuthenticationPrincipal UserDetailsImpl userDetails) {
         UUID senderId = userDetails.getUserId();
         MessageResponse response = messageService.sharePost(senderId, request);
+        messagingTemplate.convertAndSend("/topic/rooms/" + request.roomId(), response);
+    }
+
+    @MessageMapping("/chat.sendText")
+    public void sendText(@Payload TextRequest request,
+                         @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        UUID senderId = userDetails.getUserId();
+        MessageResponse response = messageService.sendText(senderId, request);
         messagingTemplate.convertAndSend("/topic/rooms/" + request.roomId(), response);
     }
 }
