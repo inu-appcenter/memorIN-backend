@@ -7,12 +7,14 @@ import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.domain.auth.service.AuthService;
 import com.memorin.global.common.ApiResponse;
 
+import com.memorin.global.exception.UserDetailsImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name="인증", description="회원가입 · 로그인 · 토큰 재발급")
@@ -26,7 +28,7 @@ public class AuthController {
     @Operation(summary = "회원가입", description = "이메일·비밀번호로 사용자를 생성한다. 비밀번호는 BCrypt로 해시 저장.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 존재하는 유저/username")
-    
+
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Void> signup(@RequestBody @Valid SignupRequest request) {
@@ -45,5 +47,12 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(authService.reissue(request.refreshToken()));
+    }
+
+    @Operation(summary = "로그아웃", description = "현재 사용자의 Refresh Token을 삭제해 이후 토큰 재발급을 차단한다.")
+    @DeleteMapping("/logout")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        authService.logout(userDetails.getUserId());
+        return ResponseEntity.noContent().build();
     }
 }

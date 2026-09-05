@@ -3,6 +3,8 @@ package com.memorin.domain.follows.service;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
+import com.memorin.domain.notifications.entity.NotificationType;
+import com.memorin.domain.notifications.service.NotificationService;
 import com.memorin.domain.users.dto.UserFollowRequestResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
@@ -23,6 +25,7 @@ public class FollowService {
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final NotificationService notificationService;
 
     // 팔로우 요청
     public void request(UUID followerId, UUID followingId) {
@@ -44,6 +47,12 @@ public class FollowService {
         /* User 엔티티에 공개 범위 기능이 추가되면
         공개 계정 ACCEPTED, 비공개 계정 PENDING으로 구현 */
         Follows follows = new Follows(follower, following);
+        Follows saved = followRepository.save(follows);
+
+        notificationService.save(
+            followingId, followerId, NotificationType.FOLLOW_REQUEST,
+            "새 팔로우 요청", follower.getDisplayName() + "님이 팔로우를 요청했습니다.", saved.getId()
+        );
 
         followRepository.save(follows);
     }
@@ -66,6 +75,11 @@ public class FollowService {
         }
 
         follows.accept();
+
+        notificationService.save(
+            follows.getFollower().getId(), userId, NotificationType.FOLLOW_ACCEPTED,
+            "팔로우 요청 수락", user.getDisplayName() + "님이 팔로우 요청을 수락했습니다.", follows.getId()
+        );
     }
 
     // 받은 팔로우 요청 거절

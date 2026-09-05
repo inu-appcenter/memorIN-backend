@@ -76,8 +76,24 @@ services:
       MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX:-1920}
       MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX:-1920}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://memorin.inuappcenter.co.kr}
+      # 힙 상한은 컨테이너 메모리의 75%. 고정값(-Xmx)보다 이식성이 좋다.
+      # 힙덤프는 /dump 볼륨에 남긴다 — 컨테이너 안에 떨구면 죽는 순간 같이 사라져서 원인을 못 본다.
+      # OOM이면 반쯤 죽은 채 버티지 말고 즉시 종료 → restart 정책이 다시 띄운다.
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=75.0
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/dump/heapdump.hprof
+        -XX:+ExitOnOutOfMemoryError
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - heapdumps:/dump
+    # 상한이 없으면 JVM은 호스트 메모리 기준으로 힙을 잡는다(노트북 16GB ↔ 서버 2GB).
+    # 반대로 상한만 걸고 힙을 안 잡으면 OOMKilled(137)로 로그 없이 죽는다. 둘은 항상 같이 간다.
+    deploy:
+      resources:
+        limits:
+          memory: ${BACKEND_MEMORY_LIMIT:-1g}
     # postgres, minio 전부 켜져야 backend 실행됨.
     depends_on:
       postgres:
@@ -108,6 +124,7 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  heapdumps:
 
 networks:
   memorin_network:

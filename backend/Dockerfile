@@ -23,6 +23,11 @@ WORKDIR /app
 
 # 보안: non-root 실행
 RUN groupadd -r spring && useradd -r -g spring spring
+
+# OOM 힙덤프 저장 위치. 여기서 만들어 둬야 볼륨이 붙을 때 이 소유권을 물려받아
+# non-root(spring) 프로세스가 덤프를 쓸 수 있다.
+RUN mkdir -p /dump && chown spring:spring /dump
+
 USER spring:spring
 
 COPY --from=builder /app/build/libs/*.jar app.jar
