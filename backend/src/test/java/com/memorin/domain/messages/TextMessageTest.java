@@ -26,6 +26,7 @@ import com.memorin.global.exception.BusinessException;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,7 +63,7 @@ class TextMessageTest extends PostgresTestSupport {
     private Post persistPost(User owner) {
         Post post = Post.create(owner,
             "[{\"type\":\"text\",\"text\":\"방 생성용 더미 게시물\"}]",
-            VisibilityType.PUBLIC, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)));
+            VisibilityType.PUBLIC, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)), List.of());
         em.persist(post);
         return post;
     }
