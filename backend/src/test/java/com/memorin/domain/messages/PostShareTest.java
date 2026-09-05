@@ -82,7 +82,7 @@ class PostShareTest extends PostgresTestSupport {
     private Post persistPost(User owner, VisibilityType visibility) {
         Post post = Post.create(owner,
             "[{\"type\":\"text\",\"text\":\"매우 사적인 일기 내용\"}]",
-            visibility, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)), List.of(TagType.ECT));
+            visibility, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)), List.of(TagType.ETC));
         em.persist(post);
         return post;
     }

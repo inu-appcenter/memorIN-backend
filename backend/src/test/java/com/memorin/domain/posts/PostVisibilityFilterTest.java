@@ -105,7 +105,7 @@ class PostVisibilityFilterTest extends PostgresTestSupport {
     private Post persistPost(User author, VisibilityType visibility, int dayOffset) {
         Post post = Post.create(author, "[]", visibility, TimeslotType.AM,
                 Date.valueOf(LocalDate.of(2026, 8, 1).plusDays(dayOffset)),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT));
+            List.of(com.memorin.domain.posts.entity.TagType.ETC));
         em.persist(post);
         return post;
     }

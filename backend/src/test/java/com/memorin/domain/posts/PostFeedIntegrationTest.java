@@ -76,7 +76,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.PUBLIC,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -115,7 +115,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.PRIVATE,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -158,7 +158,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.FRIENDS,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -210,7 +210,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.PUBLIC,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         Post strangerPost = Post.create(
@@ -219,7 +219,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.PUBLIC,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(friendPost);
@@ -262,7 +262,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             VisibilityType.FRIENDS,
             TimeslotType.AM,
             Date.valueOf(LocalDate.now()),
-            List.of(com.memorin.domain.posts.entity.TagType.ECT)
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);

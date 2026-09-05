@@ -46,7 +46,7 @@ class PostCommentsPersistenceTest extends PostgresTestSupport {
                 VisibilityType.PUBLIC,
                 TimeslotType.values()[0],
                 Date.valueOf(LocalDate.of(2026, 7, 20)),
-                List.of(com.memorin.domain.posts.entity.TagType.ECT)
+                List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
         return em.persist(post);
     }

@@ -61,7 +61,7 @@ class PostDateRangeFilterTest extends PostgresTestSupport {
             // 8/1 ~ 8/10, 하루에 한 개씩
             for (int i = 0; i < 10; i++) {
                 em.persist(Post.create(author, "[]", VisibilityType.PUBLIC,
-                    TimeslotType.AM, Date.valueOf(DAY_1.plusDays(i)), List.of(TagType.ECT)));
+                    TimeslotType.AM, Date.valueOf(DAY_1.plusDays(i)), List.of(TagType.ETC)));
             }
             em.flush();
             authorId = author.getId();

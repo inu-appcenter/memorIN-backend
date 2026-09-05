@@ -85,7 +85,7 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
                 // FRIENDS 공개범위로 둔다 — 친구 피드가 실제로 노출해야 하는 대상
                 Post post = Post.create(author, "[]", VisibilityType.FRIENDS,
-                    TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)), List.of(TagType.ECT));
+                    TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)), List.of(TagType.ETC));
                 em.persist(post);
 
                 for (int m = 0; m < mediaPerPost; m++) {

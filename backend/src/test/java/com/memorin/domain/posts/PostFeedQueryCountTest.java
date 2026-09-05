@@ -62,7 +62,7 @@ class PostFeedQueryCountTest extends PostgresTestSupport {
             for (int p = 0; p < posts; p++) {
                 Post post = Post.create(author, "[]", VisibilityType.PUBLIC,
                         TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(p)),
-                    List.of(com.memorin.domain.posts.entity.TagType.ECT));
+                    List.of(com.memorin.domain.posts.entity.TagType.ETC));
                 em.persist(post);
                 for (int m = 0; m < mediaPerPost; m++) {
                     em.persist(PostMedia.of(post, "uploads/%s-%d-%d.png".formatted(tag, p, m),
