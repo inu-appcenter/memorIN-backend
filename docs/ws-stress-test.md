@@ -1,8 +1,9 @@
-# WebSocket 생명주기 스트레스 테스트 — 1차 실측
+# WebSocket 스트레스 테스트 — 1차·2차 실측
 
-> 실행: 2026-09-01 · 대상 브랜치: `kimdoyoung/ws-jvm-memory-limit` (브로커 하드닝 적용 후)
+> 1차: 2026-09-01 (브로커·세션 계층) · 2차: 2026-09-05 (실제 메시지 경로) — §2차 측정
 > 설계: `docs/sprint4-architecture-review.md` §6 · 검증 대상 설정: 같은 문서 §3
-> 하네스: `backend/src/test/java/com/memorin/global/config/WebSocketLifecycleStressTest.java`
+> 하네스: `backend/src/test/java/com/memorin/global/config/WebSocketLifecycleStressTest.java` (1차)
+> · `WebSocketMessagePathStressTest.java` (2차)
 
 게이트 문구는 "탭 닫기 시 InMemory 세션 즉각 반환"이다. 이걸 숫자로 확인한 기록이다.
 
@@ -76,9 +77,95 @@ readInterval = max(클라이언트 송신 주기, 서버 수신 주기) * 3
    null이고, 채팅방 생성 API(#188)도 없다. 대신 `SimpMessagingTemplate`로 토픽에 직접 브로드캐스트해서
    **브로커·세션 계층만** 측정했다. 서비스 계층(DB 저장 포함) 부하는 2차 측정으로 남는다.
 
+---
+
+# 2차 측정 — 실제 메시지 경로 (2026-09-05)
+
+1차의 한계 3번("실제 채팅 경로를 태우지 못했다")을 푼 기록이다. 이번에는 서비스 계층과
+DB 저장이 경로에 들어 있다.
+
+```
+클라이언트 SEND /app/chat.sendText
+  → CONNECT 인증 → MessageController.sendText
+  → MessageService.sendText (방 멤버 검사 + messages INSERT + 커밋)
+  → convertAndSend("/topic/rooms/{roomId}") → 구독자 수신
+```
+
+```bash
+JWT_SECRET=... ./gradlew stressTest --tests '*WebSocketMessagePathStressTest*'
+```
+
+## 선행 조건을 하나는 채우고 하나는 대신했다
+
+| 선행 조건 | 상태 |
+|---|---|
+| 채팅방 API (#188) | ✅ 머지됨(#193) — `ChatRoomService.createGroupRoom`으로 실제 방·멤버를 만들어 측정한다 |
+| CONNECT 인증 (§2) | ❌ **여전히 미구현·담당 미지정** — 테스트 스코프 스탠드인으로 대신했다 |
+
+`WebSocketMessagePathStressTest.StressConnectAuthConfig`가 CONNECT의 `Authorization` 헤더를
+`JwtTokenProvider.getAuthentication()`으로 검증해 세션에 Principal을 붙인다.
+**이것은 측정용이지 §2의 구현이 아니다** — `src/test`에만 있고 SUBSCRIBE 인가도 하지 않는다.
+프로덕션 인터셉터가 들어오면 `@Import` 한 줄만 지우고 같은 테스트를 그대로 돌리면 된다.
+
+부수 효과로 얻은 것이 하나 있다: **FE(PR #87)가 보내는 헤더 형태 그대로 서버가 받아 동작한다는
+것을 확인했다.** §2를 이 모양으로 구현하면 FE는 손대지 않아도 된다.
+
+## 결과 (3회 반복)
+
+| 측정 | 1회 | 2회 | 3회 | 판정 |
+|---|---|---|---|---|
+| 메시지 경로 지연 p50 | 47ms | 54ms | 79ms | — |
+| 메시지 경로 지연 **p95** | **73ms** | **79ms** | **118ms** | ✅ 기준 후보(p95 < 300ms) 안쪽 |
+| 대조군(브로커 직행) p95 | 18ms | 20ms | 50ms | — |
+| 처리량 | 1087 msg/s | 1087 msg/s | 775 msg/s | — |
+| DB 저장 | 102건 | 102건 | 102건 | ✅ 유실 0 (측정 100 + 워밍업 2) |
+| 인증 세션 정상 종료 | 22ms | 22ms | 25ms | ✅ |
+| 힙(연결·발신·해제 40회) | 66→67MB | 66→67MB | 66→67MB | ✅ Δ +1MB |
+
+조건: 구독자 8명 × 100건(= 수신 800건), 같은 방, 같은 JVM. 대조군은 같은 조건에서
+`SimpMessagingTemplate`로 브로커에 직접 쏜 것이다(1차와 같은 방식).
+
+> **1차의 p95 106ms와 직접 비교하면 안 된다.** 1차는 구독자 30 × 200건(수신 6000건)이라
+> 클라이언트 부하가 7배 이상 크다. 그래서 이번에 같은 조건의 대조군을 따로 뒀다.
+
+## 발견 3 — 동기 DB 저장은 지연을 약 4배로 늘리지만, 아직 문제는 아니다
+
+같은 조건에서 브로커 직행 p95 18~50ms → 서비스 경로 p95 73~118ms다. **차이가 3.5~4배**이고,
+그 구간에 들어 있는 것은 인증 컨텍스트 복원 · 방 멤버 검사(`existsByRoomIdAndUserId`) ·
+`messages` INSERT · 커밋이다.
+
+그럼에도 **절대값이 120ms 아래**이고 유실이 없다. W9 목요일 태스크였던 "채팅 메시지 비동기 DB 저장"은
+아직 코드에 들어오지 않았는데(`MessageService`는 동기 저장이다 — 미사용 `BlockingQueue`/`Executors`
+import만 남아 있다), **이 수치로는 지금 당장 비동기화할 근거가 약하다.**
+
+비동기화는 지연 대신 다른 것을 사기 때문이다 — 저장 실패 시 "보낸 것처럼 보였는데 없는 메시지"가
+생긴다. 지금 필요한 것은 비동기 큐가 아니라 **읽기 경로(#195 커서 페이징)** 쪽이다.
+
+→ 플래닝 제안: 비동기 저장은 **보류**하고, 재측정 조건을 정해 둔다 —
+동시 발신자 50명 이상 또는 p95 200ms 초과 시 재검토.
+
+## 발견 4 — 인증이 붙어도 세션 회수 특성은 그대로다
+
+CONNECT 인증을 붙이면 `StompSubProtocolHandler`가 세션별 Principal을 따로 들고 있게 된다
+(`stompAuthentications` 맵). 그 맵이 세션과 함께 비워지지 않으면 **인증을 도입하는 순간 게이트가 깨진다.**
+
+8세션 기준 22~25ms에 0으로 복귀했고, 연결·발신·해제 40회 반복 후 힙 증가는 +1MB다.
+§2를 구현해도 W9에서 확인한 회수 특성은 유지된다고 봐도 된다.
+(1차의 101ms는 50세션 기준이라 이 값과 직접 비교하지 않는다.)
+
+## 2차의 한계
+
+1. **여전히 서버·클라이언트가 같은 JVM이다.** 처리량 1000 msg/s는 서버 한계가 아니라 하네스 한계다.
+2. **발신자가 1명이다.** 동시 발신 경합(같은 방에 여러 명이 동시에 INSERT)은 재지 않았다.
+   `messages` 테이블에 방별 인덱스가 붙으면 그때 다시 볼 항목이다.
+3. **SUBSCRIBE 인가가 없는 상태의 숫자다.** §2 두 번째 항목이 들어오면 구독마다 멤버 검사가
+   추가되므로 구독 시점 비용이 늘어난다(메시지당 비용은 그대로).
+
 ## 다음
 
-- [ ] §6 합격 기준 문구 정정 (이 문서 §발견 1) — 반영 완료
+- [x] §6 합격 기준 문구 정정 (이 문서 §발견 1)
+- [x] 2차 측정: 실제 메시지 경로 부하 — CONNECT 인증은 스탠드인으로 대체해 진행
 - [ ] 하트비트 5초 전환 여부 — FE와 협의 (stomp.js `heartbeatIncoming/Outgoing`)
-- [ ] 2차 측정: CONNECT 인증(§2)·채팅방 API(#188) 이후 실제 메시지 경로 부하
-- [ ] 브로드캐스트 지연 기준값(p95 < 300ms) 확정 — 플래닝 안건
+- [ ] 브로드캐스트 지연 기준값 **p95 < 300ms 확정** — 2차 실측(73~118ms)으로 근거 확보, 플래닝 안건
+- [ ] 비동기 DB 저장 보류 결정 + 재측정 조건(동시 발신 50명 / p95 200ms) — 플래닝 안건
+- [ ] §2 프로덕션 인터셉터 도입 후 `StressConnectAuthConfig` 제거하고 재측정
