@@ -10,5 +10,5 @@ public enum TagType {
     MUSIC,
     DAILY,
     HOBBY,
-    ECT
+    ETC
 }

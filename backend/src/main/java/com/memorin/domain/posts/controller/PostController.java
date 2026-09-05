@@ -151,24 +151,21 @@ public class PostController {
             게시물 전체 중에서 태그와 커스텀 메타데이터를 가진 게시물을 검색 UI에서 선택하여 검색할 수 있음.
             태그는 한번에 최대 3개까지 선택 가능하며, 이는 게시물을 올리는 상황에서도 동일함.""")
     @GetMapping("/search")
-    public Page<PostSummaryResponse> search(
+    public PostListResponse search(
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false) List<TagType> tags,
         @RequestParam(required = false) TimeslotType timeslot,
         @RequestParam(required = false) PostSortType sort,
-        @AuthenticationPrincipal UUID viewerId,
-        @PageableDefault(size = 20) Pageable pageable
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size,
+        @AuthenticationPrincipal UUID viewerId
     ) {
         if (tags != null && tags.size() > 3) {
             throw new BusinessException(ErrorCode.POST_003, "태그는 최대 3개까지 선택할 수 있습니다.");
         }
-        String trimmedKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
-        boolean hasTagsParam = tags != null && !tags.isEmpty();
-        if (sort == PostSortType.ACCURACY_DESC && trimmedKeyword == null && !hasTagsParam) {
-            throw new BusinessException(ErrorCode.POST_003, "정확도순 정렬은 검색어 또는 태그 중 하나는 필요합니다.");
-        }
-        PostSearchRequest condition = new PostSearchRequest(trimmedKeyword, tags, timeslot, sort);
-        return postService.search(viewerId, condition, pageable);
+        PostSearchRequest condition = new PostSearchRequest(
+            (keyword != null && !keyword.isBlank()) ? keyword.trim() : null, tags, timeslot, sort);
+        return postService.search(viewerId, condition, cursor, size);
     }
 
 }

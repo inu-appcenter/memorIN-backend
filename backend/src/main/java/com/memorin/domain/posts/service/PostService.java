@@ -159,50 +159,45 @@ public class PostService {
         return new PostListResponse(items, nextCursor, hasNext);
     }
 
-    public Page<PostSummaryResponse> search(UUID viewerId, PostSearchRequest condition, Pageable pageable) {
+    public PostListResponse search(UUID viewerId, PostSearchRequest condition, String cursor, Integer size) {
         boolean hasKeyword = condition.keyword() != null && !condition.keyword().isBlank();
         boolean hasTags = condition.tags() != null && !condition.tags().isEmpty();
 
         if (condition.sort() == PostSortType.ACCURACY_DESC && !hasKeyword && !hasTags) {
             throw new BusinessException(ErrorCode.POST_003, "정확도순 정렬은 검색어 또는 태그 중 하나는 필요합니다.");
         }
+
+        int limit = normalizeSize(size);
+
+        PostCursor.Cursor decoded = null;
+        if (cursor != null && !cursor.isBlank()) {
+            decoded = PostCursor.decode(cursor);
+        }
+
         // postSearchRepository.search()가 "공개 글이거나 본인 글"로 이미 필터링해서 내려주므로,
         // 여기서 만드는 미디어 URL도 전부 열람 권한이 확인된 게시물 소속이다.
-        // PresignedDownloadService의 단건 오버로드(postMediaId 기반)와 달리 이 목록 경로는
-        // 그 전제를 신뢰하고 별도 postAccessPolicy 재검증을 하지 않는다.
-        // (나중에 search()의 권한 필터를 건드릴 일이 있다면 이 부분도 같이 확인할 것)
-        Page<Post> posts = postSearchRepository.search(viewerId, condition, pageable);
+        List<Post> rows = postSearchRepository.search(viewerId, condition, decoded, limit + 1);
 
-        List<UUID> postIds = posts.getContent().stream()
-            .map(Post::getId)
-            .toList();
+        boolean hasNext = rows.size() > limit;
+        List<Post> pageContent = hasNext ? rows.subList(0, limit) : rows;
 
+        List<UUID> postIds = pageContent.stream().map(Post::getId).toList();
         Map<UUID, List<PostMedia>> mediaByPostId = postMediaRepository
             .findByPostIdInOrderByOrderIndexAsc(postIds).stream()
-            .collect(Collectors.groupingBy(media -> media.getPost().getId()));
+            .collect(Collectors.groupingBy(m -> m.getPost().getId()));
 
-        return posts.map(post -> {
-            List<PostMediaResponse> attachments = mediaByPostId
-                .getOrDefault(post.getId(), List.of())
-                .stream()
-                .map(this::toMediaResponse)
-                .toList();
-            return PostSummaryResponse.of(post, attachments);
-        });
-    }
+        List<PostSummaryResponse> items = pageContent.stream()
+            .map(p -> PostSummaryResponse.of(p, toMediaResponses(mediaByPostId.getOrDefault(p.getId(), List.of()))))
+            .toList();
 
-    // PostMediaResponse.url 주석("발급에 실패하면 null")대로, 파일 하나의 서명 실패가
-    // 검색 결과 페이지 전체를 500으로 끌고 내려가면 안 되므로 여기서 개별적으로 흡수한다.
-    private PostMediaResponse toMediaResponse(PostMedia media) {
-        String downloadUrl = null;
-        try {
-            downloadUrl = presignedDownloadService.createDownloadUrl(media).downloadUrl();
-        } catch (Exception e) {
-            return null;
+        String nextCursor = null;
+        if (hasNext && !pageContent.isEmpty()) {
+            Post last = pageContent.get(pageContent.size() - 1);
+            nextCursor = PostCursor.encode(last.getRecordedDate(), last.getId().toString());
         }
-        return PostMediaResponse.from(media, downloadUrl);
-    }
 
+        return new PostListResponse(items, nextCursor, hasNext);
+    }
 
     // ---- 수정 ----
     @Transactional
