@@ -37,7 +37,6 @@ public class CommentEmojiController {
         @RequestBody @Valid EmojiRequest request,
         @AuthenticationPrincipal UserDetailsImpl userDetails) {
 
-
         return ResponseEntity.ok(
             commentEmojiService.toggle(userDetails.getUserId(), commentId, request.emojiType()));
     }

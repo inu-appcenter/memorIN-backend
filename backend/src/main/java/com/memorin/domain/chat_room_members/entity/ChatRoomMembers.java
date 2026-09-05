@@ -58,13 +58,50 @@ public class ChatRoomMembers {
     @Column(name = "left_at")
     private LocalDateTime leftAt;
 
+    public static ChatRoomMembers ofOwner(ChatRooms room, User owner) {
+        return create(room, owner, Members_role.OWNER);
+    }
+
+    public static ChatRoomMembers ofMember(ChatRooms room, User member) {
+        return create(room, member, Members_role.MEMBER);
+    }
+
+    // 기존 시그니처 — 다른 곳에서 이미 쓰고 있을 수 있어 남겨두되 버그만 고쳤다.
     public static ChatRoomMembers of(ChatRooms room, Post post, User member) {
+        Members_role role = post.getUser().getId().equals(member.getId())
+            ? Members_role.OWNER
+            : Members_role.MEMBER;
+        return create(room, member, role);
+    }
+
+    private static ChatRoomMembers create(ChatRooms room, User user, Members_role role) {
         ChatRoomMembers e = new ChatRoomMembers();
         e.room = room;
-        e.user = member;
-        e.role = (post.getUser().getId() != member.getId()) ? Members_role.MEMBER : Members_role.OWNER;
+        e.user = user;
+        e.role = role;
         e.joinedAt = LocalDateTime.now();
         e.lastReadAt = LocalDateTime.now();
         return e;
+    }
+
+    public boolean isActive() {
+        return this.leftAt == null;
+    }
+
+    public boolean isOwner() {
+        return this.role == Members_role.OWNER;
+    }
+
+    public void leave() {
+        this.leftAt = LocalDateTime.now();
+    }
+
+    public void rejoin() {
+        this.leftAt = null;
+        this.joinedAt = LocalDateTime.now();
+    }
+
+    public void promoteToOwner() {
+        this.role = Members_role.OWNER;
     }
 }

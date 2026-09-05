@@ -52,5 +52,31 @@ public class ChatRooms {
         this.updatedAt = updatedAt;
     }
 
+    public static ChatRooms createDirect() {
+        return ChatRooms.builder()
+            .type(Chat_type.DIRECT)
+            .build();
+    }
+
+    public static ChatRooms createGroup(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("그룹 채팅방 이름은 비어 있을 수 없습니다.");
+        }
+        return ChatRooms.builder()
+            .name(name)
+            .type(Chat_type.GROUP)
+            .build();
+    }
+
+    public void rename(String newName) {
+        if (this.type != Chat_type.GROUP) {
+            throw new IllegalStateException("1:1 채팅방은 이름을 변경할 수 없습니다.");
+        }
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("방 이름은 비어 있을 수 없습니다.");
+        }
+        this.name = newName;
+    }
+
 
 }
