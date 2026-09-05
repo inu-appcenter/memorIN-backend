@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,7 +61,8 @@ class PostFeedQueryCountTest extends PostgresTestSupport {
             em.persist(author);
             for (int p = 0; p < posts; p++) {
                 Post post = Post.create(author, "[]", VisibilityType.PUBLIC,
-                        TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(p)));
+                        TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(p)),
+                    List.of(com.memorin.domain.posts.entity.TagType.ETC));
                 em.persist(post);
                 for (int m = 0; m < mediaPerPost; m++) {
                     em.persist(PostMedia.of(post, "uploads/%s-%d-%d.png".formatted(tag, p, m),

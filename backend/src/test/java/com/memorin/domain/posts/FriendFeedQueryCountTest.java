@@ -9,6 +9,7 @@ import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.domain.posts.entity.TagType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.SessionFactory;
@@ -23,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +85,7 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
                 // FRIENDS 공개범위로 둔다 — 친구 피드가 실제로 노출해야 하는 대상
                 Post post = Post.create(author, "[]", VisibilityType.FRIENDS,
-                    TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)));
+                    TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1).plusDays(a)), List.of(TagType.ETC));
                 em.persist(post);
 
                 for (int m = 0; m < mediaPerPost; m++) {

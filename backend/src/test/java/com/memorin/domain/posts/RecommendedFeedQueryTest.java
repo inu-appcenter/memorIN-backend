@@ -84,7 +84,7 @@ class RecommendedFeedQueryTest extends PostgresTestSupport {
 
     private PostSummaryResponse findItem(PostListResponse response, UUID postId) {
         return response.items().stream()
-                .filter(i -> i.postId().equals(postId.toString()))
+                .filter(i -> i.postId().equals(postId))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("추천 피드에 심은 게시물이 없다: " + postId));
     }
