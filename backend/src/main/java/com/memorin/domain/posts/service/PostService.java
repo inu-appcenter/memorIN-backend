@@ -4,11 +4,15 @@ import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
+import com.memorin.domain.posts.dto.request.PostSearchRequest;
 import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.PostSortType;
+import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.repository.PostRepository;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
 import com.memorin.domain.posts.dto.request.PostUpdateRequest;
 import com.memorin.domain.posts.dto.response.*;
+import com.memorin.domain.posts.repository.PostSearchRepository;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
@@ -18,7 +22,10 @@ import com.memorin.global.media.service.MediaUploadCommitService;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.PresignedUploadService;
 import com.memorin.global.media.service.StorageQuotaService;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +44,7 @@ public class PostService {
     private static final int MAX_PAGE_SIZE = 50;
 
     private final PostRepository postRepository;
+    private final PostSearchRepository postSearchRepository;
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
@@ -56,8 +64,10 @@ public class PostService {
                 ? Date.valueOf(request.recordedDate())
                 : Date.valueOf(LocalDate.now());
 
+        @Size(max = 3, message = "태그는 최대 3개까지 선택할 수 있습니다.") List<TagType> tags = request.tags();
+
         Post post = Post.create(author, request.content(), request.visibilityType(),
-                request.timeslotType(), recordedDate);
+                request.timeslotType(), recordedDate, tags);
         postRepository.saveAndFlush(post);
 
         List<PostMedia> savedMedia = saveMedia(post, request.attachments(), authorId);
@@ -139,6 +149,46 @@ public class PostService {
         List<PostSummaryResponse> items = pageContent.stream()
                 .map(p -> PostSummaryResponse.of(p, toMediaResponses(mediaByPostId.getOrDefault(p.getId(), List.of()))))
                 .toList();
+
+        String nextCursor = null;
+        if (hasNext && !pageContent.isEmpty()) {
+            Post last = pageContent.get(pageContent.size() - 1);
+            nextCursor = PostCursor.encode(last.getRecordedDate(), last.getId().toString());
+        }
+
+        return new PostListResponse(items, nextCursor, hasNext);
+    }
+
+    public PostListResponse search(UUID viewerId, PostSearchRequest condition, String cursor, Integer size) {
+        boolean hasKeyword = condition.keyword() != null && !condition.keyword().isBlank();
+        boolean hasTags = condition.tags() != null && !condition.tags().isEmpty();
+
+        if (condition.sort() == PostSortType.ACCURACY_DESC && !hasKeyword && !hasTags) {
+            throw new BusinessException(ErrorCode.POST_003, "정확도순 정렬은 검색어 또는 태그 중 하나는 필요합니다.");
+        }
+
+        int limit = normalizeSize(size);
+
+        PostCursor.Cursor decoded = null;
+        if (cursor != null && !cursor.isBlank()) {
+            decoded = PostCursor.decode(cursor);
+        }
+
+        // postSearchRepository.search()가 "공개 글이거나 본인 글"로 이미 필터링해서 내려주므로,
+        // 여기서 만드는 미디어 URL도 전부 열람 권한이 확인된 게시물 소속이다.
+        List<Post> rows = postSearchRepository.search(viewerId, condition, decoded, limit + 1);
+
+        boolean hasNext = rows.size() > limit;
+        List<Post> pageContent = hasNext ? rows.subList(0, limit) : rows;
+
+        List<UUID> postIds = pageContent.stream().map(Post::getId).toList();
+        Map<UUID, List<PostMedia>> mediaByPostId = postMediaRepository
+            .findByPostIdInOrderByOrderIndexAsc(postIds).stream()
+            .collect(Collectors.groupingBy(m -> m.getPost().getId()));
+
+        List<PostSummaryResponse> items = pageContent.stream()
+            .map(p -> PostSummaryResponse.of(p, toMediaResponses(mediaByPostId.getOrDefault(p.getId(), List.of()))))
+            .toList();
 
         String nextCursor = null;
         if (hasNext && !pageContent.isEmpty()) {
@@ -275,7 +325,7 @@ public class PostService {
         for (PostMedia media : mediaList) {
             UUID postId = media.getPost().getId();
             // computeIfAbsent(key, k -> new ArrayList<>())의 뜻
-            // => map에서 키가 없으면 빈 ArrayList를 만들고, 
+            // => map에서 키가 없으면 빈 ArrayList를 만들고,
             // 있으면 그 값을 그대로 꺼내옴. 그리고 거기에 media를 add
             mediaByPostId.computeIfAbsent(postId, k -> new ArrayList<>()).add(media);
         }

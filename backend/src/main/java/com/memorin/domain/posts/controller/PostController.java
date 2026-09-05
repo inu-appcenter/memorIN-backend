@@ -1,5 +1,10 @@
 package com.memorin.domain.posts.controller;
 
+import com.memorin.domain.posts.dto.request.PostSearchRequest;
+import com.memorin.domain.posts.dto.response.PostSummaryResponse;
+import com.memorin.domain.posts.entity.PostSortType;
+import com.memorin.domain.posts.entity.TagType;
+import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.domain.posts.dto.request.PostCreateRequest;
@@ -8,9 +13,14 @@ import com.memorin.domain.posts.dto.response.PostCreateResponse;
 import com.memorin.domain.posts.dto.response.PostListResponse;
 import com.memorin.domain.posts.dto.response.PostResponse;
 import com.memorin.global.common.ApiResponse;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,6 +32,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "게시물", description = "게시물 작성 · 조회 · 수정 · 삭제 및 피드")
@@ -33,8 +45,6 @@ public class PostController {
     private final PostService postService;
     private final RecommendedFeedService recommendedFeedService;
 
-
-    // 새 Post 생성
     @Operation(summary = "게시물 작성", description = "본문(content)과 첨부(attachments)로 게시물을 생성한다.")
     @PostMapping
     public ResponseEntity<ApiResponse<PostCreateResponse>> create(
@@ -45,7 +55,6 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
-    // 게시물 단건 조회
     @Operation(summary = "게시물 단건 조회", description = "postId로 게시물 하나를 조회한다. 공개범위 판정은 비로그인까지 지원하나, 현재 SecurityConfig가 모든 API에 인증을 요구하므로 토큰 없이 호출하면 401이다.")
     @GetMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> getPostOne(
@@ -85,7 +94,6 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // 게시물 수정
     @Operation(summary = "게시물 수정", description = "작성자 본인만 수정할 수 있다.")
     @PatchMapping("/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> update(
@@ -125,7 +133,6 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // 추천 피드 조회
     @Operation(summary = "추천 피드 조회",
         description = """
             최근 14일 내 전체공개 게시물 중 참여도와 최신성으로 점수를 매겨 정렬한다.
@@ -138,4 +145,27 @@ public class PostController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(recommendedFeedService.getRecommendedFeed(cursor, size)));
     }
+
+    @Operation(summary = "게시물 필터링 검색",
+        description = """
+            게시물 전체 중에서 태그와 커스텀 메타데이터를 가진 게시물을 검색 UI에서 선택하여 검색할 수 있음.
+            태그는 한번에 최대 3개까지 선택 가능하며, 이는 게시물을 올리는 상황에서도 동일함.""")
+    @GetMapping("/search")
+    public PostListResponse search(
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) List<TagType> tags,
+        @RequestParam(required = false) TimeslotType timeslot,
+        @RequestParam(required = false) PostSortType sort,
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size,
+        @AuthenticationPrincipal UUID viewerId
+    ) {
+        if (tags != null && tags.size() > 3) {
+            throw new BusinessException(ErrorCode.POST_003, "태그는 최대 3개까지 선택할 수 있습니다.");
+        }
+        PostSearchRequest condition = new PostSearchRequest(
+            (keyword != null && !keyword.isBlank()) ? keyword.trim() : null, tags, timeslot, sort);
+        return postService.search(viewerId, condition, cursor, size);
+    }
+
 }

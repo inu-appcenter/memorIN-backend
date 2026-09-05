@@ -75,7 +75,8 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
             }
 
             Post post = Post.create(author, "[]", VisibilityType.PUBLIC, TimeslotType.AM,
-                    Date.valueOf(LocalDate.of(2026, 8, 1)));
+                    Date.valueOf(LocalDate.of(2026, 8, 1)),
+                List.of(com.memorin.domain.posts.entity.TagType.ETC));
             em.persist(post);
 
             for (int i = 0; i < commentCount; i++) {
