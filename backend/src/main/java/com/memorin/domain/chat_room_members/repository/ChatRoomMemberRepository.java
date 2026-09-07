@@ -13,6 +13,8 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMembers,
 
     boolean existsByRoomIdAndUserId(UUID uuid, UUID senderId);
 
+    boolean existsByRoom_IdAndUser_IdAndLeftAtIsNull(UUID roomId, UUID userId);
+
     // DIRECT 방 하나에 정확히 두 사용자가 모두 활성 멤버로 있는 경우를 찾는다.
     @Query("""
         SELECT m1.room.id FROM ChatRoomMembers m1
