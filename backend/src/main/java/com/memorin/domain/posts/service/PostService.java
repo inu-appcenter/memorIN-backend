@@ -174,8 +174,13 @@ public class PostService {
             decoded = PostCursor.decode(cursor);
         }
 
-        // postSearchRepository.search()가 "공개 글이거나 본인 글"로 이미 필터링해서 내려주므로,
+        // postSearchRepository.search()가 PostAccessPolicy.assertReadable과 같은 기준
+        // (PUBLIC · 본인 글 · 양방향 ACCEPTED 친구의 FRIENDS 글)으로 이미 필터링해서 내려주므로,
         // 여기서 만드는 미디어 URL도 전부 열람 권한이 확인된 게시물 소속이다.
+        //
+        // viewerId가 null이면 위 세 조건 중 뒤의 둘이 SQL에서 UNKNOWN이 되어 PUBLIC만 남는다.
+        // 비로그인 조회로는 맞지만, 로그인 사용자인데 null이 넘어오면 "에러 없이 결과만 틀린다".
+        // 컨트롤러에서 principal 타입을 잘못 받아 실제로 그런 적이 있다 — ChatRoomSearchAuthTest가 이를 고정한다.
         List<Post> rows = postSearchRepository.search(viewerId, condition, decoded, limit + 1);
 
         boolean hasNext = rows.size() > limit;
