@@ -42,7 +42,10 @@ public void configureClientInboundChannel(ChannelRegistration registration) {
     registration.interceptors(new ChannelInterceptor() {
         @Override
         public Message<?> preSend(Message<?> message, MessageChannel channel) {
-            StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+            // wrap()이 아니라 getAccessor()를 써야 한다. wrap()은 헤더 "복사본"에 대한
+            // 접근자라 setUser()가 원본 메시지에 반영되지 않는다(인증이 조용히 사라진다).
+            StompHeaderAccessor accessor =
+                MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                 String token = accessor.getFirstNativeHeader("Authorization"); // "Bearer xxx"
                 // 검증 실패 시 예외 → 연결 자체가 수립되지 않는다
@@ -55,9 +58,12 @@ public void configureClientInboundChannel(ChannelRegistration registration) {
 ```
 
 - CONNECT에서 한 번 인증하면 **그 세션의 이후 모든 프레임에 Principal이 따라붙는다.**
+- 인터셉터 등록 순서는 `StompAuthChannelInterceptor` → `SecurityContextChannelInterceptor`다.
+  뒤바뀌면 CONNECT 시점에 아직 Principal이 없어 SecurityContext가 비어 나간다.
 - SUBSCRIBE 시점에는 "이 사용자가 이 방의 멤버인가"를 따로 검사해야 한다(인증 ≠ 인가).
-  `/topic/rooms/{roomId}` 구독을 `ChatRoomMemberRepository.existsByRoomIdAndUserId`로 막지 않으면
-  **아무나 남의 방을 엿볼 수 있다.**
+  `/topic/rooms/{roomId}` 구독을 막지 않으면 **아무나 남의 방을 엿볼 수 있다.**
+  이때 `existsByRoomIdAndUserId`가 아니라 **`existsByRoom_IdAndUser_IdAndLeftAtIsNull`**(활성 멤버)을 써야 한다.
+  나갔거나 강퇴당한 사람도 roomId를 알고 있으므로, 멤버 행의 존재만 보면 탈퇴 후에도 계속 수신한다.
 
 ### 주의 — `@AuthenticationPrincipal`은 그냥 되지 않는다
 
