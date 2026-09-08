@@ -35,8 +35,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     // CorsConfig와 같은 프로퍼티를 쓴다. 콤마로 구분된 문자열이 List<String>으로 자동 변환된다.
     // WebSocket 핸드셰이크의 Origin 검사는 Spring Security의 CORS 설정과 별개로 동작하기 때문에,
     // 여기를 "*"로 열어두면 Sprint 1에서 나눠 놓은 dev/prod 오리진 구분이 무의미해진다. (§8)
-    public WebSocketConfig(@Value("${cors.allowed-origins}") List<String> allowedOrigins) {
+    private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+
+    public WebSocketConfig(@Value("${cors.allowed-origins}") List<String> allowedOrigins,
+                           StompAuthChannelInterceptor stompAuthChannelInterceptor) {
         this.allowedOrigins = allowedOrigins;
+        this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
     }
 
     // 하트비트 전용 스케줄러. 하트비트만 켜고 이 스케줄러를 안 주면 기동 시 실패한다.
@@ -88,9 +92,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        // 핸드셰이크 시점의 Authentication을 메시지 처리 스레드의 SecurityContext로 옮겨줘야
-        // AuthenticationPrincipalArgumentResolver가 찾을 수 있다 (STOMP 메시지는 핸드셰이크와
-        // 다른 스레드에서 처리되므로 SecurityContextHolder가 비어있는 상태로 시작한다).
-        registration.interceptors(new SecurityContextChannelInterceptor());
+        // 순서가 중요하다.
+        //
+        // 1) StompAuthChannelInterceptor — CONNECT 프레임의 토큰을 검증해 세션에 Principal을 붙이고,
+        //    SUBSCRIBE에서 방 멤버인지 확인한다. 핸드셰이크(/ws/**)는 permitAll이므로 실질적인
+        //    인증 지점은 여기다. HTTP 필터는 핸드셰이크 1회만 지나가고 이후 STOMP 프레임은
+        //    서블릿 필터 체인을 타지 않는다. (docs/sprint4-architecture-review.md §2)
+        //
+        // 2) SecurityContextChannelInterceptor — 1)이 붙인 Authentication을 메시지 처리 스레드의
+        //    SecurityContext로 옮긴다. 그래야 AuthenticationPrincipalArgumentResolver가 찾을 수 있다
+        //    (STOMP 메시지는 핸드셰이크와 다른 스레드에서 처리되므로 SecurityContextHolder가
+        //    비어있는 상태로 시작한다).
+        //
+        // 순서가 뒤바뀌면 CONNECT 시점에 아직 Principal이 없어 SecurityContext가 비어 나간다.
+        registration.interceptors(stompAuthChannelInterceptor, new SecurityContextChannelInterceptor());
     }
 }
