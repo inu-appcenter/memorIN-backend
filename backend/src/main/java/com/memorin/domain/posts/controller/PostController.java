@@ -158,14 +158,14 @@ public class PostController {
         @RequestParam(required = false) PostSortType sort,
         @RequestParam(required = false) String cursor,
         @RequestParam(required = false) Integer size,
-        @AuthenticationPrincipal UUID viewerId
+        @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         if (tags != null && tags.size() > 3) {
             throw new BusinessException(ErrorCode.POST_003, "태그는 최대 3개까지 선택할 수 있습니다.");
         }
         PostSearchRequest condition = new PostSearchRequest(
             (keyword != null && !keyword.isBlank()) ? keyword.trim() : null, tags, timeslot, sort);
-        return postService.search(viewerId, condition, cursor, size);
+        return postService.search(userDetails != null ? userDetails.getUserId() : null, condition, cursor, size);
     }
 
 }
