@@ -8,6 +8,7 @@ import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.follows.service.FollowService;
+import com.memorin.domain.notifications.dto.PushNotificationRequested;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.repository.NotificationRepository;
 import com.memorin.domain.notifications.service.FcmPushService;
@@ -154,7 +155,6 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             firebase.when(FirebaseMessaging::getInstance).thenReturn(firebaseMessaging);
             followService.request(ids[0], ids[1]);
             verify(firebaseMessaging).send(fcmMessage.capture());
-            verify(pushService).send(any(nl.martijndwars.webpush.Notification.class));
         }
 
         Follows follow = followRepository.findByFollowerIdAndFollowingId(ids[0], ids[1]).orElseThrow();
@@ -164,6 +164,14 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             NotificationType.FOLLOW_REQUEST,
             follow.getId()
         );
+
+        // Web Push 서비스는 실제 구독 조회 및 payload 생성 경로를 사용한다.
+        // PushService만 mock으로 대체해 네트워크 요청은 발생하지 않는다.
+        webPushService.send(new PushNotificationRequested(
+            ids[1], ids[0], NotificationType.FOLLOW_REQUEST,
+            "follow request", "A user requested to follow you.", follow.getId()
+        ));
+        verify(pushService).send(any(nl.martijndwars.webpush.Notification.class));
     }
 
     @Test
