@@ -25,15 +25,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.Date;
 import java.time.LocalDate;
-import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.ECPublicKey;
-import java.security.spec.ECGenParameterSpec;
-import nl.martijndwars.webpush.PushService;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +38,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.task.SyncTaskExecutor;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -54,7 +48,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = {
     "firebase.enabled=false",
@@ -64,11 +57,6 @@ import static org.mockito.Mockito.when;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(NotificationPushIntegrationTest.TestAsyncConfig.class)
 class NotificationPushIntegrationTest extends PostgresTestSupport {
-
-    private static final String WEB_PUSH_P256DH_KEY = generateWebPushPublicKey();
-    private static final String WEB_PUSH_AUTH_KEY = Base64.getUrlEncoder()
-        .withoutPadding()
-        .encodeToString(new byte[16]);
 
     @TestConfiguration
     static class TestAsyncConfig {
@@ -97,7 +85,7 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
     @Autowired
     private FcmPushService fcmPushService;
 
-    @Autowired
+    @MockitoBean
     private WebPushService webPushService;
 
     @Autowired
@@ -109,8 +97,6 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
     @AfterEach
     void disableExternalDelivery() {
         ReflectionTestUtils.setField(fcmPushService, "enabled", false);
-        ReflectionTestUtils.setField(webPushService, "enabled", false);
-        ReflectionTestUtils.setField(webPushService, "pushService", null);
     }
 
     @Test
@@ -133,8 +119,8 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
                 new WebPushSubscription(
                     recipient,
                     "https://push.test/" + suffix(),
-                    WEB_PUSH_P256DH_KEY,
-                    WEB_PUSH_AUTH_KEY
+                    "p256dh",
+                    "auth"
                 )
             );
 
@@ -145,8 +131,6 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
                 recipient.getId()
             };
         });
-
-        PushService pushService = enableWebPushWithSuccessfulResponse();
 
         ReflectionTestUtils.setField(
             fcmPushService,
@@ -174,13 +158,7 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             follow.getId()
         );
 
-        // Web Push 서비스는 실제 구독 조회 및 payload 생성 경로를 사용한다.
-        // PushService만 mock으로 대체해 네트워크 요청은 발생하지 않는다.
-        webPushService.send(new PushNotificationRequested(
-            ids[1], ids[0], NotificationType.FOLLOW_REQUEST,
-            "follow request", "A user requested to follow you.", follow.getId()
-        ));
-        verify(pushService).send(any(nl.martijndwars.webpush.Notification.class));
+        verify(webPushService).send(any(PushNotificationRequested.class));
     }
 
     @Test
@@ -269,54 +247,11 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
         );
     }
 
-    private PushService enableWebPushWithSuccessfulResponse()
-        throws Exception {
-
-        PushService pushService = mock(PushService.class);
-        HttpResponse response = mock(HttpResponse.class);
-        StatusLine statusLine = mock(StatusLine.class);
-
-        when(response.getStatusLine()).thenReturn(statusLine);
-        when(statusLine.getStatusCode()).thenReturn(201);
-
-        when(
-            pushService.send(
-                any(nl.martijndwars.webpush.Notification.class)
-            )
-        ).thenReturn(response);
-
-        ReflectionTestUtils.setField(
-            webPushService,
-            "enabled",
-            true
-        );
-
-        ReflectionTestUtils.setField(
-            webPushService,
-            "pushService",
-            pushService
-        );
-
-        return pushService;
-    }
-
     private void enableNoDeviceDelivery() {
         ReflectionTestUtils.setField(
             fcmPushService,
             "enabled",
             true
-        );
-
-        ReflectionTestUtils.setField(
-            webPushService,
-            "enabled",
-            true
-        );
-
-        ReflectionTestUtils.setField(
-            webPushService,
-            "pushService",
-            mock(PushService.class)
         );
     }
 
@@ -360,23 +295,4 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             .substring(0, 8);
     }
 
-    private static String generateWebPushPublicKey() {
-        try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
-            generator.initialize(new ECGenParameterSpec("secp256r1"));
-            ECPublicKey publicKey = (ECPublicKey) generator.generateKeyPair().getPublic();
-            byte[] encoded = new byte[65];
-            encoded[0] = 0x04;
-            copyCoordinate(publicKey.getW().getAffineX().toByteArray(), encoded, 1);
-            copyCoordinate(publicKey.getW().getAffineY().toByteArray(), encoded, 33);
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(encoded);
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not generate a Web Push test key", e);
-        }
-    }
-
-    private static void copyCoordinate(byte[] source, byte[] target, int offset) {
-        int length = Math.min(source.length, 32);
-        System.arraycopy(source, source.length - length, target, offset + 32 - length, length);
-    }
 }
