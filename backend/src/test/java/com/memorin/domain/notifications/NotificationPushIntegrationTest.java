@@ -105,11 +105,12 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
 
         try (MockedStatic<FirebaseMessaging> firebase = mockStatic(FirebaseMessaging.class)) {
             firebase.when(FirebaseMessaging::getInstance).thenReturn(firebaseMessaging);
-            followService.request(ids[0], ids[1]);
-        }
 
-        verify(firebaseMessaging, timeout(1_000)).send(fcmMessage.capture());
-        verify(pushService, timeout(1_000)).send(any(nl.martijndwars.webpush.Notification.class));
+            followService.request(ids[0], ids[1]);
+
+            verify(firebaseMessaging, timeout(1_000)).send(fcmMessage.capture());
+            verify(pushService, timeout(1_000)).send(any(nl.martijndwars.webpush.Notification.class));
+        }
 
         Follows follow = followRepository.findByFollowerIdAndFollowingId(ids[0], ids[1]).orElseThrow();
         assertNotification(ids[1], NotificationType.FOLLOW_REQUEST, follow.getId());
