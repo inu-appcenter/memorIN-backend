@@ -25,8 +25,12 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.security.KeyPairGenerator;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECGenParameterSpec;
 import nl.martijndwars.webpush.PushService;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
@@ -60,6 +64,11 @@ import static org.mockito.Mockito.when;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(NotificationPushIntegrationTest.TestAsyncConfig.class)
 class NotificationPushIntegrationTest extends PostgresTestSupport {
+
+    private static final String WEB_PUSH_P256DH_KEY = generateWebPushPublicKey();
+    private static final String WEB_PUSH_AUTH_KEY = Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(new byte[16]);
 
     @TestConfiguration
     static class TestAsyncConfig {
@@ -124,8 +133,8 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
                 new WebPushSubscription(
                     recipient,
                     "https://push.test/" + suffix(),
-                    "p256dh",
-                    "auth"
+                    WEB_PUSH_P256DH_KEY,
+                    WEB_PUSH_AUTH_KEY
                 )
             );
 
@@ -349,5 +358,25 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
         return UUID.randomUUID()
             .toString()
             .substring(0, 8);
+    }
+
+    private static String generateWebPushPublicKey() {
+        try {
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+            generator.initialize(new ECGenParameterSpec("secp256r1"));
+            ECPublicKey publicKey = (ECPublicKey) generator.generateKeyPair().getPublic();
+            byte[] encoded = new byte[65];
+            encoded[0] = 0x04;
+            copyCoordinate(publicKey.getW().getAffineX().toByteArray(), encoded, 1);
+            copyCoordinate(publicKey.getW().getAffineY().toByteArray(), encoded, 33);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(encoded);
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not generate a Web Push test key", e);
+        }
+    }
+
+    private static void copyCoordinate(byte[] source, byte[] target, int offset) {
+        int length = Math.min(source.length, 32);
+        System.arraycopy(source, source.length - length, target, offset + 32 - length, length);
     }
 }
