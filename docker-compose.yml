@@ -76,6 +76,15 @@ services:
       MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX:-1920}
       MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX:-1920}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://memorin.inuappcenter.co.kr}
+      # 푸시 알림. 기본은 둘 다 꺼짐 — 켜지 않으면 알림은 DB에 저장만 되고 발송되지 않는다.
+      # 서비스 계정 JSON은 이미지에 굽지 않고 secrets/ 볼륨으로 주입한다(아래 volumes).
+      # FileInputStream으로 읽으므로 클래스패스 리소스가 아니라 실제 파일 경로여야 한다.
+      FIREBASE_ENABLED: ${FIREBASE_ENABLED:-false}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-/run/secrets/firebase-service-account.json}
+      WEB_PUSH_ENABLED: ${WEB_PUSH_ENABLED:-false}
+      WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+      WEB_PUSH_VAPID_PRIVATE_KEY: ${WEB_PUSH_VAPID_PRIVATE_KEY:-}
+      WEB_PUSH_VAPID_SUBJECT: ${WEB_PUSH_VAPID_SUBJECT:-mailto:admin@memorin.local}
       # 힙 상한은 컨테이너 메모리의 75%. 고정값(-Xmx)보다 이식성이 좋다.
       # 힙덤프는 /dump 볼륨에 남긴다 — 컨테이너 안에 떨구면 죽는 순간 같이 사라져서 원인을 못 본다.
       # OOM이면 반쯤 죽은 채 버티지 말고 즉시 종료 → restart 정책이 다시 띄운다.
@@ -88,6 +97,10 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - heapdumps:/dump
+      # 시크릿 파일 주입. 파일이 아니라 디렉터리를 마운트하는 이유는, 파일을 직접 바인드하면
+      # 호스트에 그 파일이 없을 때 Docker가 같은 이름의 "빈 디렉터리"를 만들어 버리기 때문이다.
+      # secrets/ 는 .gitkeep으로 저장소에 존재하고, 안의 내용물은 .gitignore가 막는다.
+      - ./secrets:/run/secrets:ro
     # 상한이 없으면 JVM은 호스트 메모리 기준으로 힙을 잡는다(노트북 16GB ↔ 서버 2GB).
     # 반대로 상한만 걸고 힙을 안 잡으면 OOMKilled(137)로 로그 없이 죽는다. 둘은 항상 같이 간다.
     deploy:

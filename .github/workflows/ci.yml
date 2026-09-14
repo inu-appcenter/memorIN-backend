@@ -54,3 +54,51 @@ jobs:
             backend/build/reports/tests/test
             backend/build/test-results/test
           retention-days: 7
+
+  migrations:
+    name: Flyway 마이그레이션 검사
+    runs-on: ubuntu-latest
+
+    # 빌드와 독립이라 병렬로 돈다. Gradle도 DB도 필요 없어서 몇 초면 끝난다.
+    # 이 잡이 막으려는 것은 "머지된 뒤 기동 자체가 실패하는" 두 가지다.
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v7
+        with:
+          # 기존 마이그레이션 변경 검사가 base 브랜치와 diff를 뜨므로 히스토리가 필요하다.
+          fetch-depth: 0
+
+      # 사고 이력: Sprint 3 PR #169(V7 중복), Sprint 4 PR #187(V9 중복).
+      # 파일명이 다르면 GitHub은 MERGEABLE로 표시하지만, 같은 버전이 둘이면 Flyway가
+      # "Found more than one migration with version N"으로 기동을 실패시킨다.
+      - name: 버전 번호 중복 검사
+        run: |
+          cd backend/src/main/resources/db/migration
+          dupes=$(ls -1 | grep -oE '^V[0-9]+' | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::Flyway 마이그레이션 버전이 중복됩니다: $(echo "$dupes" | tr '\n' ' ')"
+            echo "중복된 버전을 쓰는 파일:"
+            for v in $dupes; do ls -1 | grep -E "^${v}__"; done
+            exit 1
+          fi
+          echo "버전 중복 없음 ($(ls -1 | wc -l | tr -d ' ')개 마이그레이션)"
+
+      # 이미 적용된 마이그레이션의 "내용"이 바뀌면 Flyway가 체크섬 불일치로 멈춘다.
+      # 운영 DB는 이미 그 버전을 적용했으므로 파일만 고쳐봐야 되돌릴 수 없다.
+      # 실제로 V1__init.sql이 수정돼 문제가 될 뻔한 적이 있다(PR #169 리뷰).
+      # 변경이 정말 필요하면 새 버전 파일을 추가한다.
+      - name: 기존 마이그레이션 수정·삭제 검사
+        if: github.event_name == 'pull_request'
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch --no-tags --quiet origin "${{ github.base_ref }}"
+          touched=$(git diff --name-only --diff-filter=MD "$base...HEAD" \
+            -- backend/src/main/resources/db/migration)
+          if [ -n "$touched" ]; then
+            echo "::error::이미 적용된 마이그레이션이 수정·삭제되었습니다. 체크섬 불일치로 기동이 멈춥니다."
+            echo "$touched"
+            echo ""
+            echo "변경분은 새 버전 파일(V<다음번호>__설명.sql)로 추가하세요."
+            exit 1
+          fi
+          echo "기존 마이그레이션 변경 없음"

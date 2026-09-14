@@ -17,30 +17,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Import;
-import org.springframework.core.Ordered;
 import org.springframework.lang.NonNull;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.config.ChannelRegistration;
-import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.config.WebSocketMessageBrokerStats;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.lang.management.ManagementFactory;
@@ -68,17 +56,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 //     → SimpMessagingTemplate.convertAndSend("/topic/rooms/{roomId}")
 //     → 구독자 수신
 //
-// CONNECT 인증은 아직 프로덕션에 없다(docs/sprint4-architecture-review.md §2, 담당 미지정).
-// 그것이 없으면 @AuthenticationPrincipal이 null이라 이 경로를 아예 태울 수 없으므로,
-// 여기서는 **테스트 스코프에만** 같은 모양의 인터셉터를 세워 측정한다.
-// StressConnectAuthConfig는 측정용 스탠드인이지 §2의 구현이 아니다 — 프로덕션 인터셉터가
-// 들어오면 이 설정을 지우고 그대로 다시 돌리면 된다.
+// 2차 측정까지는 CONNECT 인증이 프로덕션에 없어서 테스트 스코프에 같은 모양의 인터셉터를
+// 세워 측정했다(StressConnectAuthConfig). #209로 프로덕션 인터셉터가 들어왔으므로 그 스탠드인을
+// 지우고 실제 구성으로 다시 잰다 — 이제 CONNECT 인증뿐 아니라 SUBSCRIBE 인가도 경로에 들어 있다.
 //
 // 실행: JWT_SECRET=... ./gradlew stressTest
 @Tag("stress")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(WebSocketMessagePathStressTest.StressConnectAuthConfig.class)
 class WebSocketMessagePathStressTest extends PostgresTestSupport {
 
     // 1차에서 확인한 하네스 한계: 서버와 클라이언트가 같은 JVM이라 구독자를 11명 이상으로
@@ -405,51 +390,4 @@ class WebSocketMessagePathStressTest extends PostgresTestSupport {
         return ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed() / (1024 * 1024);
     }
 
-    // CONNECT 프레임의 Authorization 헤더를 검증해 세션에 Principal을 붙인다.
-    //
-    // 이 클래스는 **측정용 스탠드인**이다. docs/sprint4-architecture-review.md §2가 요구하는
-    // 프로덕션 인터셉터의 자리를 임시로 메워 서비스 경로를 태울 수 있게 할 뿐이며,
-    // SUBSCRIBE 인가(§2 두 번째 항목)는 여기서도 하지 않는다.
-    //
-    // 프로덕션 구현이 들어오면 @Import만 지우고 같은 테스트를 그대로 돌리면 된다.
-    @TestConfiguration
-    static class StressConnectAuthConfig implements WebSocketMessageBrokerConfigurer, Ordered {
-
-        private final JwtTokenProvider jwtTokenProvider;
-
-        StressConnectAuthConfig(JwtTokenProvider jwtTokenProvider) {
-            this.jwtTokenProvider = jwtTokenProvider;
-        }
-
-        @Override
-        public void configureClientInboundChannel(ChannelRegistration registration) {
-            registration.interceptors(new ChannelInterceptor() {
-                @Override
-                public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
-                    StompHeaderAccessor accessor =
-                        MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-                    if (accessor == null || !StompCommand.CONNECT.equals(accessor.getCommand())) {
-                        return message;
-                    }
-                    String authorization = accessor.getFirstNativeHeader("Authorization");
-                    if (authorization == null || !authorization.startsWith("Bearer ")) {
-                        throw new IllegalArgumentException("CONNECT에 Authorization 헤더가 없다");
-                    }
-                    Authentication authentication =
-                        jwtTokenProvider.getAuthentication(authorization.substring("Bearer ".length()));
-                    // 여기서 붙인 Principal을 StompSubProtocolHandler가 세션 단위로 기억하므로
-                    // 이후 SEND 프레임에는 토큰이 없어도 된다.
-                    accessor.setUser(authentication);
-                    return message;
-                }
-            });
-        }
-
-        // WebSocketConfig의 SecurityContextChannelInterceptor보다 먼저 돌아야
-        // CONNECT 프레임에서 붙인 Principal을 그쪽이 읽을 수 있다.
-        @Override
-        public int getOrder() {
-            return Ordered.HIGHEST_PRECEDENCE;
-        }
-    }
 }
