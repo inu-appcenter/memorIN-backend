@@ -12,7 +12,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.memorin.domain.auth.jwt.JwtTokenProvider;
+import com.memorin.domain.users.entity.User;
+import com.memorin.domain.users.repository.UserRepository;
 import org.springframework.messaging.simp.stomp.StompHeaders;
+import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
@@ -53,6 +57,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class WebSocketLifecycleStressTest extends PostgresTestSupport {
 
+    // 브로커 자체를 재는 대조군 목적지. 방 토픽(/topic/rooms/{uuid})이 아니어야 한다 —
+    // 그쪽은 SUBSCRIBE 인가와 배달 시점 검사를 지나므로 "브로커만의 비용"이 아니게 된다.
+    // 실제 메시지 경로의 수치는 WebSocketMessagePathStressTest가 따로 잰다.
+    private static final String BENCH_TOPIC = "/topic/bench";
+
     private static final Duration HEARTBEAT_GRACE = Duration.ofSeconds(60);   // 하트비트 10초 × 여유
     private static final long[] CLIENT_HEARTBEAT_MS = {10_000, 10_000};
 
@@ -68,6 +77,16 @@ class WebSocketLifecycleStressTest extends PostgresTestSupport {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // #209로 CONNECT 인증이 붙었다. 토큰 없이 연결하면 그 자리에서 거부되므로
+    // 이 테스트도 실제 토큰을 실어 보낸다. (그 전까지는 익명으로 붙고 있었다)
+    private String accessToken;
+
     private WebSocketStompClient stompClient;
     private ThreadPoolTaskScheduler clientScheduler;
     private final List<StompSession> openedSessions = Collections.synchronizedList(new ArrayList<>());
@@ -78,6 +97,11 @@ class WebSocketLifecycleStressTest extends PostgresTestSupport {
         clientScheduler.setPoolSize(2);
         clientScheduler.setThreadNamePrefix("stomp-client-");
         clientScheduler.initialize();
+
+        // CONNECT 인증에 쓸 실제 토큰. getAuthentication이 DB를 조회하므로 사용자도 실제로 있어야 한다.
+        String tag = "wslife" + UUID.randomUUID().toString().substring(0, 8);
+        User user = userRepository.save(new User(tag + "@memorin.test", "hash", tag, tag, null));
+        accessToken = jwtTokenProvider.createAccessToken(user.getId());
 
         // 클라이언트 쪽 프레임 버퍼 기본값은 8KB다. 브로드캐스트 시나리오에서 32KB를 보내므로
         // 여기를 올려두지 않으면 서버가 아니라 테스트 클라이언트가 1009(TOO_BIG)로 연결을 끊는다.
@@ -158,7 +182,7 @@ class WebSocketLifecycleStressTest extends PostgresTestSupport {
 
     @Test
     void 브로드캐스트_지연을_측정한다() {
-        String destination = "/topic/rooms/" + UUID.randomUUID();
+        String destination = BENCH_TOPIC;
         int subscribers = 30;
         int messages = 200;
 
@@ -191,7 +215,7 @@ class WebSocketLifecycleStressTest extends PostgresTestSupport {
 
     @Test
     void 느린_수신자는_격리되고_나머지는_계속_받는다() throws IOException {
-        String destination = "/topic/rooms/" + UUID.randomUUID();
+        String destination = BENCH_TOPIC;
         // 구독자를 적게 잡는다. 클라이언트 11개가 전부 같은 JVM에 있어서, 수를 늘리면
         // 서버가 아니라 테스트 클라이언트가 먼저 병목이 된다(정상 세션까지 전송 상한에 걸린다).
         int healthy = 3;
@@ -268,8 +292,11 @@ class WebSocketLifecycleStressTest extends PostgresTestSupport {
         List<StompSession> sessions = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             try {
+                StompHeaders connectHeaders = new StompHeaders();
+                connectHeaders.add("Authorization", "Bearer " + accessToken);
                 sessions.add(stompClient
-                    .connectAsync(url, new StompSessionHandlerAdapter() { })
+                    .connectAsync(url, new WebSocketHttpHeaders(), connectHeaders,
+                        new StompSessionHandlerAdapter() { })
                     .get(15, TimeUnit.SECONDS));
             } catch (Exception e) {
                 throw new IllegalStateException(
