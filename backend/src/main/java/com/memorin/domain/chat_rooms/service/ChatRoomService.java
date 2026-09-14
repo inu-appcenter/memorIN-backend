@@ -9,12 +9,14 @@ import com.memorin.domain.chat_rooms.dto.response.ChatRoomResponse;
 import com.memorin.domain.chat_rooms.dto.response.ChatRoomSummaryResponse;
 import com.memorin.domain.chat_rooms.entity.ChatRooms;
 import com.memorin.domain.chat_rooms.entity.Chat_type;
+import com.memorin.domain.chat_rooms.event.ChatRoomMembershipChanged;
 import com.memorin.domain.chat_rooms.repository.ChatRoomsRepository;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class ChatRoomService {
     private final ChatRoomsRepository chatRoomsRepository;
     private final ChatRoomMemberRepository chatRoomMembersRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ChatRoomResponse createDirectRoom(UUID requesterId, UUID targetUserId) {
@@ -93,6 +96,7 @@ public class ChatRoomService {
             ChatRoomMembers membership = existing.get();
             if (!membership.isActive()) {
                 membership.rejoin(); // uq_room_member 제약 때문에 새로 INSERT 불가 — 기존 행을 되살림
+                membershipChanged(userId, room.getId());
             }
             return;
         }
@@ -100,6 +104,7 @@ public class ChatRoomService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "초대 대상을 찾을 수 없습니다." + userId));
         chatRoomMembersRepository.save(ChatRoomMembers.ofMember(room, user));
+        membershipChanged(userId, room.getId());
     }
 
     @Transactional
@@ -119,6 +124,7 @@ public class ChatRoomService {
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_MEMBERS_001, "채팅방의 멤버가 아닙니다." + targetUserId));
 
         target.leave();
+        membershipChanged(targetUserId, roomId);
     }
 
     @Transactional
@@ -128,6 +134,7 @@ public class ChatRoomService {
         ChatRoomMembers member = requireActiveMember(room, requesterId);
 
         member.leave();
+        membershipChanged(requesterId, roomId);
 
         if (member.isOwner() && room.getType() == Chat_type.GROUP) {
             chatRoomMembersRepository.findByRoom_IdAndLeftAtIsNull(roomId).stream()
@@ -151,6 +158,15 @@ public class ChatRoomService {
         return chatRoomMembersRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(requesterId).stream()
             .map(m -> new ChatRoomSummaryResponse(m.getRoom().getId(), m.getRoom().getType(), m.getRoom().getName(), m.getRole()))
             .toList();
+    }
+
+    // 멤버십이 바뀌면 알린다. 리스너가 커밋 이후에 멤버십 캐시를 무효화한다(#210).
+    //
+    // 여기서 캐시를 직접 지우지 않는 이유는 트랜잭션 때문이다. 커밋 전에 지우면 그 직후
+    // 도착한 메시지 배달이 DB를 다시 읽는데, 그 시점 DB에는 아직 변경이 보이지 않는다.
+    // 낡은 값을 되심어 무효화가 없던 일이 된다.
+    private void membershipChanged(UUID userId, UUID roomId) {
+        eventPublisher.publishEvent(new ChatRoomMembershipChanged(userId, roomId));
     }
 
     private ChatRooms getGroupRoomOrThrow(UUID roomId) {

@@ -2,6 +2,7 @@ package com.memorin.global.config;
 
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
+import com.memorin.domain.chat_rooms.service.ChatRoomMembershipGate;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
@@ -57,7 +58,9 @@ class StompAuthChannelInterceptorTest {
     void setUp() {
         jwtTokenProvider = mock(JwtTokenProvider.class);
         chatRoomMemberRepository = mock(ChatRoomMemberRepository.class);
-        interceptor = new StompAuthChannelInterceptor(jwtTokenProvider, chatRoomMemberRepository);
+        // 게이트는 목이 아니라 실물을 쓴다. 멤버 판정이 실제로 게이트를 지나가는지까지 봐야 한다.
+        interceptor = new StompAuthChannelInterceptor(
+            jwtTokenProvider, new ChatRoomMembershipGate(chatRoomMemberRepository));
         channel = mock(MessageChannel.class);
 
         userId = UUID.randomUUID();
