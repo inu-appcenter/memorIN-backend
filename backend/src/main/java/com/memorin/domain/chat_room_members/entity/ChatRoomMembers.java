@@ -3,8 +3,6 @@ package com.memorin.domain.chat_room_members.entity;
 import com.memorin.domain.chat_rooms.entity.ChatRooms;
 import com.memorin.domain.emoji.entity.CommentEmoji;
 import com.memorin.domain.emoji.entity.EmojiType;
-import com.memorin.domain.post_comments.entity.PostComments;
-import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
@@ -64,14 +62,6 @@ public class ChatRoomMembers {
 
     public static ChatRoomMembers ofMember(ChatRooms room, User member) {
         return create(room, member, Members_role.MEMBER);
-    }
-
-    // 기존 시그니처 — 다른 곳에서 이미 쓰고 있을 수 있어 남겨두되 버그만 고쳤다.
-    public static ChatRoomMembers of(ChatRooms room, Post post, User member) {
-        Members_role role = post.getUser().getId().equals(member.getId())
-            ? Members_role.OWNER
-            : Members_role.MEMBER;
-        return create(room, member, role);
     }
 
     private static ChatRoomMembers create(ChatRooms room, User user, Members_role role) {

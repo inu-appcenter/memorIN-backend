@@ -180,8 +180,9 @@ class StompAuthChannelInterceptorTest {
         assertThatThrownBy(() -> send(subscribeFrame(ROOM_TOPIC + roomId, true)))
             .isInstanceOf(MessagingException.class);
 
-        // leftAt을 무시하는 쪽(existsByRoomIdAndUserId)을 쓰면 이 검증이 무의미해진다.
-        verify(chatRoomMemberRepository, never()).existsByRoomIdAndUserId(any(), any());
+        // 예전에는 여기서 "leftAt을 무시하는 변형(existsByRoomIdAndUserId)을 쓰지 않았다"를
+        // verify(never())로 확인했다. 그 변형 자체를 리포지토리에서 없앴으므로
+        // 이제는 잘못 고를 방법이 없다 — 컴파일이 안 된다. 검증이 테스트에서 타입으로 옮겨갔다.
     }
 
     @Test

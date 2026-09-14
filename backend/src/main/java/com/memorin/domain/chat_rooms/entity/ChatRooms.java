@@ -1,5 +1,7 @@
 package com.memorin.domain.chat_rooms.entity;
 
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -60,7 +62,7 @@ public class ChatRooms {
 
     public static ChatRooms createGroup(String name) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("그룹 채팅방 이름은 비어 있을 수 없습니다.");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "그룹 채팅방 이름은 비어 있을 수 없습니다.");
         }
         return ChatRooms.builder()
             .name(name)
@@ -70,10 +72,10 @@ public class ChatRooms {
 
     public void rename(String newName) {
         if (this.type != Chat_type.GROUP) {
-            throw new IllegalStateException("1:1 채팅방은 이름을 변경할 수 없습니다.");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "1:1 채팅방은 이름을 변경할 수 없습니다.");
         }
         if (newName == null || newName.isBlank()) {
-            throw new IllegalArgumentException("방 이름은 비어 있을 수 없습니다.");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "방 이름은 비어 있을 수 없습니다.");
         }
         this.name = newName;
     }

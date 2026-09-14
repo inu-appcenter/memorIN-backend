@@ -21,21 +21,15 @@ import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 
 @Service
 @RequiredArgsConstructor
@@ -55,7 +49,7 @@ public class MessageService {
     // 게시물 공유 메세지 생성
     @Transactional
     public MessageResponse sharePost(UUID senderId, PostShareRequest request) {
-        ChatRooms room = (ChatRooms) chatRoomsRepository.findById(request.roomId())
+        ChatRooms room = chatRoomsRepository.findById(request.roomId())
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방이 존재하지 않습니다: "));
 
         if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(request.roomId(), senderId)) {
@@ -83,7 +77,7 @@ public class MessageService {
     // 텍스트 메세지 생성
     @Transactional
     public MessageResponse sendText(UUID senderId, TextRequest request) {
-        ChatRooms room = (ChatRooms) chatRoomsRepository.findById(request.roomId())
+        ChatRooms room = chatRoomsRepository.findById(request.roomId())
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방이 존재하지 않습니다: "));
 
         if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(request.roomId(), senderId)) {

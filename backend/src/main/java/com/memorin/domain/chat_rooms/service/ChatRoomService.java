@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,7 +36,7 @@ public class ChatRoomService {
     @Transactional
     public ChatRoomResponse createDirectRoom(UUID requesterId, UUID targetUserId) {
         if (requesterId.equals(targetUserId)) {
-            throw new IllegalArgumentException("자기 자신과 1:1 채팅방을 만들 수 없습니다.");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "자기 자신과 1:1 채팅방을 만들 수 없습니다.");
         }
 
         Optional<UUID> existingRoomId = chatRoomMembersRepository.findActiveDirectRoomId(requesterId, targetUserId);
@@ -66,7 +67,7 @@ public class ChatRoomService {
         ChatRooms room = chatRoomsRepository.save(ChatRooms.createGroup(request.name()));
         chatRoomMembersRepository.save(ChatRoomMembers.ofOwner(room, requester));
 
-        for (UUID memberId : request.memberIds()) {
+        for (UUID memberId : distinct(request.memberIds())) {
             if (memberId.equals(requesterId)) continue;
             User member = userRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "초대 대상을 찾을 수 없습니다." + memberId));
@@ -81,9 +82,17 @@ public class ChatRoomService {
         ChatRooms room = getGroupRoomOrThrow(roomId);
         requireActiveMember(room, requesterId);
 
-        for (UUID memberId : request.memberIds()) {
+        for (UUID memberId : distinct(request.memberIds())) {
             addOrRejoinMember(room, memberId);
         }
+    }
+
+    // 같은 요청에 중복 UUID가 들어오면 uq_room_member 제약 위반으로 500이 난다.
+    // 거절하지 않고 걸러낸다 — [A, A, B]를 보낸 클라이언트의 의도는 "A와 B를 초대"이지
+    // 오류를 보고 싶은 것이 아니다. 결과도 중복을 건 쪽과 같다.
+    // 순서는 유지한다(LinkedHashSet). 초대 실패 시 어느 대상에서 멈췄는지 재현 가능해야 한다.
+    private static List<UUID> distinct(List<UUID> memberIds) {
+        return List.copyOf(new LinkedHashSet<>(memberIds));
     }
 
     private void addOrRejoinMember(ChatRooms room, UUID userId) {
@@ -105,7 +114,7 @@ public class ChatRoomService {
     @Transactional
     public void kickMember(UUID roomId, UUID requesterId, UUID targetUserId) {
         if (requesterId.equals(targetUserId)) {
-            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "자기 자신은 강퇴할 수 없습니다. 나기기를 이용해주세요");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "자기 자신은 강퇴할 수 없습니다. 나가기를 이용해주세요.");
         }
 
         ChatRooms room = getGroupRoomOrThrow(roomId);
@@ -157,7 +166,7 @@ public class ChatRoomService {
         ChatRooms room = chatRoomsRepository.findById(roomId)
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방을 찾을 수 없습니다." + roomId));
         if (room.getType() != Chat_type.GROUP) {
-            throw new IllegalStateException("1:1 채팅방에는 사용할 수 없는 기능입니다.");
+            throw new BusinessException(ErrorCode.CHAT_ROOMS_002, "1:1 채팅방에는 사용할 수 없는 기능입니다.");
         }
         return room;
     }
