@@ -236,9 +236,8 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
         ).doesNotThrowAnyException();
 
         UUID commentId = postCommentRepository
-            .findThreadByPostId(ids[2])
-            .get(0)
-            .getId();
+            .findRootCommentIdsFirstPage(ids[2], org.springframework.data.domain.PageRequest.of(0, 1))
+            .get(0);
 
         assertNotification(
             ids[0],
