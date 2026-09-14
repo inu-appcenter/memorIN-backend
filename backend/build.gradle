@@ -101,6 +101,14 @@ tasks.register('stressTest', Test) {
 	}
 	maxHeapSize = '512m'
 	jvmArgs '-XX:+HeapDumpOnOutOfMemoryError', '-XX:HeapDumpPath=build/stress-heapdump.hprof'
+	// 부하 테스트 파라미터를 테스트 JVM으로 넘긴다.
+	// Gradle의 -D는 Gradle JVM에만 붙으므로 여기서 명시적으로 전달해야 한다.
+	//   ./gradlew stressTest -Dstress.hikari.pool=20 -Dstress.senders=30
+	['stress.hikari.pool', 'stress.senders', 'stress.messages'].each { key ->
+		if (System.getProperty(key) != null) {
+			systemProperty key, System.getProperty(key)
+		}
+	}
 	testLogging {
 		showStandardStreams = true
 		events 'passed', 'failed'
