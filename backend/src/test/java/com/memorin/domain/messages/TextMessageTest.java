@@ -75,7 +75,11 @@ class TextMessageTest extends PostgresTestSupport {
             .build();
         em.persist(room);
         for (User member : members) {
-            em.persist(ChatRoomMembers.of(room, post, member));
+            // 게시물 작성자가 방장, 나머지는 일반 멤버. 예전에는 ChatRoomMembers.of(room, post, member)가
+            // 이 판정을 대신했는데, 채팅방 멤버십이 게시물을 인자로 받는 게 혼란스러워 없앴다.
+            em.persist(post.getUser().getId().equals(member.getId())
+                ? ChatRoomMembers.ofOwner(room, member)
+                : ChatRoomMembers.ofMember(room, member));
         }
         return room;
     }
