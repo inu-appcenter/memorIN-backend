@@ -1,6 +1,8 @@
 # memorIN API 명세서 — 도메인 API (유저 / 게시물 / 댓글 / 이모지 / 팔로우 / 알림 / 채팅)
 
-> 최신 기준 문서: 2026-08-20 (Sprint 3 W8 — 구현 대조 갱신)
+> 최신 기준 문서: 2026-09-14 (Sprint 5 W11 — 구현 대조 갱신)
+>
+> 이전 갱신: 2026-08-20 (Sprint 3 W8)
 >
 > 이 문서는 `docs/api-spec.md`(인증 · 미디어)의 **후속 도메인 명세**다. 노션 전체 API 명세 페이지에서는 미디어 API 다음, 환경 변수 앞에 이어 붙인다.
 >
@@ -9,23 +11,25 @@
 ## 0. 이 문서의 구현 상태
 
 Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨트롤러는 없음"이었다.
-2026-08-20 기준으로 **채팅을 빼면 모두 구현돼 있다.** 아래 표는 코드를 직접 대조해 갱신했다.
+2026-09-14 기준으로 **채팅까지 전부 구현돼 있다.** 아래 표는 코드를 직접 대조해 갱신했다.
 
 | 도메인 | 컨트롤러 | 엔드포인트 | 이 문서 상태 |
 |---|---|---:|---|
-| 유저 / 프로필 | `UserController` | 5 | 구현 반영 (프로필 수정은 **미구현** — §5-3) |
-| 게시물 | `PostController` | 7 | 구현 반영 (추천 피드 §6-6 노출) |
+| 유저 / 프로필 | `UserController` | 5 | 구현 반영 (프로필 수정은 **미구현** — §5-3 · #217) |
+| 게시물 | `PostController` | 8 | 구현 반영. **검색 신설**(§6-7, #199) |
 | 댓글 | `PostCommentController` | 4 | 구현 반영 |
 | 댓글 이모지(반응) | `CommentEmojiController` | 3 | 구현 반영 (§8-5) |
 | 팔로우 | `FollowController` | 5 | 구현 반영. 받은 요청 거절 경로 신설(#174, §9-4) |
-| 알림 | `NotificationController` | 3 | 구현 반영 (§11) |
-| 인증 | `AuthController` | 3 | `docs/api-spec.md` §3 |
+| 알림 | `NotificationController` | 3 | 구현 반영. **생성 트리거·발송 연결 완료**(§11) |
+| Web Push 구독 | `WebPushSubscriptionController` | 2 | 구현 반영 (§11-1, #192) |
+| **채팅방** | `ChatRoomController` | **7** | 구현 반영 (§10-2~§10-5, #193) |
+| **채팅 메시지** | `MessageController` | **1** (REST) + STOMP 2 | 구현 반영 (§10-1·§10-6, #190·#201·#209) |
+| 인증 | `AuthController` | 4 | `docs/api-spec.md` §3. **로그아웃 신설**(#184) |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
 | FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
-| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화. 자바 코드 제거 완료(§7) |
-| 채팅 | 없음(엔티티만) | 0 | 설계 초안 · Sprint 4 (§10) |
+| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7). 복구 여부 #182 결정 대기 |
 
-합계 **35개**. **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **47개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -64,16 +68,23 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 ## 2-6. 공통 응답 봉투를 쓰지 않는 엔드포인트 (현황)
 
 `docs/api-spec.md` §2-4는 응답을 `{success, data, error}` 봉투로 감싼다고 규정하지만,
-실제로는 **35개 중 8개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
+실제로는 **47개 중 16개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
 
 | 엔드포인트 | 실제 반환 | 비고 |
 |---|---|---|
-| `POST /auth/refresh` | `LoginResponse` | 같은 컨트롤러의 signup·login은 봉투를 쓴다 |
-| `GET /api/users/{userId}` | `UserProfileResponse` | 이슈 #165 |
+| `POST /auth/refresh` | `LoginResponse` | 같은 컨트롤러의 signup·login은 봉투를 쓴다 → #218 |
+| `DELETE /auth/logout` | `204 No Content` | 본문 없음 |
+| **`/api/chat-rooms/**` 7개 전부** | 각 DTO / 본문 없음 | **#203** — 채팅방 생성·목록·초대·강퇴·나가기·이름변경 |
+| **`GET /api/posts/search`** | `PostListResponse` | **#203** — 같은 컨트롤러의 나머지 7개는 봉투를 쓴다 |
 | `POST /api/comments/{commentId}/emojis` | `EmojiToggleResponse` | §8-5 |
 | `GET /api/comments/{commentId}/emojis` | `List<EmojiSummary>` | §8-5 |
 | `DELETE /api/comments/{commentId}/emojis/{emojiType}` | `204 No Content` | 본문 없음 — 의도된 설계 |
 | 미디어 API 4개 | 각 DTO | `docs/api-spec.md` §2-4에 이미 예외로 기록됨 |
+
+> `GET /api/users/{userId}`는 #178에서 봉투를 적용해 이 목록에서 빠졌다(#165 해소).
+> 반대로 Sprint 4에 들어온 채팅방·검색 8개가 새로 들어왔다.
+
+STOMP로 내려가는 메시지(`/topic/rooms/{roomId}`)는 이 규약의 대상이 아니다 — HTTP 응답이 아니다.
 
 봉투로 통일하면 FE 파싱이 전부 바뀌는 **파괴적 변경**이라 스프린트 경계에서 한 번에 처리해야 한다. → §14
 
@@ -562,6 +573,98 @@ Status: `200 OK` — 구조는 §6-3 목록 응답과 같다(`items` · `nextCur
 
 > 후보 조회는 `idx_posts_reco (created_at DESC) WHERE deleted_at IS NULL AND visibility = 'PUBLIC'` 부분 인덱스를 탄다.
 > 미디어는 게시물마다 조회하지 않고 한 번의 `IN` 조회로 붙인다 — `RecommendedFeedQueryTest`가 쿼리 수를 고정한다(미디어 3배 → SQL 3개 불변).
+
+---
+
+### 6-7. 게시물 검색 (키워드 · 태그 · 시간대)
+
+```http
+GET /api/posts/search?keyword=제주&tags=TRAVEL&tags=FOOD&timeslot=AM&sort=ACCURACY_DESC&cursor={cursor}&size=20
+Authorization: Bearer {accessToken}
+```
+
+#### 상태
+
+구현됨 (#181 → #199, 2026-09-05).
+
+⚠️ 이 엔드포인트만 **전역 응답 봉투를 쓰지 않는다.** 같은 컨트롤러의 나머지 6개는 쓴다 → §2-6 · #203
+
+#### 파라미터
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `keyword` | string | X | `content` 원문에 대한 부분 일치(대소문자 무시) |
+| `tags` | `TagType[]` | X | **최대 3개.** 반복 지정(`?tags=A&tags=B`) |
+| `timeslot` | `AM` \| `PM` | X | 기록 시간대 |
+| `sort` | enum | X | 기본 `LATEST` |
+| `cursor` · `size` | | X | §2-5 공통 규칙. `size` 기본 20 · 최대 50 |
+
+`TagType`: `STUDY` · `GAME` · `ANIMAL` · `TRAVEL` · `EXERCISE` · `FOOD` · `MUSIC` · `DAILY` · `HOBBY` · `ETC`
+
+#### 정렬
+
+| `sort` | 기준 |
+|---|---|
+| `LATEST` (기본) | `recorded_date DESC, id DESC` |
+| `VIEW_COUNT_DESC` | 조회수 내림차순 |
+| `ACCURACY_DESC` | **정확도** — 키워드 등장 횟수 + 일치한 태그 수 |
+
+`ACCURACY_DESC`는 `keyword`나 `tags` 중 **하나는 있어야** 한다. 둘 다 없으면 점수를 계산할 기준이 없다.
+
+> **태그 매칭 규칙이 정렬에 따라 다르다.** `LATEST`·`VIEW_COUNT_DESC`는 `tags`를 **전부 포함**하는
+> 게시물만(`@>`), `ACCURACY_DESC`는 **하나라도 겹치면** 후보에 넣고 겹친 개수를 점수로 쓴다.
+
+#### 공개 범위
+
+검색 결과는 `PostAccessPolicy`와 **같은 판정**을 따른다.
+
+- `PUBLIC` — 전체 공개
+- 본인 글 — `visibility`와 무관하게 항상 보임
+- `FRIENDS` — **양방향 `ACCEPTED` 팔로우**가 있어야 보임
+
+> 초기 구현은 `FRIENDS`를 아예 제외해 친구가 친구공개로 올린 글이 검색에서 통째로 사라졌다.
+> 단건 조회와 판정이 갈리는 것은 #141이 정리한 원칙 위반이라 #199에서 맞췄다.
+
+#### 응답
+
+`data`는 §6-3(게시물 목록)과 같은 `PostListResponse` 구조다 — **봉투만 없다.**
+
+```json
+{
+  "items": [
+    {
+      "postId": "0198f1a2-...",
+      "authorId": "0198f2a3-...",
+      "content": "[{\"type\":\"text\",\"text\":\"제주 여행 1일차\"}]",
+      "visibility": "PUBLIC",
+      "timeslot": "AM",
+      "recordedDate": "2026-08-11",
+      "viewCount": 12,
+      "attachments": [],
+      "tagTypes": ["TRAVEL", "FOOD"]
+    }
+  ],
+  "nextCursor": "eyJyZWNvcmRlZERhdGUiOi...",
+  "hasNext": true
+}
+```
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 400 | `POST_003` | `tags`가 4개 이상 |
+| 400 | `COMMON_002` | `cursor` 형식 오류, enum 값 오타 |
+| 401 | `AUTH_001` | 인증 누락/만료 |
+
+#### 성능 메모
+
+`keyword` 검색은 `LOWER(content::text) LIKE '%kw%'`다. 선행 와일드카드라 B-tree로는 가속되지 않아
+`V11__add_content_trgm_index.sql`이 `pg_trgm` GIN 인덱스를 건다. **인덱스 표현식과 쿼리 표현식이
+정확히 일치해야** 플래너가 탄다.
+
+> `CREATE EXTENSION pg_trgm`은 슈퍼유저 권한이 필요하다. 운영 DB 롤을 분리해 두었다면
+> 이 마이그레이션이 멈출 수 있다 → #221
 
 ---
 
@@ -1130,12 +1233,11 @@ Status: `200 OK`
 
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
-- 현재 구현: **없음(엔티티만).** 초기 `ChatController`/`ChatMessage` 에코 프로토타입은 STOMP 브로커 설정이 없어 배선되지 않은 죽은 코드였으므로 삭제했다. 실제 채팅 도메인은 Sprint 4다.
-- **진행 중:** 게시물 공유 API PR([#169](https://github.com/inu-appcenter/memorIN-backend/pull/169))이 `MessageController`·`WebSocketConfig`·메시지 content 타입(`TextContent`/`ImageContent`/`PostShareContent`)을 함께 들고 온다. 머지되면 이 절을 다시 갱신한다(2026-08-20 기준 미머지).
-- REST(방 생성/목록/메시지 조회)는 **설계 초안**이다.
-- 인증: `SecurityConfig`에 `/ws/**`, `/*.html` `permitAll` 매처가 남아 있으나 대응하는 엔드포인트가 없어 현재는 무효하다. WebSocket 토큰 인증은 채팅 착수 시 함께 설계한다(`docs/auth-jwt-design.md` §6).
+- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209)
+- 아직 없는 것: 읽음 처리(§10-6) · 메시지 이모지(#196)
+- ⚠️ `ChatRoomController`의 7개 엔드포인트는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
 
-### 10-1. 실시간 메시지 (STOMP) — 미구현(설계 초안)
+### 10-1. 실시간 메시지 (STOMP)
 
 #### 연결
 
@@ -1143,198 +1245,256 @@ Status: `200 OK`
 SockJS 엔드포인트: /ws
 ```
 
-클라이언트는 `/ws`로 SockJS 연결 후 STOMP 세션을 맺는다(현재 `src/main/resources/static/test.html` 기준).
+`/ws`는 `SecurityConfig`에서 `permitAll`이다. **핸드셰이크는 열려 있고 실제 인증은 CONNECT 프레임에서 한다.**
+HTTP 필터는 핸드셰이크 1회만 지나가므로 이후 STOMP 프레임을 지킬 수 없고, SockJS 폴백은
+핸드셰이크에 `Authorization` 헤더를 싣지 못하기 때문이다.
+
+CONNECT 프레임에 토큰을 **네이티브 헤더**로 실어야 한다.
+
+```js
+// stomp.js
+beforeConnect: async () => {
+  const token = await resolveAccessToken();
+  client.connectHeaders = { Authorization: `Bearer ${token}` };
+}
+```
+
+| 상황 | 결과 |
+|---|---|
+| `Authorization` 헤더 없음 / `Bearer ` 접두사 아님 | 연결 거부 |
+| 만료·서명 불일치·탈퇴 사용자 토큰 | 연결 거부 (원인은 클라이언트에 노출하지 않는다) |
+| 연결만 하고 CONNECT를 보내지 않음 | 30초 후 서버가 정리(`setTimeToFirstMessage`) |
 
 #### 목적지(destination)
 
 | 방향 | 목적지 | 설명 |
 |---|---|---|
-| 구독 (SUBSCRIBE) | `/sub/chat/room/{roomId}` | 해당 방의 메시지를 수신 |
-| 발행 (SEND) | `/pub/chat/room/{roomId}` | 해당 방으로 메시지 전송 |
+| 구독 (SUBSCRIBE) | `/topic/rooms/{roomId}` | 그 방의 메시지를 수신 |
+| 발행 (SEND) | `/app/chat.sendText` | 텍스트 메시지 전송 |
+| 발행 (SEND) | `/app/chat.sharePost` | 게시물 공유 메시지 전송 |
 
-#### 메시지 payload
+`roomId`는 UUID다. 발행 목적지에는 `roomId`가 들어가지 않고 **payload에 담는다.**
+
+#### 인가 — 인증과 별개다
+
+CONNECT에서 "누구인지"를 확인하고, 그 뒤 **"이 방을 볼 자격이 있는지"를 따로** 본다.
+
+| 시점 | 검사 |
+|---|---|
+| SUBSCRIBE | 그 방의 **활성 멤버**인가 (`left_at IS NULL`). 아니면 구독 거부 |
+| SEND | `MessageService`가 매 요청 활성 멤버인지 확인. 아니면 `CHAT_ROOM_MEMBERS_001` |
+| 배달 직전 | 지금도 활성 멤버인가. 아니면 그 세션으로만 배달 취소 (#210) |
+
+마지막 항목이 필요한 이유: SUBSCRIBE 검사는 구독을 *요청하는 순간*만 본다.
+이미 구독을 맺은 뒤 강퇴당하면 그 구독은 살아 있으므로, 배달 시점에 한 번 더 확인한다.
+
+> 나갔거나 강퇴당한 사람도 `roomId`를 알고 있다. 그래서 멤버 행의 **존재**가 아니라
+> **활성 여부**(`left_at IS NULL`)를 봐야 한다.
+
+#### 발행 payload
+
+```json
+// /app/chat.sendText
+{ "roomId": "0198f2e0-...", "text": "안녕하세요" }
+
+// /app/chat.sharePost
+{ "roomId": "0198f2e0-...", "postId": "0198f1a2-..." }
+```
+
+#### 수신 payload
+
+구독자는 `/topic/rooms/{roomId}`로 아래를 받는다. **전역 응답 봉투를 쓰지 않는다** — STOMP 프레임이라 HTTP 응답 규약과 별개다.
 
 ```json
 {
-  "roomId": "1",
-  "sender": "daily_user",
-  "content": "안녕하세요"
+  "id": "0198f3b1-...",
+  "roomId": "0198f2e0-...",
+  "senderId": "0198f2a3-...",
+  "type": "TEXT",
+  "content": { "type": "TEXT", "text": "안녕하세요" },
+  "sentAt": "2026-09-07T14:03:11"
 }
 ```
 
-| 필드 | 타입 | 설명 |
+`content`는 `type` 필드로 구분되는 다형 객체다.
+
+| `type` | `content` 형태 |
+|---|---|
+| `TEXT` | `{ "type": "TEXT", "text": "..." }` |
+| `POST_SHARE` | `{ "type": "POST_SHARE", "postId": "uuid" }` |
+| `IMAGE` | 타입은 정의돼 있으나 **발신 경로가 아직 없다** |
+
+`POST_SHARE`는 **`postId`만** 담는다. 게시물 본문을 복사해 넣지 않으므로, 카드 렌더링에 필요한
+내용은 수신 측이 `GET /api/posts/{postId}`로 따로 조회한다. 공유 시점에 발신자의 열람 권한을
+검사하지만(`PostAccessPolicy`), 수신자의 권한은 조회 시점에 다시 검사된다.
+
+#### 저장 순서
+
+메시지는 **DB에 저장되고 커밋된 뒤에** 브로드캐스트된다. 반대로 하면 저장이 실패했는데
+화면에는 남는 메시지가 생긴다(`docs/sprint4-architecture-review.md` §5).
+
+#### 브로커 제한
+
+| 항목 | 값 | 이유 |
 |---|---|---|
-| `roomId` | string | 방 식별자 (현재 에코 테스트는 문자열/Long) |
-| `sender` | string | 보낸 사람 (현재 클라이언트 지정, 인증 도입 시 토큰 기반으로 교체) |
-| `content` | string | 메시지 내용 (실제 도메인에서는 JSONB 블록으로 확장 예정) |
+| 하트비트 | 10초 / 10초 | 죽은 연결을 서버가 알아채는 유일한 수단 |
+| 세션당 미전송 버퍼 | 512KB | 느린 수신자가 힙을 먹는 것을 막는다 |
+| 인바운드 프레임 크기 | 64KB | 프레임 하나가 힙을 크게 먹는 것을 막는다 |
+| 전송 시간 제한 | 10초 | 초과 시 세션을 끊는다 |
 
-#### 현재 동작 / 예정
+실측은 `docs/ws-stress-test.md`에 있다. InMemory 브로커라 **새는 곳은 전부 우리 힙**이다.
 
-- **현재**: `/pub/chat/room/{roomId}`로 받은 메시지를 `/sub/chat/room/{roomId}` 구독자에게 그대로 브로드캐스트(에코). DB 저장·인증·멤버십 검사 없음.
-- **예정**: 전송 시 `messages` 테이블 저장, 발신자 토큰 검증, 방 멤버십 검사, `content`를 JSONB 블록으로 확장, `chat_room_members.last_read_at` 갱신.
+---
 
-### 10-2. 채팅방 생성
+### 10-2. 1:1 채팅방 생성
 
 ```http
-POST /api/chat/rooms
+POST /api/chat-rooms/direct
 Authorization: Bearer {accessToken}
 Content-Type: application/json
+
+{ "targetUserId": "0198f2a3-..." }
 ```
 
-#### 상태
+이미 두 사람의 활성 1:1 방이 있으면 **새로 만들지 않고 기존 방을 반환**한다.
+요청 방향이 반대여도(상대가 먼저 걸었어도) 같은 방으로 잡힌다.
 
-설계 초안. `ChatRooms`/`ChatRoomMembers` 엔티티 구현됨, REST API 미구현.
-
-#### 설명
-
-`DIRECT`(1:1) 또는 `GROUP` 채팅방을 만든다. 생성자는 `OWNER`, 초대된 사용자는 `MEMBER`로 `chat_room_members`에 추가한다. `DIRECT`는 두 사용자 간 중복 방 생성을 막는 정책을 둔다(구현 시 확정).
-
-#### 인증
-
-필요
-
-#### 요청 Body
-
-| 필드 | 타입 | 필수 | 검증 | 설명 |
-|---|---|---:|---|---|
-| `type` | string(enum) | O | `DIRECT`\|`GROUP` | 방 종류 |
-| `memberIds` | array(uuid) | O | `DIRECT`는 1명 | 초대할 사용자 id(생성자 제외) |
-| `name` | string | X | 최대 100자 | 방 이름(`GROUP` 권장, `DIRECT`는 보통 null) |
-
-예시:
+Status: `200 OK` — **봉투 없음**(#203)
 
 ```json
-{ "type": "GROUP", "memberIds": ["0198f2a2-...", "0198f2a3-..."], "name": "여행 기록방" }
+{ "roomId": "0198f2e0-...", "type": "DIRECT", "name": null, "newlyCreated": true }
 ```
 
-#### 응답
-
-Status: `201 Created`
-
-```json
-{
-  "success": true,
-  "data": { "id": "0198f2e0-...", "type": "GROUP", "name": "여행 기록방", "thumbnailKey": null, "memberCount": 3, "createdAt": "2026-07-14T09:30:00Z" },
-  "error": null
-}
-```
-
-#### 주요 실패 케이스
+`newlyCreated`가 `false`면 기존 방을 돌려준 것이다. `DIRECT` 방은 이름이 없다.
 
 | HTTP Status | 코드 | 상황 |
 |---:|---|---|
-| 400 | `COMMON_002` | `type` 잘못됨, `memberIds` 비어있음 |
-| 401 | `AUTH_001` | 인증 누락/만료 |
-| 404 | `MEMBER_001` | 초대 대상 사용자 없음 |
+| 400 | `CHAT_ROOMS_002` | 자기 자신과 1:1 방 생성 시도 |
+| 404 | `USER_001` | 상대를 찾을 수 없음 |
 
-### 10-3. 내 채팅방 목록
+### 10-3. 그룹 채팅방 생성
 
 ```http
-GET /api/chat/rooms?cursor={uuid}&size=20
+POST /api/chat-rooms/group
+Content-Type: application/json
+
+{ "name": "스터디방", "memberIds": ["0198f2a3-...", "0198f2a4-..."] }
+```
+
+요청자가 `OWNER`가 되고 `memberIds`는 `MEMBER`로 들어간다. `memberIds`에 요청자가 섞여 있으면 건너뛴다.
+중복 UUID는 걸러낸다.
+
+| 제약 | 값 |
+|---|---|
+| `name` | 필수, 최대 100자 |
+| `memberIds` | 필수(비어 있을 수 없음), 최대 100명 |
+
+응답은 §10-2와 같은 형태(`type`이 `GROUP`).
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 400 | `COMMON_002` | 이름 누락·길이 초과, `memberIds` 비어 있음·초과 |
+| 404 | `USER_001` | 초대 대상 중 하나라도 없으면 **전체 실패** |
+
+### 10-4. 내 채팅방 목록
+
+```http
+GET /api/chat-rooms
 Authorization: Bearer {accessToken}
 ```
 
-#### 상태
+내가 **활성 멤버인** 방만, 참여 시각 역순으로 반환한다. 나간 방은 나오지 않는다.
 
-설계 초안.
+Status: `200 OK` — **봉투 없음**(#203), **페이지네이션 없음**
 
-#### 설명
+```json
+[
+  { "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER" },
+  { "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER" }
+]
+```
 
-로그인 사용자가 속한(`chat_room_members`) 채팅방 목록을 최근 활동순으로 조회한다. 안 읽은 메시지 수는 `last_read_at` 기준으로 계산한다(구현 시 확정).
+> 목록 API 중 커서 페이지네이션을 쓰지 않는 둘 중 하나다(다른 하나는 댓글 스레드 §8-2).
+> 방 개수가 많아지면 재검토 대상이다.
 
-#### 인증
+### 10-5. 채팅방 멤버 관리
 
-필요
+전부 **그룹 방 전용**이다. 1:1 방에 호출하면 `400 CHAT_ROOMS_002`.
 
-#### 응답
+| 동작 | 경로 | 권한 |
+|---|---|---|
+| 초대 | `POST /api/chat-rooms/{roomId}/members` | 활성 멤버 누구나 |
+| 강퇴 | `DELETE /api/chat-rooms/{roomId}/members/{targetUserId}` | **방장만** |
+| 나가기 | `DELETE /api/chat-rooms/{roomId}/members/me` | 본인 |
+| 이름 변경 | `PATCH /api/chat-rooms/{roomId}/name` | **방장만** |
 
-Status: `200 OK`
+초대 요청 본문은 `{ "memberIds": ["uuid", ...] }`(최대 100명, 중복 제거).
+이름 변경은 `{ "name": "새 이름" }`(최대 100자).
+
+네 엔드포인트 모두 성공 시 **본문이 없다.** 봉투도 쓰지 않는다(#203).
+
+#### 동작 규칙
+
+- **나갔던 사람을 다시 초대**하면 새 행을 만들지 않고 기존 행을 되살린다
+  (`chat_room_members`에 `(room_id, user_id)` 유니크 제약이 있다)
+- **방장이 나가면** 남은 멤버 중 가장 먼저 들어온 사람이 방장이 된다
+- **강퇴는 "타인에 의한 나가기"로 구현돼 있다.** 강퇴당한 사람을 다시 초대할 수 있다 — 재입장 차단은 미구현(`ChatRoomController`의 TODO)
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 400 | `CHAT_ROOMS_002` | 1:1 방에 그룹 기능 호출, 방장이 아님, 자기 자신 강퇴 |
+| 404 | `CHAT_ROOMS_001` | 방이 없음 |
+| 404 | `CHAT_ROOM_MEMBERS_001` | 대상이 그 방의 활성 멤버가 아님 |
+
+### 10-6. 메시지 히스토리 조회
+
+```http
+GET /api/chat-rooms/{roomId}/messages?cursor={uuid}&size=20
+Authorization: Bearer {accessToken}
+```
+
+**최신순**으로 반환한다. 무한 스크롤로 과거를 더 불러올 때 `nextCursor`를 그대로 `cursor`에 넣는다.
+`size` 기본 20 · 최대 50.
+
+그 방의 **활성 멤버만** 조회할 수 있다.
+
+Status: `200 OK` — 이쪽은 **봉투를 쓴다**
 
 ```json
 {
   "success": true,
   "data": {
     "items": [
-      { "id": "0198f2e0-...", "type": "GROUP", "name": "여행 기록방", "thumbnailKey": null, "lastMessagePreview": "안녕하세요", "unreadCount": 2, "updatedAt": "2026-07-14T09:40:00Z" }
+      {
+        "id": "0198f3b1-...",
+        "roomId": "0198f2e0-...",
+        "senderId": "0198f2a3-...",
+        "type": "TEXT",
+        "content": { "type": "TEXT", "text": "안녕하세요" },
+        "sentAt": "2026-09-07T14:03:11"
+      }
     ],
-    "nextCursor": null,
-    "hasNext": false
-  },
-  "error": null
-}
-```
-
-### 10-4. 메시지 히스토리 조회
-
-```http
-GET /api/chat/rooms/{roomId}/messages?cursor={uuid}&size=30
-Authorization: Bearer {accessToken}
-```
-
-#### 상태
-
-설계 초안.
-
-#### 설명
-
-방의 지난 메시지를 최신→과거 순으로 조회한다. 실시간 수신(10-1)과 별개로 화면 진입 시 히스토리를 채우는 용도다. 방 멤버만 접근 가능하다.
-
-#### 인증
-
-필요 (방 멤버만)
-
-#### 응답
-
-Status: `200 OK`
-
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      { "id": "0198f2f0-...", "roomId": "0198f2e0-...", "sender": { "id": "0198f2a1-...", "displayName": "Daily User" }, "content": [ { "type": "text", "value": "안녕하세요" } ], "sentAt": "2026-07-14T09:40:00Z" }
-    ],
-    "nextCursor": "0198f2ef-...",
+    "nextCursor": "0198f3b0-...",
     "hasNext": true
   },
   "error": null
 }
 ```
 
-#### 주요 실패 케이스
-
 | HTTP Status | 코드 | 상황 |
 |---:|---|---|
-| 401 | `AUTH_001` | 인증 누락/만료 |
-| 403 | `CHAT_002` | 방 멤버 아님 |
-| 404 | `CHAT_001` | 존재하지 않는 방 |
+| 404 | `CHAT_ROOMS_001` | 방이 없음 |
+| 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님 |
 
-### 10-5. 읽음 처리
+### 10-7. 읽음 처리 — 미구현
 
 ```http
-POST /api/chat/rooms/{roomId}/read
-Authorization: Bearer {accessToken}
+POST /api/chat-rooms/{roomId}/read
 ```
 
-#### 상태
-
-설계 초안.
-
-#### 설명
-
-호출 시점으로 `chat_room_members.last_read_at`을 갱신한다. 그룹 "읽음 N"은 멤버별 `last_read_at` 비교로 계산한다(ERD 결정).
-
-#### 인증
-
-필요 (방 멤버만)
-
-#### 응답
-
-Status: `200 OK`
-
-```json
-{ "success": true, "data": { "roomId": "0198f2e0-...", "lastReadAt": "2026-07-14T09:41:00Z" }, "error": null }
-```
+`chat_room_members.last_read_at` 컬럼과 엔티티 필드는 **있으나 갱신하는 코드가 없다.**
+입장 시각으로 한 번 채워지고 그대로다. 따라서 "안 읽은 메시지 N개"와 그룹 "읽음 N"을
+현재로서는 계산할 수 없다. → #215
 
 ---
 
@@ -1349,16 +1509,38 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**조회·읽음 처리는 구현됨** (#168, 2026-08-19). 그러나 아래 "알림이 생성되지 않는다"를 반드시 함께 볼 것.
+조회·읽음 처리 구현(#168, 2026-08-19) → **생성 트리거 연결 완료**(#186, 2026-08-26) →
+**발송(FCM·Web Push) 연결 완료**(#192·#211·#213).
 
-#### 🔴 알림을 만드는 곳이 없다
+#### 발생 지점 — 어디서 알림이 만들어지나
 
-`NotificationService.save(...)`는 완성돼 있지만 **`notifications` 패키지 밖에서 호출하는 코드가 하나도 없다.**
-팔로우 요청·수락·댓글 어느 흐름에서도 알림을 적재하지 않는다.
-따라서 `GET /api/notifications`는 **항상 빈 배열**을 반환한다 — API는 살아 있지만 데이터가 생길 경로가 없다.
+| 타입 | 발생 지점 |
+|---|---|
+| `FOLLOW_REQUEST` | `FollowService` — 팔로우 요청 |
+| `FOLLOW_ACCEPTED` | `FollowService` — 요청 수락 |
+| `COMMENT` | `PostCommentService` — 댓글 작성 |
 
-Sprint 3 게이트 "알림 히스토리 조회"를 실제 데모로 확인하려면 발생 지점 연결이 선행돼야 한다.
-FCM 발송(Sprint 4)과 별개로, **저장 트리거는 알림 도메인 쪽 작업**이다.
+Sprint 3 결산 §4가 "호출부 0개 — 항상 빈 배열"로 적었던 구멍은 #186에서 메워졌다.
+
+#### 저장 → 발송 파이프라인
+
+```
+NotificationService.save()
+  → 이벤트 발행(PushNotificationRequested)
+  → @TransactionalEventListener(AFTER_COMMIT) + @Async
+  → FcmPushService / WebPushService
+```
+
+**커밋 이후에 발송한다.** 팔로우가 롤백됐는데 알림만 나가는 상황을 막기 위해서다
+(`docs/sprint4-architecture-review.md` §9). 발송 실패는 로그만 남기고 본 기능 트랜잭션에 영향을 주지 않는다.
+
+두 발송 경로 모두 **기본 비활성**이다(`FIREBASE_ENABLED` · `WEB_PUSH_ENABLED`). 꺼도 알림은 DB에 저장되고
+조회 API로 보인다. 발송만 일어나지 않는다.
+
+#### 🔴 채팅 메시지는 이 파이프라인을 타지 않는다
+
+`MessageService`는 `NotificationService`를 전혀 호출하지 않는다. `NotificationType`에 메시지용 타입도 없다.
+README의 핵심 기능인 "미접속 상태면 FCM / Web Push로 전환"이 **채팅에는 연결돼 있지 않다.** → #216
 
 #### 목록 조회
 
@@ -1398,7 +1580,8 @@ Status: `200 OK`
 | `referenceId` | 이동 대상 id(팔로우 행·게시물·댓글 등). **타입별 의미가 다르고 문서화되지 않았다** → §14 |
 | `read` | 읽음 여부 |
 
-> `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 정리 대상(#148).
+> `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 제거 여부는 #182 결정 대기.
+> 채팅 메시지용 `MESSAGE` 타입은 **아직 없다**(#216).
 
 #### 읽음 처리
 
@@ -1413,6 +1596,55 @@ Status: `200 OK`
 |---:|---|---|
 | 401 | `AUTH_001` | 인증 누락/만료 |
 | 404 | `NOTIFICATION_001` | 없거나 내 것이 아닌 알림 |
+
+---
+
+### 11-1. Web Push 구독 등록 / 해제
+
+브라우저 Push 구독 정보를 서버에 보관한다. FCM(앱)과 별개 경로다.
+
+```http
+POST   /api/web-push/subscriptions
+DELETE /api/web-push/subscriptions
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+```
+
+#### 등록
+
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+  "p256dh": "BN4GvZ...",
+  "auth": "tBHI..."
+}
+```
+
+세 값 모두 브라우저 `PushManager.subscribe()` 결과에서 그대로 꺼내 보낸다.
+같은 `endpoint`로 다시 등록하면 갱신된다(기기마다 `endpoint`가 다르므로 여러 개를 가질 수 있다).
+
+#### 해제
+
+```json
+{ "endpoint": "https://fcm.googleapis.com/fcm/send/..." }
+```
+
+로그아웃하거나 브라우저 알림 권한을 끌 때 호출한다.
+
+#### 응답
+
+둘 다 `{ "success": true, "data": null, "error": null }`.
+
+#### 서버 설정
+
+발송에는 VAPID 키 쌍이 필요하다(`WEB_PUSH_VAPID_PUBLIC_KEY` · `WEB_PUSH_VAPID_PRIVATE_KEY` ·
+`WEB_PUSH_VAPID_SUBJECT`). **공개 키는 FE의 `PushManager.subscribe()` 호출에도 같은 값이 들어가야 한다.**
+`WEB_PUSH_ENABLED=false`(기본)면 구독 등록은 되지만 발송은 일어나지 않는다.
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 400 | `COMMON_002` | `endpoint`·`p256dh`·`auth` 누락 |
+| 401 | `AUTH_001` | 인증 누락/만료 |
 
 ---
 
@@ -1468,20 +1700,28 @@ Status: `200 OK`
 
 ## 14. 열린 결정 사항
 
-2026-08-20(Sprint 3 W8) 기준으로 남은 것만 적는다. 해결된 항목은 본문에 반영했다.
+2026-09-14(Sprint 5 W11) 기준으로 남은 것만 적는다. 해결된 항목은 본문에 반영했다.
 
-| # | 항목 | 왜 지금 정해야 하나 |
+| # | 항목 | 왜 지금 정해야 하나 | 이슈 |
+|---|---|---|---|
+| 1 | **공통 응답 봉투 통일 여부**(§2-6) | 16개 엔드포인트가 DTO를 직접 반환한다. Sprint 4에 채팅방·검색 8개가 새로 들어와 **오히려 늘었다.** FE 연동 본격화 전이 가장 싸다 | #203 · #218 |
+| 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지 | — |
+| 3 | **`GET /api/follows/requests` 페이지네이션**(§9-7) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 | #218 |
+| 4 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다. 채팅 메시지 알림이 붙으면 더 필요해진다 | #216 |
+| 5 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 전체를 반환하는 둘 중 하나다 (다른 하나는 채팅방 목록 §10-4) | #225 |
+| 6 | **`content` JSONB 구조 스키마·크기** | #199가 태그를 `content` 안이 아니라 별도 `posts.tags` 컬럼으로 빼면서 "태그 키" 문제는 우회됐다. 그러나 `@ValidJson`은 여전히 "유효한 JSON"만 보고 **구조도 크기도 검증하지 않는다** | #244 |
+| 7 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음 · 관계 없음 · PENDING 아님 세 가지에 같은 코드가 쓰인다 | #218 |
+| 8 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 오픈소스 배포로 인스턴스가 늘면 "둘러보기"를 열지 말지가 실제 선택이 된다 | — |
+| 9 | **채팅방 목록 페이지네이션**(§10-4) | 방 개수가 많아지면 전체 반환이 문제가 된다 | — |
+| 10 | **강퇴당한 사람의 재입장 차단**(§10-5) | 현재 강퇴는 "타인에 의한 나가기"라 다시 초대할 수 있다. 차단이 필요한 개념인지부터 정해야 한다 | — |
+
+### 이번 갱신에서 닫힌 항목
+
+| 이전 # | 항목 | 결말 |
 |---|---|---|
-| 1 | **공통 응답 봉투 통일 여부**(§2-6) | 8개 엔드포인트가 DTO를 직접 반환한다. 통일은 FE 파싱을 전부 바꾸는 파괴적 변경이라 스프린트 경계에서만 가능하다 |
-| 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지. #165와 직결 |
-| 3 | **`GET /api/follows/requests` 페이지네이션**(§9-7) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 |
-| 4 | **알림 저장 트리거 위치**(§11) | 팔로우/댓글 서비스가 직접 호출할지, 이벤트로 뺄지. 정하지 않으면 알림은 계속 빈 배열이다 |
-| 5 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다 |
-| 6 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 유일하게 전체를 반환한다. 댓글이 많은 게시물에서 응답 크기가 제한 없이 커진다 |
-| 7 | **`content` JSONB 태그 키 표준** | Sprint 3 "태그/메타데이터 탐색 API"의 선행 조건. `@ValidJson`은 "유효한 JSON"만 보고 구조는 보지 않는다. Sprint 2에서 죽은 GIN 인덱스를 제거했으므로 재도입 여부도 함께 결정 |
-| 8 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음 · 관계 없음 · PENDING 아님 세 가지에 같은 코드가 쓰인다 |
-| 9 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 열 것인지 정해야 문서와 구현이 일치한다 |
-| 10 | **채팅 REST/STOMP 경계**(§10) | PR #169가 `WebSocketConfig`를 함께 들고 온다. Sprint 4 착수 전에 범위를 나눠야 한다 |
+| 4 | 알림 저장 트리거 위치 | **이벤트 + `AFTER_COMMIT`으로 결정**(#186·#192). §11에 반영 |
+| 7 | `content` JSONB 태그 키 표준 | 별도 `tags` 컬럼으로 **우회**(#199). 구조 스키마 문제는 위 6번으로 남았다 |
+| 10 | 채팅 REST/STOMP 경계 | REST는 `/api/chat-rooms/**`, 실시간은 `/app`·`/topic`으로 갈렸다. §10에 반영 |
 
 이전 리비전의 "유저 엔티티 단일화 / 도메인 참조 방식 / 엔티티 필드 네이밍"은 구현이 이미 한 방향으로 굳었다.
 남은 것은 문서 정합성 정리(#41)이며, 이 표에서는 제외했다.
