@@ -22,14 +22,14 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 팔로우 | `FollowController` | 5 | 구현 반영. 받은 요청 거절 경로 신설(#174, §9-4) |
 | 알림 | `NotificationController` | 3 | 구현 반영. **생성 트리거·발송 연결 완료**(§11) |
 | Web Push 구독 | `WebPushSubscriptionController` | 2 | 구현 반영 (§11-1, #192) |
-| **채팅방** | `ChatRoomController` | **7** | 구현 반영 (§10-2~§10-5, #193) |
+| **채팅방** | `ChatRoomController` | **8** | 구현 반영 (§10-2~§10-5·§10-7, #193·#215) |
 | **채팅 메시지** | `MessageController` | **1** (REST) + STOMP 2 | 구현 반영 (§10-1·§10-6, #190·#201·#209) |
 | 인증 | `AuthController` | 4 | `docs/api-spec.md` §3. **로그아웃 신설**(#184) |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
 | FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
 | 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7). 복구 여부 #182 결정 대기 |
 
-REST 합계 **47개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **48개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -1233,9 +1233,10 @@ Status: `200 OK`
 
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
-- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209)
-- 아직 없는 것: 읽음 처리(§10-6) · 메시지 이모지(#196)
-- ⚠️ `ChatRoomController`의 7개 엔드포인트는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209) · 읽음 처리(§10-7, #215)
+- 아직 없는 것: 메시지 이모지(#196)
+- ⚠️ `ChatRoomController`의 8개 엔드포인트 중 7개는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+  읽음 처리(§10-7)만 예외로 `ApiResponse<T>` 봉투를 쓴다 — #215가 명시적으로 요구해서 이 엔드포인트만 다르다.
 
 ### 10-1. 실시간 메시지 (STOMP)
 
@@ -1486,15 +1487,42 @@ Status: `200 OK` — 이쪽은 **봉투를 쓴다**
 | 404 | `CHAT_ROOMS_001` | 방이 없음 |
 | 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님 |
 
-### 10-7. 읽음 처리 — 미구현
+### 10-7. 읽음 처리
 
 ```http
 POST /api/chat-rooms/{roomId}/read
+Authorization: Bearer {accessToken}
 ```
 
-`chat_room_members.last_read_at` 컬럼과 엔티티 필드는 **있으나 갱신하는 코드가 없다.**
-입장 시각으로 한 번 채워지고 그대로다. 따라서 "안 읽은 메시지 N개"와 그룹 "읽음 N"을
-현재로서는 계산할 수 없다. → #215
+#### 상태
+
+**구현됨** (#215). `chat_room_members.last_read_at`은 입장 시각으로 한 번 채워진 뒤
+갱신하는 코드가 없었다 — 이 엔드포인트가 호출 시점으로 값을 갱신하는 유일한 경로다.
+이 컨트롤러의 다른 엔드포인트와 달리 **`ApiResponse<T>` 공통 봉투를 쓴다**(§2-6 예외).
+
+#### 설명
+
+호출 시점을 `lastReadAt`으로 기록한다. DIRECT·GROUP 채팅방 모두 대상이다.
+활성 멤버(나간 사람 제외)만 호출할 수 있다.
+
+#### 응답
+
+Status: `200 OK`
+
+```json
+{ "success": true, "data": null, "error": null }
+```
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 404 | `CHAT_ROOMS_001` | 방이 없음 |
+| 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님(나갔거나 강퇴당함) |
+
+> "안 읽은 메시지 N개"·그룹 "읽음 N" 계산은 이 `lastReadAt`을 기준으로 하는 별도 조회가
+> 필요하다 — 이 엔드포인트 자체는 갱신만 한다.
 
 ---
 
