@@ -1,6 +1,7 @@
 package com.memorin.domain.posts;
 
 
+import com.memorin.domain.post_likes.entity.PostLikes;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.posts.dto.response.PostListResponse;
 import com.memorin.domain.posts.dto.response.PostSummaryResponse;
@@ -135,6 +136,60 @@ class RecommendedFeedQueryTest extends PostgresTestSupport {
 
         assertThat(after)
                 .as("미디어 장수에 비례해 쿼리가 늘어나면 N+1")
+                .isEqualTo(before);
+    }
+
+    // #182: 좋아요 복구 후 점수 공식에 likeCount * 3 항이 되살아났는지 확인한다.
+    @Test
+    void 좋아요가_많은_게시물이_점수가_더_높다() {
+        UUID lowId = seedPosts("reco-like-low", 1, 0).get(0);
+        UUID highId = seedPosts("reco-like-high", 1, 0).get(0);
+
+        tx.execute(status -> {
+            Post highPost = em.find(Post.class, highId);
+            for (int i = 0; i < 5; i++) {
+                User liker = new User("reco-liker-%d@memorin.test".formatted(i), "hash",
+                        "reco-liker-" + i, "reco-liker-" + i, null);
+                em.persist(liker);
+                em.persist(PostLikes.of(highPost, liker));
+            }
+            em.flush();
+            return null;
+        });
+
+        PostListResponse response = recommendedFeedService.getRecommendedFeed(null, 50);
+
+        int highIndex = response.items().indexOf(findItem(response, highId));
+        int lowIndex = response.items().indexOf(findItem(response, lowId));
+        assertThat(highIndex)
+                .as("좋아요 5개인 게시물이 좋아요 0개인 게시물보다 앞에 와야 한다")
+                .isLessThan(lowIndex);
+    }
+
+    // 좋아요 수도 댓글 수/미디어처럼 게시물마다 따로 조회하면 N+1이다.
+    // 게시물 수를 고정한 채 좋아요만 늘려 쿼리 수가 그대로인지 본다.
+    @Test
+    void 좋아요_수가_늘어도_쿼리는_늘지_않는다() {
+        List<UUID> postIds = seedPosts("reco-like-n1", 5, 0);
+
+        long before = countQueries();
+
+        tx.execute(status -> {
+            for (int p = 0; p < postIds.size(); p++) {
+                Post post = em.find(Post.class, postIds.get(p));
+                User liker = new User("reco-like-n1-liker-%d@memorin.test".formatted(p), "hash",
+                        "reco-like-n1-liker-" + p, "reco-like-n1-liker-" + p, null);
+                em.persist(liker);
+                em.persist(PostLikes.of(post, liker));
+            }
+            em.flush();
+            return null;
+        });
+
+        long after = countQueries();
+
+        assertThat(after)
+                .as("좋아요 수에 비례해 쿼리가 늘어나면 N+1")
                 .isEqualTo(before);
     }
 
