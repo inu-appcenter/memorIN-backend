@@ -22,7 +22,7 @@
 | 게시물 좋아요 API | 구현됨 | `docs/api-spec-domains.md` §7. #148에서 제거했다가 #182에서 복구 |
 | 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 게시물 단위는 좋아요(§7), 댓글 단위는 이모지로 반응 채널이 둘이다 |
 | 알림 히스토리 API | 구현됨(조회) | `docs/api-spec-domains.md` §11. **알림을 생성하는 호출부가 아직 없다** |
-| 채팅 API | 미구현 | 엔티티만 존재. Sprint 4 |
+| 채팅 API | 구현됨 | `docs/api-spec-domains.md` §10. 방 관리·메시지·읽음 처리까지 완료 |
 
 ## 2. 공통 규칙
 

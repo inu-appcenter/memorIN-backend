@@ -152,6 +152,16 @@ public class ChatRoomService {
         }
     }
 
+    // DIRECT·GROUP 둘 다 대상이라 getGroupRoomOrThrow가 아니라 leaveRoom과 같은 방식으로 조회한다.
+    @Transactional
+    public void markAsRead(UUID roomId, UUID requesterId) {
+        ChatRooms room = chatRoomsRepository.findById(roomId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방을 찾을 수 없습니다." + roomId));
+        ChatRoomMembers member = requireActiveMember(room, requesterId);
+
+        member.updateLastRead();
+    }
+
     @Transactional
     public void renameRoom(UUID roomId, UUID requesterId, RenameRoomRequest request) {
         ChatRooms room = getGroupRoomOrThrow(roomId);
