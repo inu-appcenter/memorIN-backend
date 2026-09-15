@@ -1,7 +1,9 @@
 package com.memorin.domain.posts.repository;
 
 import com.memorin.domain.posts.entity.Post;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,6 +15,12 @@ import java.util.UUID;
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
     Optional<Post> findByIdAndDeletedAtIsNull(UUID id);
+
+    // 좋아요 등록(TOCTOU 방지)용 행 잠금. 같은 게시물에 대한 동시 "처음 누르기" 요청을
+    // 직렬화해서 exists 체크와 삽입이 원자적으로 이뤄지게 한다 (UserRepository.findByIdForUpdate와 동일 패턴).
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Post p WHERE p.id = :postId")
+    Optional<Post> findByIdForUpdate(@Param("postId") UUID postId);
 
     // 캘린더 뷰: fromDate/toDate로 recorded_date 범위를 좁힌다. 둘 다 NULL이면 기존과 동일한 전체 조회.
     // 하루만 보려면 fromDate == toDate로 준다(recorded_date는 date 컬럼이라 경계 포함이 안전하다).
