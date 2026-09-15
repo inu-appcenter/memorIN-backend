@@ -1,6 +1,6 @@
 # memorIN API 명세서
 
-> 최신 기준 문서: 2026-08-20 (Sprint 3 W8 — 구현 대조 갱신)
+> 최신 기준 문서: 2026-09-08 (#182 게시물 좋아요 복구 반영)
 >
 > Notion API 명세서에 남아 있는 이전 주제/초안 내용은 잔재일 수 있다. 최신 명세는 이 레포의 `docs/` 문서를 기준으로 확인한다.
 
@@ -19,7 +19,8 @@
 | 로그아웃 API | 설계 예정 | 저장소 Refresh Token 삭제 방식 검토 |
 | 미디어 Presigned Upload / 업로드 커밋 / Storage Quota | 구현됨 | JWT 인증 필수, `/api/media/**` permitAll 제외됨 |
 | 게시물·댓글·팔로우·사용자 API | 구현됨 | 도메인 상세는 `docs/api-spec-domains.md` + Swagger UI 참고 |
-| 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 반응은 댓글에만 붙는다(게시물 좋아요는 미채택) |
+| 게시물 좋아요 API | 구현됨 | `docs/api-spec-domains.md` §7. #148에서 제거했다가 #182에서 복구 |
+| 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 게시물 단위는 좋아요(§7), 댓글 단위는 이모지로 반응 채널이 둘이다 |
 | 알림 히스토리 API | 구현됨(조회) | `docs/api-spec-domains.md` §11. **알림을 생성하는 호출부가 아직 없다** |
 | 채팅 API | 구현됨 | `docs/api-spec-domains.md` §10. 방 관리·메시지·읽음 처리까지 완료 |
 
