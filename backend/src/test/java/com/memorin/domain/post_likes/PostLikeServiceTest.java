@@ -55,7 +55,7 @@ class PostLikeServiceTest extends PostgresTestSupport {
 
     private Post seedPost(User author, VisibilityType visibility) {
         return tx.execute(status -> {
-            Post post = Post.create(author, "[]", visibility, TimeslotType.AM, Date.valueOf(LocalDate.now()));
+            Post post = Post.create(author, "[]", visibility, TimeslotType.AM, Date.valueOf(LocalDate.now()), List.of());
             em.persist(post);
             em.flush();
             return post;
