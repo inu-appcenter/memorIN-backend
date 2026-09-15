@@ -1,3 +1,11 @@
+# 모든 서비스 공통 로그 로테이션(#230). 드라이버가 로그를 무한히 쌓으면 디스크가 찬다.
+# max-size 10m × max-file 3 = 서비스당 최대 30MB로 상한.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:18-alpine # alpine 80mb 초경량 리눅스 버전
@@ -8,7 +16,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-memorin_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-memorin_pass}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # DB 포트는 backend와 로컬 개발툴(DBeaver 등, docs/pgadmin-onboarding-grant-guide.md)만 쓴다.
+      # 외부에서 직접 붙을 이유가 없어 루프백에만 바인딩한다 — 같은 머신에서는 localhost로 여전히
+      # 접속되고(pgAdmin은 컨테이너 네트워크 내부에서 서비스명으로 접속하므로 영향 없음), 호스트
+      # 밖에서는 아예 안 보인다(#230).
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
@@ -20,6 +32,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+    # 실측 없이 잡은 출발점(#230) — 부족하면 STORAGE_QUOTA 등과 함께 재실측 필요.
+    deploy:
+      resources:
+        limits:
+          memory: ${POSTGRES_MEMORY_LIMIT:-512m}
 
   minio:
     image: minio/minio:latest
@@ -30,8 +48,11 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
+      # 9000(S3 API)은 그대로 공개한다 — 클라이언트(브라우저/앱)가 presigned URL로
+      # 이 포트를 직접 때린다(minio.public-endpoint). 여기 막으면 업로드/다운로드가 전부 깨진다.
       - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      # 9001(관리 콘솔)은 관리자 전용 도구라 postgres와 같은 이유로 루프백만 연다(#230).
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     networks:
@@ -42,6 +63,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${MINIO_MEMORY_LIMIT:-512m}
 
   backend:
     build:
@@ -125,6 +151,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    logging: *default-logging
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -140,6 +167,7 @@ services:
       - postgres
     networks:
       - memorin_network
+    logging: *default-logging
 
 
 # 컨테이너 삭제되더라도 postgres, minio 데이터 남아있음.
