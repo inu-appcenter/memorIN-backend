@@ -51,6 +51,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
                         // API 문서. 운영 배포 시 노출 범위는 별도 논의 필요.
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        // 인프라 헬스체크(docker-compose). 인증을 요구하면 항상 401을 받아 계속 unhealthy로 뜬다.
+                        .requestMatchers("/api/health").permitAll()
                         .anyRequest().authenticated()
                 );
 
