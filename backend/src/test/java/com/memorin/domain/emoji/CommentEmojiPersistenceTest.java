@@ -6,6 +6,7 @@ import com.memorin.domain.emoji.entity.EmojiType;
 import com.memorin.domain.emoji.repository.CommentEmojiRepository;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.users.entity.User;
@@ -51,7 +52,7 @@ class CommentEmojiPersistenceTest extends PostgresTestSupport {
 
     private PostComments persistComment(User author) {
         Post post = Post.create(author, "[]", VisibilityType.PUBLIC,
-                TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1)));
+                TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 7, 1)), List.of(TagType.ETC));
         em.persist(post);
         return em.persist(PostComments.of(post, author, null, "이모지 대상 댓글",
                 LocalDateTime.of(2026, 7, 1, 9, 0)));

@@ -42,6 +42,12 @@ public class SecurityConfig {
                         .requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         // /api/media/**는 JWT 필터 도입에 맞춰 permitAll에서 제외했다.
                         // Quota 검증 대상 userId를 토큰에서 받으므로 인증 없이 열어두면 남의 quota로 업로드가 가능해진다.
+                        // /ws/**가 permitAll인 것은 의도된 것이다. 핸드셰이크는 열어두고 실제 인증은
+                        // STOMP CONNECT 프레임에서 한다(StompAuthChannelInterceptor).
+                        // HTTP 필터는 핸드셰이크 1회만 지나가므로 이후 STOMP 프레임을 지킬 수 없고,
+                        // SockJS 폴백은 핸드셰이크에 Authorization 헤더를 싣지 못한다.
+                        // 토큰 없이 붙은 소켓은 CONNECT에서 거부되고, CONNECT를 아예 안 보내면
+                        // WebSocketConfig의 setTimeToFirstMessage(30초)가 정리한다.
                         .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
                         // API 문서. 운영 배포 시 노출 범위는 별도 논의 필요.
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()

@@ -42,7 +42,10 @@ public void configureClientInboundChannel(ChannelRegistration registration) {
     registration.interceptors(new ChannelInterceptor() {
         @Override
         public Message<?> preSend(Message<?> message, MessageChannel channel) {
-            StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+            // wrap()이 아니라 getAccessor()를 써야 한다. wrap()은 헤더 "복사본"에 대한
+            // 접근자라 setUser()가 원본 메시지에 반영되지 않는다(인증이 조용히 사라진다).
+            StompHeaderAccessor accessor =
+                MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
             if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                 String token = accessor.getFirstNativeHeader("Authorization"); // "Bearer xxx"
                 // 검증 실패 시 예외 → 연결 자체가 수립되지 않는다
@@ -55,9 +58,12 @@ public void configureClientInboundChannel(ChannelRegistration registration) {
 ```
 
 - CONNECT에서 한 번 인증하면 **그 세션의 이후 모든 프레임에 Principal이 따라붙는다.**
+- 인터셉터 등록 순서는 `StompAuthChannelInterceptor` → `SecurityContextChannelInterceptor`다.
+  뒤바뀌면 CONNECT 시점에 아직 Principal이 없어 SecurityContext가 비어 나간다.
 - SUBSCRIBE 시점에는 "이 사용자가 이 방의 멤버인가"를 따로 검사해야 한다(인증 ≠ 인가).
-  `/topic/rooms/{roomId}` 구독을 `ChatRoomMemberRepository.existsByRoomIdAndUserId`로 막지 않으면
-  **아무나 남의 방을 엿볼 수 있다.**
+  `/topic/rooms/{roomId}` 구독을 막지 않으면 **아무나 남의 방을 엿볼 수 있다.**
+  이때 `existsByRoomIdAndUserId`가 아니라 **`existsByRoom_IdAndUser_IdAndLeftAtIsNull`**(활성 멤버)을 써야 한다.
+  나갔거나 강퇴당한 사람도 roomId를 알고 있으므로, 멤버 행의 존재만 보면 탈퇴 후에도 계속 수신한다.
 
 ### 주의 — `@AuthenticationPrincipal`은 그냥 되지 않는다
 
@@ -176,10 +182,15 @@ TransactionSynchronizationManager.registerSynchronization(
 | 측정 | 방법 | 합격 기준(초안) |
 |---|---|---|
 | 세션 정상 반환 | N개 연결 → 정상 DISCONNECT → 세션 수 | 0으로 복귀 |
-| **비정상 종료 회수** | N개 연결 → 소켓 강제 종료(FIN 없이) → 하트비트 주기 경과 후 세션 수 | 하트비트 2~3주기 내 0 |
+| **비정상 종료 회수** | N개 연결 → 소켓 강제 종료(FIN 없이) → 하트비트 주기 경과 후 세션 수 | RST는 즉시(≈0.1초), 무응답은 **하트비트 × 3 + 태스크 주기** (10초 설정 → ≈35초). 초안의 "2~3주기"는 Spring의 `HEARTBEAT_MULTIPLIER=3`을 빠뜨린 값이었다 |
 | 힙 증가 | 연결·해제 100회 반복 후 Full GC → 힙 사용량 | 초기값 대비 증가 없음(누수 없음) |
-| 브로드캐스트 지연 | 그룹 방 M명, 초당 K건 → 수신 지연 p95 | 실측 후 기준 확정 |
+| 브로드캐스트 지연 | 그룹 방 M명, 초당 K건 → 수신 지연 p95 | **p95 < 300ms** (3차 실측으로 확정, 2026-09-14) |
 | 느린 수신자 격리 | 한 클라이언트만 수신 지연 → 다른 클라이언트 지연 | 영향 없음(§3의 버퍼 제한 검증) |
+
+**실행 결과: `docs/ws-stress-test.md`**
+- 1차 (2026-09-01) — 6개 시나리오 전부 통과, 무응답 회수 기준 정정
+- 2차 (2026-09-05) — 실제 메시지 경로. CONNECT 인증은 스탠드인으로 대체
+- 3차 (2026-09-14) — **프로덕션 인증·인가 구성**으로 재측정. 합격 기준 확정, 비동기 저장 보류 결정
 
 도구는 JMeter/Gatling보다 **STOMP 클라이언트를 직접 붙인 JUnit 시나리오**가 낫다 — 세션 수·힙을
 같은 JVM에서 바로 읽을 수 있다. 측정 원칙은 `docs/n+1-audit.md` §3과 같다: **추측하지 말고 실측한다.**
@@ -256,11 +267,11 @@ Sprint 4의 FCM/Web Push는 **"저장된 알림을 발송한다"** 를 전제로
 
 - [ ] WebSocket CONNECT 인증 인터셉터 (§2) — 담당 지정 필요
 - [ ] SUBSCRIBE 시 방 멤버 인가 (§2)
-- [ ] 브로커 하트비트·버퍼·메시지 크기 제한 (§3)
-- [ ] `docker-compose.yml`에 `MaxRAMPercentage` + 메모리 limit + 힙덤프 (§4)
+- [x] 브로커 하트비트·버퍼·메시지 크기 제한 (§3) — 적용 완료. 세션 카운터(`WebSocketSessionRegistry`)까지. 방-세션 매핑 삭제는 채팅방 API(#188) 이후
+- [x] `docker-compose.yml`에 `MaxRAMPercentage` + 메모리 limit + 힙덤프 (§4) — 적용 완료. 힙덤프 경로는 `/tmp` 대신 `/dump` 볼륨(컨테이너와 함께 사라지지 않도록)
 - [ ] 저장→커밋→브로드캐스트 순서 합의 (§5)
 - [ ] PR #169의 STOMP 부분 분리 여부 결정 (§7)
-- [ ] WebSocket Origin을 `CORS_ALLOWED_ORIGINS`로 통일 (§8)
+- [x] WebSocket Origin을 `CORS_ALLOWED_ORIGINS`로 통일 (§8) — 적용 완료 (`"*"` 제거)
 - [ ] 알림 발생 지점 연결 방식 결정 (§9)
 - [ ] 채팅 화면 디자인 FE 전달 (Sprint 3 게이트 · 회의 확인)
 

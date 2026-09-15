@@ -1,5 +1,6 @@
 package com.memorin.domain.posts.dto.request;
 
+import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.global.validation.ValidJson;
@@ -28,7 +29,10 @@ public record PostCreateRequest(
         LocalDate recordedDate,
 
         @Size(max = 10, message = "첨부파일은 최대 10개까지 가능합니다.")
-        List<@Valid AttachmentRequest> attachments
+        List<@Valid AttachmentRequest> attachments,
+
+        @Size(max = 3, message = "태그는 최대 3개까지 선택할 수 있습니다.")
+        List<TagType> tags
 
 ) {
 

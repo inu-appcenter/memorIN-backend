@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -74,7 +75,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.PUBLIC,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -112,7 +114,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.PRIVATE,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -154,7 +157,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.FRIENDS,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);
@@ -205,7 +209,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.PUBLIC,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         Post strangerPost = Post.create(
@@ -213,7 +218,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.PUBLIC,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(friendPost);
@@ -224,7 +230,7 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
         PostListResponse response = postService.friendFeed(me.getId(), null, 20);
 
         assertThat(response.items()).hasSize(1);
-        assertThat(response.items().get(0).postId()).isEqualTo(friendPost.getId().toString());
+        assertThat(response.items().get(0).postId()).isEqualTo(friendPost.getId());
     }
 
     @Test
@@ -255,7 +261,8 @@ class PostFeedIntegrationTest extends PostgresTestSupport {
             "{}",
             VisibilityType.FRIENDS,
             TimeslotType.AM,
-            Date.valueOf(LocalDate.now())
+            Date.valueOf(LocalDate.now()),
+            List.of(com.memorin.domain.posts.entity.TagType.ETC)
         );
 
         em.persist(post);

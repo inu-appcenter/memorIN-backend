@@ -11,7 +11,11 @@ on:
     branches:
       - main
       - develop
-      - feat/make_Timeline_API
+
+# 같은 브랜치에 새 커밋이 올라오면 이전 스캔은 취소한다. (ci.yml과 동일)
+concurrency:
+  group: qodana-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   qodana:
@@ -30,7 +34,9 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          # When pr-mode is set to true, Qodana analyzes only the files that have been changed
+          # When pr-mode is set to true, Qodana analyzes only the files that have been changed.
+          # 전체 스캔을 유지한다 — 현재 레포 규모에서 2~3분이라 PR 대기 시간에 영향이 없고,
+          # 변경 파일만 보면 "다른 파일에 영향을 준 변경"을 놓친다.
           pr-mode: false
           use-caches: true
           post-pr-comment: true

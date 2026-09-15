@@ -2,6 +2,7 @@ package com.memorin.domain.post_comments.controller;
 
 import com.memorin.domain.post_comments.dto.request.PostCommentCreateRequest;
 import com.memorin.domain.post_comments.dto.request.PostCommentUpdateRequest;
+import com.memorin.domain.post_comments.dto.response.PostCommentPageResponse;
 import com.memorin.domain.post_comments.dto.response.PostCommentResponse;
 import com.memorin.domain.post_comments.service.PostCommentService;
 import com.memorin.global.common.ApiResponse;
@@ -40,14 +41,27 @@ public class PostCommentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
-    @Operation(summary = "댓글 스레드 조회", description = "게시물의 댓글·대댓글을 스레드 형태로 조회한다.")
+    @Operation(
+        summary = "댓글 스레드 조회",
+        description = """
+            게시물의 댓글·대댓글을 스레드 형태로 커서 페이징해 조회한다. 오래된 순이다.
+
+            페이징 단위는 **최상위 댓글**이다. size가 세는 것도 최상위 댓글 수이고,
+            그 댓글에 달린 대댓글은 개수와 무관하게 같은 페이지에 전부 실려 온다
+            (부모와 자식이 페이지 경계로 갈라지면 트리를 그릴 수 없다).
+            따라서 items.length는 size보다 클 수 있다.
+
+            nextCursor는 이 페이지 마지막 최상위 댓글의 id다. 그대로 cursor에 넣으면 다음 페이지다.""")
     @GetMapping("/api/posts/{postId}/comments")
-    public ResponseEntity<ApiResponse<List<PostCommentResponse>>> getThread(
+    public ResponseEntity<ApiResponse<PostCommentPageResponse>> getThread(
         @PathVariable UUID postId,
+        @RequestParam(required = false) UUID cursor,
+        @RequestParam(required = false) Integer size,
         @AuthenticationPrincipal UserDetailsImpl userDetails // 비로그인 접근 허용 시 null
     ) {
         UUID requesterId = userDetails != null ? userDetails.getUserId() : null;
-        return ResponseEntity.ok(ApiResponse.ok(postCommentService.getThread(postId, requesterId)));
+        return ResponseEntity.ok(
+            ApiResponse.ok(postCommentService.getThread(postId, requesterId, cursor, size)));
     }
 
     @Operation(summary = "댓글 수정", description = "작성자 본인만 수정할 수 있다.")

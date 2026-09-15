@@ -64,9 +64,6 @@ dependencies {
 
 	implementation 'io.minio:minio:8.5.17'
 
-	// Redis
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
 	// WebSocket (STOMP) — spring-messaging는 websocket starter가 전이 포함
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
@@ -76,20 +73,45 @@ dependencies {
 	// UUID v7 생성기 (Java 기본 java.util.UUID는 v4까지만 지원 → 시간순 정렬되는 v7 발급용)
 	implementation 'com.fasterxml.uuid:java-uuid-generator:5.1.0'
 
-	// QueryDSL (Jakarta) — APT에 jakarta 프로세서 동반 필요
-	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
-	annotationProcessor 'com.querydsl:querydsl-apt:5.0.0:jakarta'
-	annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
-	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
-
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
     implementation 'com.google.firebase:firebase-admin:9.4.3'
     implementation 'nl.martijndwars:web-push:5.1.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		// 스트레스 테스트는 하트비트 주기만큼 기다리는 구간이 있어 CI에서는 제외한다. → stressTest
+		excludeTags 'stress'
+	}
+}
+
+// WebSocket 생명주기 스트레스 테스트 (docs/ws-stress-test.md)
+// 힙을 작게 고정해야 세션 누수가 늦게 드러나지 않는다.
+tasks.register('stressTest', Test) {
+	description = 'WebSocket 세션 생명주기·힙 실측 (수동 실행)'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'stress'
+	}
+	maxHeapSize = '512m'
+	jvmArgs '-XX:+HeapDumpOnOutOfMemoryError', '-XX:HeapDumpPath=build/stress-heapdump.hprof'
+	// 부하 테스트 파라미터를 테스트 JVM으로 넘긴다.
+	// Gradle의 -D는 Gradle JVM에만 붙으므로 여기서 명시적으로 전달해야 한다.
+	//   ./gradlew stressTest -Dstress.hikari.pool=20 -Dstress.senders=30
+	['stress.hikari.pool', 'stress.senders', 'stress.messages'].each { key ->
+		if (System.getProperty(key) != null) {
+			systemProperty key, System.getProperty(key)
+		}
+	}
+	testLogging {
+		showStandardStreams = true
+		events 'passed', 'failed'
+	}
+	shouldRunAfter tasks.named('test')
 }

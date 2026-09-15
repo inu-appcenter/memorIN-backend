@@ -1,32 +1,37 @@
 package com.memorin.domain.posts.dto.response;
 
 import com.memorin.domain.posts.entity.Post;
+import com.memorin.domain.posts.entity.TagType;
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 public record PostSummaryResponse(
-        String postId,
-        String authorId,
+        UUID postId,
+        UUID authorId,
         String content,
         VisibilityType visibility,
         TimeslotType timeslot,
         LocalDate recordedDate,
         int viewCount,
-        List<PostMediaResponse> attachments
+        List<PostMediaResponse> attachments,
+        List<TagType> tagTypes
 ) {
     public static PostSummaryResponse of(Post post, List<PostMediaResponse> attachments) {
         return new PostSummaryResponse(
-                post.getId().toString(),
-                post.getUser().getId().toString(),
+                post.getId(),
+                post.getUser().getId(),
                 post.getContent(),
                 post.getVisibility(),
                 post.getTimeslot(),
                 post.getRecordedDate().toLocalDate(),
                 post.getViewCount(),
-                attachments
+                attachments,
+                post.getTagList()
         );
     }
+
 }

@@ -258,21 +258,43 @@ Status: `200 OK`
 1. Refresh Token 서명과 만료를 검증한다.
 2. Access Token과 Refresh Token을 새로 발급해 반환한다.
 
-### 3-5. 로그아웃 예정
+### 3-5. 로그아웃
 
 ```http
-POST /auth/logout
+DELETE /auth/logout
 Authorization: Bearer {accessToken}
-Content-Type: application/json
 ```
 
 #### 상태
 
-아직 구현 전이다.
+구현됨 (#183 → #184, 2026-08-26).
 
-#### 처리 규칙 초안
+> 초안은 `POST`였으나 구현은 **`DELETE`** 다. 본문도 없다.
 
-서버 저장소에서 `refresh:{userId}`를 삭제한다. Access Token은 짧은 만료 시간을 전제로 자연 만료를 허용한다. 즉시 차단이 필요해지면 Access Token blacklist를 별도 검토한다.
+#### 응답
+
+Status: `204 No Content` — 본문 없음. 전역 응답 봉투를 쓰지 않는다.
+
+#### 처리 규칙
+
+해당 사용자의 Refresh Token 행을 삭제한다. 이후 `POST /auth/refresh`는 저장된 토큰을 찾지 못해 `AUTH_003`으로 거절된다.
+
+#### ⚠️ Access Token은 즉시 무효화되지 않는다
+
+무상태 JWT라 서버가 개별 토큰을 취소할 수 없다. **로그아웃 후에도 Access Token은 만료(기본 15분)까지 유효하다.**
+
+짧은 만료 시간을 전제로 한 의도된 트레이드오프다. 즉시 차단이 필요해지면 blacklist가 필요한데,
+그건 무상태로 만들어 둔 인증에 상태를 다시 들여오는 일이라 별도 판단이 필요하다.
+→ `docs/security-review.md` §6
+
+클라이언트는 로그아웃 시 저장된 두 토큰을 **모두 폐기**해야 한다.
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락 |
+| 401 | `AUTH_003` | Access Token 만료 |
 
 ## 4. 미디어 Presigned Upload API
 

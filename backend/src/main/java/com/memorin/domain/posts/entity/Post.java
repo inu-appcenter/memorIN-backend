@@ -1,5 +1,8 @@
 package com.memorin.domain.posts.entity;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.support.GeneratedUuidV7;
 import jakarta.persistence.*;
@@ -16,6 +19,7 @@ import org.hibernate.type.SqlTypes;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -23,6 +27,9 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "posts")
 public class Post {
+
+    private static final int MAX_TAG_COUNT = 3;
+    private static final ObjectMapper TAG_MAPPER = new ObjectMapper();
 
     @Id
     @GeneratedUuidV7 // UUID 생성자 변경, UUID와 @OneToMany 혼용 불가
@@ -59,6 +66,11 @@ public class Post {
     @ColumnDefault("0") // private int viewCount = 0; 으로 하고 @ColumnDefault("0")를 제거해도 동일하게 작동
     private int viewCount; // 조회수(?)
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tags", columnDefinition = "jsonb")
+    @ColumnDefault("[]")
+    private String tags;
+
     @CreationTimestamp // INSERT 시 자동으로 현재 시간을 값으로 채워서 쿼리 생성.
     @Column(name = "created_at", nullable = false, columnDefinition = "timestamptz") // timestamptz로 시간 오차 발생 방어
     private LocalDateTime createdAt; // 만들어진 날짜
@@ -76,7 +88,7 @@ public class Post {
     @Builder
     private Post(
             User user, String content, VisibilityType visibilityType, TimeslotType timeslot,
-            Date recordedDate, int viewCount, LocalDateTime createdAt,
+            Date recordedDate, int viewCount, String tags,LocalDateTime createdAt,
             LocalDateTime updatedAt, LocalDateTime deletedAt
     ){
         this.user = user; // 누락 시 user_id(nullable=false) 제약 위반으로 게시물 생성이 실패한다.
@@ -85,19 +97,21 @@ public class Post {
         this.timeslot = timeslot;
         this.recordedDate = recordedDate;
         this.viewCount = viewCount;
+        this.tags = tags != null ? tags : "[]";
         this.createdAt = LocalDateTime.now();
         this.updatedAt = updatedAt;
         this.deletedAt = deletedAt;
     }
 
     public static Post create(User user, String content, VisibilityType visibility,
-                              TimeslotType timeslot, Date recordedDate) {
+                              TimeslotType timeslot, Date recordedDate, List<TagType> tags) {
         return Post.builder()
                 .user(user)
                 .content(content)
                 .visibilityType(visibility)
                 .timeslot(timeslot)
                 .recordedDate(recordedDate != null ? recordedDate : Date.valueOf(LocalDate.now()))
+                .tags(writeTags(tags))
                 .build();
     }
 
@@ -126,5 +140,33 @@ public class Post {
     public boolean isOwnedBy(UUID userId) {
         return this.user.getId().equals(userId);
     }
+
+    public void updateTags(List<TagType> tags) {
+        if (isDeleted()) {
+            throw new IllegalStateException("삭제된 게시물은 수정할 수 없습니다.");
+        }
+        this.tags = writeTags(tags);
+    }
+
+    public List<TagType> getTagList() {
+        try {
+            return TAG_MAPPER.readValue(tags, new TypeReference<List<TagType>>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("태그 파싱 실패", e);
+        }
+    }
+
+    private static String writeTags(List<TagType> tags) {
+        List<TagType> safe = tags == null ? List.of() : tags;
+        if (safe.size() > MAX_TAG_COUNT) {
+            throw new IllegalArgumentException("태그는 최대 " + MAX_TAG_COUNT + "개까지 선택할 수 있습니다.");
+        }
+        try {
+            return TAG_MAPPER.writeValueAsString(safe);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("태그 직렬화 실패", e);
+        }
+    }
+
 
 }
