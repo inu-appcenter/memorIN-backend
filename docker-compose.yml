@@ -115,6 +115,16 @@ services:
         condition: service_healthy
     networks:
       - memorin_network
+    # HTTP 계층은 응답하는데 DB 커넥션 풀만 죽은 "반쯤 죽은" 상태를 잡기 위한 헬스체크(#230).
+    # /api/health는 인증 없이 열려 있고 DB 연결까지 확인한다(HealthController).
+    # start_period 30초: Flyway 마이그레이션 + JPA 스키마 검증 포함 기동 시간(로컬 실측 ~3초)에
+    # 여유를 크게 둔다 — 이 구간의 실패는 unhealthy로 집계되지 않는다.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   pgadmin:
     image: dpage/pgadmin4:latest
