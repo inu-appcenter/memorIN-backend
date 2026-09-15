@@ -75,7 +75,10 @@ services:
       MEDIA_COMPRESSION_IMAGE_QUALITY_PERCENT: ${MEDIA_COMPRESSION_IMAGE_QUALITY_PERCENT:-80}
       MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX:-1920}
       MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX:-1920}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://memorin.inuappcenter.co.kr}
+      # 기본값을 특정 조직 도메인으로 두지 않는다(#229, JWT_SECRET과 동일 패턴).
+      # .env에 없으면 docker-compose가 빈 문자열로 채우고, 그 결과 CORS가 전부 막힌다 —
+      # 값을 빼먹었을 때 남의 도메인을 조용히 물려받는 대신 눈에 띄게 실패하는 쪽을 택했다.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
       # 푸시 알림. 기본은 둘 다 꺼짐 — 켜지 않으면 알림은 DB에 저장만 되고 발송되지 않는다.
       # 서비스 계정 JSON은 이미지에 굽지 않고 secrets/ 볼륨으로 주입한다(아래 volumes).
       # FileInputStream으로 읽으므로 클래스패스 리소스가 아니라 실제 파일 경로여야 한다.
