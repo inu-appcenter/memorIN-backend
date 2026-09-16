@@ -65,9 +65,9 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         return post;
     }
 
-    private ChatRooms persistRoom(String name, Post post, User... members) {
+    private ChatRooms persistRoom(Post post, User... members) {
         ChatRooms room = ChatRooms.builder()
-            .name(name)
+            .name("room")
             .type(Chat_type.GROUP)
             .build();
         em.persist(room);
@@ -88,7 +88,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner);
+            ChatRooms room = persistRoom(post, owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -109,7 +109,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner);
+            ChatRooms room = persistRoom(post, owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -132,7 +132,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner);
+            ChatRooms room = persistRoom(post, owner);
             Messages message = persistMessage(room, owner);
             message.softDelete();
             em.flush();
@@ -164,7 +164,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner);
+            ChatRooms room = persistRoom(post, owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -186,7 +186,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner);
+            ChatRooms room = persistRoom(post, owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -207,7 +207,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             User other = persistUser("other" + UUID.randomUUID().toString().substring(0, 6));
             Post post = persistPost(owner);
-            ChatRooms room = persistRoom("room", post, owner, other);
+            ChatRooms room = persistRoom(post, owner, other);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), other.getId(), message.getId()};

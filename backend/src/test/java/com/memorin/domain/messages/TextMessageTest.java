@@ -126,6 +126,7 @@ class TextMessageTest extends PostgresTestSupport {
 
         Messages saved = messagesRepository.findAll().stream()
             .filter(m -> m.getType() == MessageType.TEXT)
+            .filter(m -> m.getRoom().getId().equals(ids[1])) // 이 테스트가 만든 방으로 스코프
             .findFirst()
             .orElseThrow();
 
