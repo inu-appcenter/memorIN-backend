@@ -7,11 +7,14 @@ import com.memorin.domain.chat_rooms.dto.request.RenameRoomRequest;
 import com.memorin.domain.chat_rooms.dto.response.ChatRoomResponse;
 import com.memorin.domain.chat_rooms.dto.response.ChatRoomSummaryResponse;
 import com.memorin.domain.chat_rooms.service.ChatRoomService;
+import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,9 +38,10 @@ public class ChatRoomController {
             1:1 채팅방이 존재하는 사람과는 이미 존재하는 경우 새롭게 만들 수 없음.
             존재하는 경우의 요청은 기존의 방을 응답하여 처리함.""")
     @PostMapping("/direct")
-    public ChatRoomResponse createDirectRoom(@RequestBody CreateDirectRoomRequest request,
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> createDirectRoom(@RequestBody CreateDirectRoomRequest request,
                                              @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return chatRoomService.createDirectRoom(userDetails.getUserId(), request.targetUserId());
+        ChatRoomResponse response = chatRoomService.createDirectRoom(userDetails.getUserId(), request.targetUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
     @Operation(
@@ -46,9 +50,10 @@ public class ChatRoomController {
             1:1과 유사한 로직
             대상을 찾을 수 없음(USER_001)이 존재하면 초대 로직 전체 실패 처리""")
     @PostMapping("/group")
-    public ChatRoomResponse createGroupRoom(@RequestBody @Valid CreateGroupRoomRequest request,
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> createGroupRoom(@RequestBody @Valid CreateGroupRoomRequest request,
                                             @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return chatRoomService.createGroupRoom(userDetails.getUserId(), request);
+        ChatRoomResponse response = chatRoomService.createGroupRoom(userDetails.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
     @Operation(
@@ -56,8 +61,9 @@ public class ChatRoomController {
         description = """
             본인이 들어가 있는 모든 채팅방을 조회""")
     @GetMapping
-    public List<ChatRoomSummaryResponse> myRooms(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return chatRoomService.listMyRooms(userDetails.getUserId());
+    public ResponseEntity<ApiResponse<List<ChatRoomSummaryResponse>>> myRooms(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        List<ChatRoomSummaryResponse> response = chatRoomService.listMyRooms(userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @Operation(
@@ -65,9 +71,10 @@ public class ChatRoomController {
         description = """
             원하는 대상을 해당 채팅방 일괄 초대""")
     @PostMapping("/{roomId}/members")
-    public void inviteMembers(@PathVariable UUID roomId, @RequestBody @Valid InviteMembersRequest request,
+    public ResponseEntity<ApiResponse<Void>> inviteMembers(@PathVariable UUID roomId, @RequestBody @Valid InviteMembersRequest request,
                               @AuthenticationPrincipal UserDetailsImpl userDetails) {
         chatRoomService.inviteMembers(roomId, userDetails.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @Operation(
@@ -78,9 +85,10 @@ public class ChatRoomController {
             자기 자신 강퇴 불가능
             현재 로직에서 강퇴는 대상을 나가게만 함. 다시 못들어오게 하지는 못하는 상황(TODO, 추후에 수정 예정)""")
     @DeleteMapping("/{roomId}/members/{targetUserId}")
-    public void kickMember(@PathVariable UUID roomId, @PathVariable UUID targetUserId,
+    public ResponseEntity<ApiResponse<Void>> kickMember(@PathVariable UUID roomId, @PathVariable UUID targetUserId,
                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         chatRoomService.kickMember(roomId, userDetails.getUserId(), targetUserId);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @Operation(
@@ -88,8 +96,9 @@ public class ChatRoomController {
         description = """
             채팅방에서 자신을 제외시킴.""")
     @DeleteMapping("/{roomId}/members/me")
-    public void leaveRoom(@PathVariable UUID roomId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseEntity<ApiResponse<Void>> leaveRoom(@PathVariable UUID roomId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
         chatRoomService.leaveRoom(roomId, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 
     @Operation(
@@ -97,8 +106,9 @@ public class ChatRoomController {
         description = """
             방장만 채팅방의 이름을 변경할 수 있음.(CHAT_ROOMS_002)""")
     @PatchMapping("/{roomId}/name")
-    public void renameRoom(@PathVariable UUID roomId, @RequestBody @Valid RenameRoomRequest request,
+    public ResponseEntity<ApiResponse<Void>> renameRoom(@PathVariable UUID roomId, @RequestBody @Valid RenameRoomRequest request,
                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         chatRoomService.renameRoom(roomId, userDetails.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }
