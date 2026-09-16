@@ -76,6 +76,9 @@ services:
       MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_WIDTH_PX:-1920}
       MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX: ${MEDIA_COMPRESSION_IMAGE_MAX_HEIGHT_PX:-1920}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://memorin.inuappcenter.co.kr}
+      # Swagger/OpenAPI 문서. 기본 꺼짐 — 셀프호스팅 배포에서 전체 API 명세가 인증 없이
+      # 노출되는 걸 막는다(#261). 필요하면 true로 켠다.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       # 푸시 알림. 기본은 둘 다 꺼짐 — 켜지 않으면 알림은 DB에 저장만 되고 발송되지 않는다.
       # 서비스 계정 JSON은 이미지에 굽지 않고 secrets/ 볼륨으로 주입한다(아래 volumes).
       # FileInputStream으로 읽으므로 클래스패스 리소스가 아니라 실제 파일 경로여야 한다.
