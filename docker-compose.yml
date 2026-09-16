@@ -105,6 +105,9 @@ services:
       # .env에 없으면 docker-compose가 빈 문자열로 채우고, 그 결과 CORS가 전부 막힌다 —
       # 값을 빼먹었을 때 남의 도메인을 조용히 물려받는 대신 눈에 띄게 실패하는 쪽을 택했다.
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      # Swagger/OpenAPI 문서. 기본 꺼짐 — 셀프호스팅 배포에서 전체 API 명세가 인증 없이
+      # 노출되는 걸 막는다(#261). 필요하면 true로 켠다.
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       # 푸시 알림. 기본은 둘 다 꺼짐 — 켜지 않으면 알림은 DB에 저장만 되고 발송되지 않는다.
       # 서비스 계정 JSON은 이미지에 굽지 않고 secrets/ 볼륨으로 주입한다(아래 volumes).
       # FileInputStream으로 읽으므로 클래스패스 리소스가 아니라 실제 파일 경로여야 한다.
