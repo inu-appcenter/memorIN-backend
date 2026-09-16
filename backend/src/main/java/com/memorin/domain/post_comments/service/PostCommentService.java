@@ -5,6 +5,7 @@ import com.memorin.domain.emoji.dto.response.EmojiSummary;
 import com.memorin.domain.emoji.repository.CommentEmojiRepository;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.service.NotificationService;
+import com.memorin.domain.post_comments.dto.response.PostCommentPageResponse;
 import com.memorin.domain.post_comments.dto.response.PostCommentResponse;
 import com.memorin.domain.post_comments.entity.PostComments;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
@@ -16,6 +17,8 @@ import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PostCommentService {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 50;
 
     private final PostCommentRepository postCommentsRepository;
     private final PostRepository postRepository;
@@ -84,22 +90,51 @@ public class PostCommentService {
     // 이모지는 댓글마다 따로 묻지 않고 한 번에 집계한다. 개별 조회로 두면 FE가 댓글 N개마다
     // GET /api/comments/{id}/emojis를 N번 호출하는 HTTP 레벨 N+1이 된다.
     // 댓글 수와 무관하게 SQL은 (게시물 1 + 스레드 1 + 이모지 집계 1)로 고정된다.
-    public List<PostCommentResponse> getThread(UUID postId, UUID requesterId) {
+    public PostCommentPageResponse getThread(UUID postId, UUID requesterId, UUID cursor, Integer size) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
             .orElseThrow(() -> new BusinessException(ErrorCode.POST_001, "존재하지 않는 게시물입니다: " + postId));
 
         postAccessPolicy.assertReadable(post, requesterId); // 가시성 검사
 
-        List<PostComments> thread = postCommentsRepository.findThreadByPostId(postId);
-        if (thread.isEmpty()) {
-            return List.of();
+        int limit = normalizeSize(size);
+        // limit + 1개를 요청해 hasNext를 판단한다. 피드·알림·메시지와 같은 관례다.
+        Pageable page = PageRequest.of(0, limit + 1);
+
+        List<UUID> rootIds = cursor == null
+            ? postCommentsRepository.findRootCommentIdsFirstPage(postId, page)
+            : postCommentsRepository.findRootCommentIdsAfter(postId, cursor, page);
+
+        boolean hasNext = rootIds.size() > limit;
+        if (hasNext) {
+            rootIds = rootIds.subList(0, limit);
         }
+
+        if (rootIds.isEmpty()) {
+            return new PostCommentPageResponse(List.of(), null, false);
+        }
+
+        // 이 페이지의 최상위 댓글 + 그 대댓글 전부. 대댓글은 페이징하지 않는다 —
+        // 부모와 자식이 페이지 경계로 갈라지면 FE가 트리를 못 그린다.
+        List<PostComments> thread = postCommentsRepository.findThreadByRootIds(rootIds);
 
         Map<UUID, List<EmojiSummary>> emojisByCommentId = aggregateEmojis(thread, requesterId);
 
-        return thread.stream()
+        List<PostCommentResponse> items = thread.stream()
             .map(c -> PostCommentResponse.of(c, emojisByCommentId.getOrDefault(c.getId(), List.of())))
             .toList();
+
+        // 커서는 마지막 "최상위 댓글"의 id다. 대댓글 id를 넣으면 다음 페이지가 어긋난다.
+        UUID nextCursor = hasNext ? rootIds.get(rootIds.size() - 1) : null;
+
+        return new PostCommentPageResponse(items, nextCursor, hasNext);
+    }
+
+    // size가 세는 것은 최상위 댓글 수다. 응답 항목 수는 대댓글 때문에 이보다 클 수 있다.
+    private int normalizeSize(Integer size) {
+        if (size == null) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 
     // 스레드에 달린 이모지를 commentId 하나로 묶어 한 번에 가져온다.

@@ -23,7 +23,7 @@ import java.util.UUID;
 
 @Tag(name = "사용자", description = "내 정보 · 사용자 검색 · 팔로워/팔로잉 목록")
 @RestController
-@RequestMapping("api/users")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 

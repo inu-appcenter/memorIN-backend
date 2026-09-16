@@ -1,7 +1,7 @@
 package com.memorin.global.config;
 
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
-import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
+import com.memorin.domain.chat_rooms.service.ChatRoomMembershipGate;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
@@ -36,14 +36,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
-    /** 방 단위 브로드캐스트 목적지. MessageController가 여기로 보낸다. */
-    static final String ROOM_TOPIC_PREFIX = "/topic/rooms/";
-
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomMembershipGate membershipGate;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -106,7 +103,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
      */
     private void authorizeSubscription(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
-        if (destination == null || !destination.startsWith(ROOM_TOPIC_PREFIX)) {
+        if (destination == null || !destination.startsWith(ChatRoomDestinations.ROOM_TOPIC_PREFIX)) {
             // 방 토픽이 아닌 목적지는 이 인터셉터의 관심사가 아니다.
             return;
         }
@@ -114,18 +111,19 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         UUID roomId = parseRoomId(destination);
         UUID userId = currentUserId(accessor);
 
-        if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(roomId, userId)) {
+        // 판정은 게이트 하나에만 있다. 여기와 배달 시점(ChatDeliveryChannelInterceptor)이
+        // 각자 조건을 들고 있으면 한쪽만 고쳤을 때 조용히 어긋난다.
+        if (!membershipGate.isActiveMember(userId, roomId)) {
             throw reject("채팅방의 참여자가 아닙니다.");
         }
     }
 
     private UUID parseRoomId(String destination) {
-        String raw = destination.substring(ROOM_TOPIC_PREFIX.length());
-        try {
-            return UUID.fromString(raw);
-        } catch (IllegalArgumentException e) {
+        UUID roomId = ChatRoomDestinations.parseRoomIdOrNull(destination);
+        if (roomId == null) {
             throw reject("잘못된 구독 경로입니다: " + destination);
         }
+        return roomId;
     }
 
     private UUID currentUserId(StompHeaderAccessor accessor) {

@@ -2,6 +2,10 @@
 .env
 **/firebase-service-account.json
 *serviceAccount*.json
+# secrets/ 는 docker-compose가 /run/secrets 로 마운트하는 디렉터리다.
+# 디렉터리 자체는 저장소에 있어야 하므로 .gitkeep만 남기고 내용물은 전부 막는다.
+secrets/*
+!secrets/.gitkeep
 
 ### Gradle ###
 .gradle/
