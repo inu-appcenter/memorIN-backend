@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 // 남긴 데이터와 섞일 일이 없다 (게시물 검색 테스트와 달리 특정 사용자 ID로만 조회하므로).
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-class ChatRoomCriticalPathTest extends PostgresTestSupport {
+class ChatRoomTest extends PostgresTestSupport {
 
     @Autowired
     private ChatRoomService chatRoomService;

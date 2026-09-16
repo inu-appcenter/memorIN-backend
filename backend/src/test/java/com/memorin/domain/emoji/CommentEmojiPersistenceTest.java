@@ -1,6 +1,6 @@
 package com.memorin.domain.emoji;
 
-import com.memorin.domain.emoji.dto.response.EmojiCountDto;
+import com.memorin.domain.emoji.dto.response.CommentEmojiCountDto;
 import com.memorin.domain.emoji.entity.CommentEmoji;
 import com.memorin.domain.emoji.entity.EmojiType;
 import com.memorin.domain.emoji.repository.CommentEmojiRepository;
@@ -86,18 +86,18 @@ class CommentEmojiPersistenceTest extends PostgresTestSupport {
         em.flush();
 
         // when — 댓글 목록에서 쓰는 배치 집계 (댓글마다 조회하지 않기 위한 경로)
-        List<EmojiCountDto> counts =
+        List<CommentEmojiCountDto> counts =
                 commentEmojiRepository.countByCommentIds(List.of(comment.getId()), me.getId());
 
         // then — HEART 2명(내가 누름) / FIRE 1명(내가 안 누름)
         assertThat(counts).hasSize(2);
 
-        EmojiCountDto heart = counts.stream()
+        CommentEmojiCountDto heart = counts.stream()
                 .filter(c -> c.emojiType() == EmojiType.HEART).findFirst().orElseThrow();
         assertThat(heart.count()).isEqualTo(2L);
         assertThat(heart.reactedByMe()).isTrue();
 
-        EmojiCountDto fire = counts.stream()
+        CommentEmojiCountDto fire = counts.stream()
                 .filter(c -> c.emojiType() == EmojiType.FIRE).findFirst().orElseThrow();
         assertThat(fire.count()).isEqualTo(1L);
         assertThat(fire.reactedByMe()).isFalse();

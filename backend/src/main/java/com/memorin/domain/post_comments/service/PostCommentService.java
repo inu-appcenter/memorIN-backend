@@ -1,6 +1,6 @@
 package com.memorin.domain.post_comments.service;
 
-import com.memorin.domain.emoji.dto.response.EmojiCountDto;
+import com.memorin.domain.emoji.dto.response.CommentEmojiCountDto;
 import com.memorin.domain.emoji.dto.response.EmojiSummary;
 import com.memorin.domain.emoji.repository.CommentEmojiRepository;
 import com.memorin.domain.notifications.entity.NotificationType;
@@ -109,7 +109,7 @@ public class PostCommentService {
 
         return commentEmojiRepository.countByCommentIds(commentIds, requesterId).stream()
             .collect(Collectors.groupingBy(
-                EmojiCountDto::commentId,
+                CommentEmojiCountDto::commentId,
                 Collectors.mapping(EmojiSummary::from, Collectors.toList())
             ));
     }
