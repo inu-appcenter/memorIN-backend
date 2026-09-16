@@ -1441,10 +1441,23 @@ Status: `200 OK` — **봉투 없음**(#203), **페이지네이션 없음**
 
 ```json
 [
-  { "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER" },
-  { "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER" }
+  {
+    "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER",
+    "unreadCount": 12,
+    "lastMessage": { "preview": "안녕하세요", "sentAt": "2026-09-07T14:03:11" }
+  },
+  {
+    "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER",
+    "unreadCount": 0,
+    "lastMessage": null
+  }
 ]
 ```
+
+`unreadCount`는 `GREATEST(lastReadAt, joinedAt)` 이후 도착한, **내가 보내지 않은** 메시지 수다(#258).
+`lastMessage`는 그 방에 메시지가 한 번도 없으면 `null`. `preview`는 `TEXT`면 본문, `IMAGE`면
+`"사진"`, `POST_SHARE`면 `"게시물을 공유했습니다"` 고정 문구다 — `content`(jsonb) 파싱 없이
+`type` 컬럼만으로 분기한다.
 
 > 목록 API 중 커서 페이지네이션을 쓰지 않는 둘 중 하나다(다른 하나는 댓글 스레드 §8-2).
 > 방 개수가 많아지면 재검토 대상이다.
@@ -1552,8 +1565,8 @@ Status: `200 OK`
 | 404 | `CHAT_ROOMS_001` | 방이 없음 |
 | 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님(나갔거나 강퇴당함) |
 
-> "안 읽은 메시지 N개"·그룹 "읽음 N" 계산은 이 `lastReadAt`을 기준으로 하는 별도 조회가
-> 필요하다 — 이 엔드포인트 자체는 갱신만 한다.
+> "안 읽은 메시지 N개"는 §10-4(`GET /api/chat-rooms`)의 `unreadCount`로 구현됐다(#258).
+> 이 엔드포인트 자체는 `lastReadAt` 갱신만 하고, 계산은 방 목록 조회 쪽 책임이다.
 
 ---
 
