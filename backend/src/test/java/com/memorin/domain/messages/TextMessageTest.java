@@ -128,8 +128,10 @@ class TextMessageTest extends PostgresTestSupport {
 
         messageService.sendText(ids[0], new TextRequest(ids[1], "안녕하세요"));
 
+        // room.id로 좁힌다 — 정적 컨테이너를 다른 테스트 클래스와 공유해서 messages 테이블에
+        // 다른 방의 TEXT 메시지가 이미 쌓여 있을 수 있다(#258 unreadCount 테스트 등).
         Messages saved = messagesRepository.findAll().stream()
-            .filter(m -> m.getType() == MessageType.TEXT)
+            .filter(m -> m.getType() == MessageType.TEXT && m.getRoom().getId().equals(ids[1]))
             .findFirst()
             .orElseThrow();
 
