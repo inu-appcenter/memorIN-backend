@@ -36,11 +36,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     // WebSocket 핸드셰이크의 Origin 검사는 Spring Security의 CORS 설정과 별개로 동작하기 때문에,
     // 여기를 "*"로 열어두면 Sprint 1에서 나눠 놓은 dev/prod 오리진 구분이 무의미해진다. (§8)
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final ChatDeliveryChannelInterceptor chatDeliveryChannelInterceptor;
 
     public WebSocketConfig(@Value("${cors.allowed-origins}") List<String> allowedOrigins,
-                           StompAuthChannelInterceptor stompAuthChannelInterceptor) {
+                           StompAuthChannelInterceptor stompAuthChannelInterceptor,
+                           ChatDeliveryChannelInterceptor chatDeliveryChannelInterceptor) {
         this.allowedOrigins = allowedOrigins;
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.chatDeliveryChannelInterceptor = chatDeliveryChannelInterceptor;
     }
 
     // 하트비트 전용 스케줄러. 하트비트만 켜고 이 스케줄러를 안 주면 기동 시 실패한다.
@@ -106,5 +109,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         //
         // 순서가 뒤바뀌면 CONNECT 시점에 아직 Principal이 없어 SecurityContext가 비어 나간다.
         registration.interceptors(stompAuthChannelInterceptor, new SecurityContextChannelInterceptor());
+    }
+
+    @Override
+    public void configureClientOutboundChannel(ChannelRegistration registration) {
+        // 인바운드 SUBSCRIBE 검사는 "구독을 요청하는 순간"만 본다. 이미 맺어진 구독은
+        // 강퇴·나가기 뒤에도 살아 있으므로, 실제로 내보내기 직전에 한 번 더 확인한다. (#210)
+        registration.interceptors(chatDeliveryChannelInterceptor);
     }
 }

@@ -111,4 +111,18 @@ public class ChatRoomController {
         chatRoomService.renameRoom(roomId, userDetails.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.ok());
     }
+
+    // 이 컨트롤러의 다른 엔드포인트는 전부 봉투 없이 DTO/void를 그대로 반환하지만(§2-6),
+    // #215가 명시적으로 ApiResponse<T> 봉투를 요구해 이 엔드포인트만 그렇게 반환한다.
+    @Operation(
+        summary = "채팅방 읽음 처리",
+        description = """
+            호출 시점을 lastReadAt으로 기록한다. 활성 멤버가 아니면 CHAT_ROOM_MEMBERS_001.
+            DIRECT·GROUP 채팅방 모두 대상.""")
+    @PostMapping("/{roomId}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            @PathVariable UUID roomId, @AuthenticationPrincipal UserDetailsImpl userDetails) {
+        chatRoomService.markAsRead(roomId, userDetails.getUserId());
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
 }
