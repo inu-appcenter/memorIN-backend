@@ -9,9 +9,6 @@ import com.memorin.domain.emoji.entity.EmojiType;
 import com.memorin.domain.emoji.repository.MessageEmojiRepository;
 import com.memorin.domain.emoji.service.MessageEmojiService;
 import com.memorin.domain.messages.entity.Messages;
-import com.memorin.domain.posts.entity.Post;
-import com.memorin.domain.posts.entity.TimeslotType;
-import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.support.PostgresTestSupport;
@@ -23,9 +20,6 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.sql.Date;
-import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,22 +51,16 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         return user;
     }
 
-    private Post persistPost(User owner) {
-        Post post = Post.create(owner,
-            "[{\"type\":\"text\",\"text\":\"방 생성용 더미 게시물\"}]",
-            VisibilityType.PUBLIC, TimeslotType.AM, Date.valueOf(LocalDate.of(2026, 8, 1)), List.of());
-        em.persist(post);
-        return post;
-    }
-
-    private ChatRooms persistRoom(Post post, User... members) {
+    // Post 기반 레거시 of()는 쓰지 않는다 — 방장은 ofOwner, 나머지는 ofMember로 명시적으로 만든다.
+    private ChatRooms persistRoom(User owner, User... otherMembers) {
         ChatRooms room = ChatRooms.builder()
             .name("room")
             .type(Chat_type.GROUP)
             .build();
         em.persist(room);
-        for (User member : members) {
-            em.persist(ChatRoomMembers.of(room, post, member));
+        em.persist(ChatRoomMembers.ofOwner(room, owner));
+        for (User member : otherMembers) {
+            em.persist(ChatRoomMembers.ofMember(room, member));
         }
         return room;
     }
@@ -87,8 +75,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
     void 이모지를_처음_누르면_추가되고_DB에_저장된다() {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner);
+            ChatRooms room = persistRoom(owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -108,8 +95,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
     void 같은_이모지를_다시_누르면_취소된다() {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner);
+            ChatRooms room = persistRoom(owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -131,8 +117,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
     void 삭제된_메시지에는_이모지를_달_수_없다() {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner);
+            ChatRooms room = persistRoom(owner);
             Messages message = persistMessage(room, owner);
             message.softDelete();
             em.flush();
@@ -163,8 +148,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
     void 한_사용자가_같은_메시지에_서로_다른_이모지를_동시에_달_수_있다() {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner);
+            ChatRooms room = persistRoom(owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -185,8 +169,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
     void remove는_달지_않은_이모지를_지워도_예외_없이_멱등하게_처리된다() {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner);
+            ChatRooms room = persistRoom(owner);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), message.getId()};
@@ -206,8 +189,7 @@ class MessageEmojiPersistenceTest extends PostgresTestSupport {
         UUID[] ids = tx.execute(status -> {
             User owner = persistUser("owner" + UUID.randomUUID().toString().substring(0, 6));
             User other = persistUser("other" + UUID.randomUUID().toString().substring(0, 6));
-            Post post = persistPost(owner);
-            ChatRooms room = persistRoom(post, owner, other);
+            ChatRooms room = persistRoom(owner, other);
             Messages message = persistMessage(room, owner);
             em.flush();
             return new UUID[]{owner.getId(), other.getId(), message.getId()};
