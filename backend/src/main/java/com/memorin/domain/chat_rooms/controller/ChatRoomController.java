@@ -28,8 +28,6 @@ public class ChatRoomController {
 
     private final ChatRoomService chatRoomService;
 
-    // TODO : 강톼당한 대상이 재입장이 가능 -> 현재 로직에서 강퇴를 '타인의 의한 나가기'로 정의되어 있음.
-
     @Operation(
         summary = "1:1 채팅방 생성",
         description = """
