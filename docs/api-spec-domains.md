@@ -1,8 +1,8 @@
 # memorIN API 명세서 — 도메인 API (유저 / 게시물 / 댓글 / 이모지 / 팔로우 / 알림 / 채팅)
 
-> 최신 기준 문서: 2026-09-14 (Sprint 5 W11 — 구현 대조 갱신)
+> 최신 기준 문서: 2026-09-15 (#182 게시물 좋아요 복구 반영)
 >
-> 이전 갱신: 2026-08-20 (Sprint 3 W8)
+> 이전 갱신: 2026-09-14 (Sprint 5 W11 — 구현 대조 갱신) · 2026-08-20 (Sprint 3 W8)
 >
 > 이 문서는 `docs/api-spec.md`(인증 · 미디어)의 **후속 도메인 명세**다. 노션 전체 API 명세 페이지에서는 미디어 API 다음, 환경 변수 앞에 이어 붙인다.
 >
@@ -22,14 +22,14 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 팔로우 | `FollowController` | 5 | 구현 반영. 받은 요청 거절 경로 신설(#174, §9-4) |
 | 알림 | `NotificationController` | 3 | 구현 반영. **생성 트리거·발송 연결 완료**(§11) |
 | Web Push 구독 | `WebPushSubscriptionController` | 2 | 구현 반영 (§11-1, #192) |
-| **채팅방** | `ChatRoomController` | **7** | 구현 반영 (§10-2~§10-5, #193) |
+| **채팅방** | `ChatRoomController` | **8** | 구현 반영 (§10-2~§10-5·§10-7, #193·#215) |
 | **채팅 메시지** | `MessageController` | **1** (REST) + STOMP 2 | 구현 반영 (§10-1·§10-6, #190·#201·#209) |
 | 인증 | `AuthController` | 4 | `docs/api-spec.md` §3. **로그아웃 신설**(#184) |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
 | FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
-| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7). 복구 여부 #182 결정 대기 |
+| 게시물 좋아요 | `PostLikeController` | 2 | 구현 반영 — #148에서 제거했다가 #182에서 복구(§7) |
 
-REST 합계 **47개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **50개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -545,13 +545,13 @@ Authorization: Bearer {accessToken}
 최근 **14일 내 전체공개** 게시물을 후보(최대 300건)로 모아 점수순으로 정렬한다.
 
 ```
-engagement = 1 + 댓글수 × 2 + 조회수 × 0.1
+engagement = 1 + 좋아요수 × 3 + 댓글수 × 2 + 조회수 × 0.1
 score      = log(engagement) / (경과시간h + 2)^1.6
 ```
 
 - 분모가 시간이라 **오래될수록 점수가 내려간다**(새 글이 자연스럽게 위로 온다).
 - 정렬 기준은 `score DESC`, 동점이면 `postId DESC`.
-- 게시물 좋아요는 미채택이므로(§7) 점수에 반영되지 않는다. 게시물 단위 반응이 생기면 항을 되살린다.
+- 좋아요 수는 #182에서 다시 반영했다(§7). 댓글 수와 동일하게 후보 게시물 ID를 모아 한 번의 `IN` 조회로 배치 조회한다 — 게시물마다 조회하면 N+1이다.
 
 #### 커서
 
@@ -668,27 +668,58 @@ Authorization: Bearer {accessToken}
 
 ---
 
-## 7. 좋아요 API — 미채택 (Sprint 2 결정)
+## 7. 좋아요 API (#182, 2026-09-15 복구)
 
-**이 API는 만들지 않는다.** 2026-08-11에 반응 모델을 **댓글 이모지 하나로 단일화**하기로 확정했다(#145,
-`docs/sprint2-wrapup.md` §6). 게시물에 붙는 좋아요/반응 테이블(`post_emoji`)은 신설하지 않았다.
+```http
+POST /api/posts/{postId}/likes
+GET  /api/posts/{postId}/likes
+Authorization: Bearer {accessToken}
+```
 
-- 엔드포인트: 없음. `POST/DELETE /api/posts/{postId}/likes`는 **구현된 적이 없다.**
-- 이전 리비전의 7-1·7-2 설계 초안은 이 결정으로 폐기했다.
-- 실제 반응 API는 **§8-5 댓글 이모지**다.
+#### 상태
 
-### 정리 결과 (#148, 2026-08-20)
+**구현됨** (#182). 2026-08-11에 반응 모델을 댓글 이모지로 단일화하며(#145) 게시물 좋아요를 미채택으로
+정리했었고(#148), 이후 요구사항이 다시 생겨 되살렸다. `PostLikes` · `PostLikeRepository` ·
+`PostLikeService`는 삭제 전 커밋에서 그대로 복원했고, 컨트롤러/DTO는 이번에 새로 작성했다
+(과거에도 컨트롤러는 존재한 적이 없다). 반응 채널이 두 개가 됐다 — 게시물 단위는 좋아요, 댓글 단위는
+이모지(§8-5)다.
 
-`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`를 **삭제했다.** 어떤 컨트롤러에도 연결되지
-않은 채 스프린트 두 개를 넘어온 코드였다.
+#### 토글 — `POST`
 
-추천 피드 점수 공식에 있던 `likeCount * 3` 항도 함께 걷어냈다 — 입력이 영구히 0이라 계산에 기여하지 않았다(§6-6).
+이미 눌렀으면 취소, 안 눌렀으면 등록한다(요청 Body 없음). 취소는 게시물 접근 권한과 무관하게 항상
+가능하다 — 팔로우를 끊거나 게시물 공개범위가 바뀌어도 과거에 누른 좋아요는 뗄 수 있다. 등록만
+`PostAccessPolicy`로 접근 권한을 검사한다.
 
-**DB는 이번 스프린트에서 건드리지 않는다.** `post_likes` 테이블과 `idx_post_likes_post` 인덱스는 그대로 둔다.
-스키마 변경은 PM 승인이 필요하다는 Sprint 0 게이트 규칙이 있고, 되돌리려면 또 다른 마이그레이션이 필요한
-파괴적 변경이기 때문이다. 테이블 드롭은 별도 안건으로 올린다.
+Status: `200 OK`
 
-> `NotificationType.LIKE`(§11)도 이 결정으로 쓰이지 않는 값이 됐다. 알림 도메인 정리 시 함께 판단한다.
+```json
+{ "success": true, "data": { "liked": true, "likeCount": 12 }, "error": null }
+```
+
+`liked`는 토글 후 최종 상태다. 동시 더블탭은 멱등 처리한다(`liked=true` 유지) — 같은 게시물에 대한
+동시 "처음 누르기" 요청은 게시물 행 잠금(`PostRepository.findByIdForUpdate`, `PESSIMISTIC_WRITE`)으로
+직렬화해 `uq_post_like` 위반을 막는다. 예외를 잡아 삼키는 방식은 쓰지 않는다 — Postgres는 제약 위반이
+나면 트랜잭션 전체를 abort 상태로 만들어, 잡아도 커밋 시점에 실패할 수 있다.
+
+#### 집계 조회 — `GET`
+
+Status: `200 OK` — 응답 형태는 `POST`와 동일(`liked` · `likeCount`). 접근 권한이 없으면 `POST_002`다.
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 403 | `POST_002` | 접근 권한 없는 게시물(비공개 등)에 처음 좋아요를 시도 |
+| 404 | `POST_001` | 존재하지 않는 게시물 |
+
+#### 추천 피드 반영
+
+`likeCount * 3` 항을 점수 공식에 되살렸다(§6-6). 후보 게시물 ID를 모아 댓글 수와 동일하게
+한 번의 `IN` 조회로 배치 집계한다 — 게시물마다 조회하면 N+1이다(`RecommendedFeedQueryTest`).
+
+> `NotificationType.LIKE`(§11)는 이번 복구에 포함하지 않았다 — 좋아요를 눌러도 알림이 가지 않는다.
+> 필요해지면 별도 이슈로 처리한다.
 
 ---
 
@@ -1233,9 +1264,10 @@ Status: `200 OK`
 
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
-- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209)
-- 아직 없는 것: 읽음 처리(§10-6) · 메시지 이모지(#196)
-- ⚠️ `ChatRoomController`의 7개 엔드포인트는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209) · 읽음 처리(§10-7, #215)
+- 아직 없는 것: 메시지 이모지(#196)
+- ⚠️ `ChatRoomController`의 8개 엔드포인트 중 7개는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+  읽음 처리(§10-7)만 예외로 `ApiResponse<T>` 봉투를 쓴다 — #215가 명시적으로 요구해서 이 엔드포인트만 다르다.
 
 ### 10-1. 실시간 메시지 (STOMP)
 
@@ -1409,10 +1441,23 @@ Status: `200 OK` — **봉투 없음**(#203), **페이지네이션 없음**
 
 ```json
 [
-  { "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER" },
-  { "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER" }
+  {
+    "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER",
+    "unreadCount": 12,
+    "lastMessage": { "preview": "안녕하세요", "sentAt": "2026-09-07T14:03:11" }
+  },
+  {
+    "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER",
+    "unreadCount": 0,
+    "lastMessage": null
+  }
 ]
 ```
+
+`unreadCount`는 `GREATEST(lastReadAt, joinedAt)` 이후 도착한, **내가 보내지 않은** 메시지 수다(#258).
+`lastMessage`는 그 방에 메시지가 한 번도 없으면 `null`. `preview`는 `TEXT`면 본문, `IMAGE`면
+`"사진"`, `POST_SHARE`면 `"게시물을 공유했습니다"` 고정 문구다 — `content`(jsonb) 파싱 없이
+`type` 컬럼만으로 분기한다.
 
 > 목록 API 중 커서 페이지네이션을 쓰지 않는 둘 중 하나다(다른 하나는 댓글 스레드 §8-2).
 > 방 개수가 많아지면 재검토 대상이다.
@@ -1486,15 +1531,42 @@ Status: `200 OK` — 이쪽은 **봉투를 쓴다**
 | 404 | `CHAT_ROOMS_001` | 방이 없음 |
 | 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님 |
 
-### 10-7. 읽음 처리 — 미구현
+### 10-7. 읽음 처리
 
 ```http
 POST /api/chat-rooms/{roomId}/read
+Authorization: Bearer {accessToken}
 ```
 
-`chat_room_members.last_read_at` 컬럼과 엔티티 필드는 **있으나 갱신하는 코드가 없다.**
-입장 시각으로 한 번 채워지고 그대로다. 따라서 "안 읽은 메시지 N개"와 그룹 "읽음 N"을
-현재로서는 계산할 수 없다. → #215
+#### 상태
+
+**구현됨** (#215). `chat_room_members.last_read_at`은 입장 시각으로 한 번 채워진 뒤
+갱신하는 코드가 없었다 — 이 엔드포인트가 호출 시점으로 값을 갱신하는 유일한 경로다.
+이 컨트롤러의 다른 엔드포인트와 달리 **`ApiResponse<T>` 공통 봉투를 쓴다**(§2-6 예외).
+
+#### 설명
+
+호출 시점을 `lastReadAt`으로 기록한다. DIRECT·GROUP 채팅방 모두 대상이다.
+활성 멤버(나간 사람 제외)만 호출할 수 있다.
+
+#### 응답
+
+Status: `200 OK`
+
+```json
+{ "success": true, "data": null, "error": null }
+```
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 404 | `CHAT_ROOMS_001` | 방이 없음 |
+| 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님(나갔거나 강퇴당함) |
+
+> "안 읽은 메시지 N개"는 §10-4(`GET /api/chat-rooms`)의 `unreadCount`로 구현됐다(#258).
+> 이 엔드포인트 자체는 `lastReadAt` 갱신만 하고, 계산은 방 목록 조회 쪽 책임이다.
 
 ---
 
