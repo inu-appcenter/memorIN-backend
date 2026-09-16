@@ -104,7 +104,7 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
         Statistics stats = statistics();
         stats.clear();
 
-        List<PostCommentResponse> thread = postCommentService.getThread(postId, readerId);
+        List<PostCommentResponse> thread = postCommentService.getThread(postId, readerId, null, 50).items();
 
         assertThat(thread).hasSize(expectedComments);
         // 응답을 실제로 읽어 프록시 초기화를 유발한다. 필드를 안 건드리면 N+1이 숨는다.
@@ -133,11 +133,14 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
                 .as("댓글 수에 비례해 쿼리가 늘어나면 N+1 (작성자 JOIN FETCH 또는 이모지 배치 집계가 빠졌다)")
                 .isEqualTo(fewQueries);
 
-        // 게시물 1 + 스레드 1 + 이모지 집계 1 = 3.
-        // 늘어났다면 어딘가에서 조회가 하나 더 붙은 것이니 이유를 확인하고 이 숫자를 갱신할 것.
+        // 게시물 1 + 최상위 댓글 id 1 + 스레드 본문 1 + 이모지 집계 1 = 4.
+        //
+        // 커서 페이징(#225)이 들어오면서 3 → 4가 됐다. 늘어난 한 건은 "이 페이지의 최상위 댓글이
+        // 무엇인가"를 먼저 정하는 쿼리이고, 페이지 크기·댓글 수와 무관하게 1개다.
+        // 더 늘어났다면 어딘가에서 조회가 붙은 것이니 이유를 확인하고 이 숫자를 갱신할 것.
         assertThat(fewQueries)
                 .as("PUBLIC 게시물 스레드 조회의 기대 쿼리 수")
-                .isEqualTo(3);
+                .isEqualTo(4);
     }
 
     // 소프트 삭제는 body를 null로 비운다. body가 NOT NULL이면 이 경로는 500으로 터진다.
@@ -159,7 +162,7 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
 
         postCommentService.delete(target[0], target[1]); // 작성자 본인이 삭제
 
-        List<PostCommentResponse> thread = postCommentService.getThread(postId, readerId);
+        List<PostCommentResponse> thread = postCommentService.getThread(postId, readerId, null, 50).items();
 
         PostCommentResponse deleted = thread.get(0);
         assertThat(deleted.deleted()).isTrue();

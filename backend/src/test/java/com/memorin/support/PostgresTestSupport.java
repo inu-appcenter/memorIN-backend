@@ -28,8 +28,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 // 클래스 수와 무관하게 안정적이다. 전체 실행도 컨테이너를 한 번만 띄우므로 더 빠르다.
 public abstract class PostgresTestSupport {
 
+    // 클래스마다 서로 다른 Spring 컨텍스트(=별도 HikariCP 풀, idle 기본 10)가 캐시되어 쌓인다.
+    // 테스트 클래스 수가 늘수록 이 컨테이너 하나에 몰리는 총 연결 수도 함께 늘어난다.
+    // 기본 max_connections(100)로는 스위트가 커질수록 "sorry, too many clients already"로
+    // 죽는다 — 실측: #182에서 테스트 클래스 하나 늘렸더니 CI에서 재현됐다. 여유를 넉넉히 둔다.
     @ServiceConnection
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine");
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
+            .withCommand("postgres", "-c", "max_connections=300");
 
     static {
         POSTGRES.start();

@@ -93,11 +93,18 @@ cp .env.example .env
 # .env 를 열어 비밀번호·JWT_SECRET 등을 환경에 맞게 수정
 ```
 
-### 2. Firebase 서비스 계정 키 배치
-FCM 알림을 사용하려면 Firebase 콘솔에서 발급한 서비스 계정 키를 아래 경로에 둡니다. (이 파일은 `.gitignore`로 커밋이 차단됩니다.)
+### 2. 푸시 알림 설정 (선택)
+FCM·Web Push는 기본적으로 **꺼져 있습니다**(`FIREBASE_ENABLED=false`, `WEB_PUSH_ENABLED=false`).
+끈 상태에서도 알림은 DB에 저장되고 `GET /api/notifications`로 조회됩니다. 발송만 일어나지 않습니다.
+
+**FCM**을 쓰려면 Firebase 콘솔에서 발급한 서비스 계정 키를 아래 경로에 두고 `FIREBASE_ENABLED=true`로 바꿉니다.
 ```
-backend/src/main/resources/firebase-service-account.json
+secrets/firebase-service-account.json
 ```
+`secrets/` 디렉터리는 컨테이너의 `/run/secrets`로 읽기 전용 마운트되며, 내용물은 `.gitignore`로 커밋이 차단됩니다.
+컨테이너가 non-root로 돌기 때문에 `Permission denied`가 나면 `chmod 644`로 읽기 권한을 열어 주세요.
+
+**Web Push**를 쓰려면 VAPID 키 쌍(`npx web-push generate-vapid-keys`)을 생성해 `.env`에 넣고 `WEB_PUSH_ENABLED=true`로 바꿉니다.
 
 ### 3. 인프라 + 백엔드 실행
 ```bash

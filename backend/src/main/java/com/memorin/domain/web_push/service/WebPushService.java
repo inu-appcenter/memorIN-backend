@@ -15,6 +15,8 @@ import nl.martijndwars.webpush.PushService;
 import org.apache.http.HttpResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import java.security.Security;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 @Slf4j
 @Service
@@ -46,6 +48,10 @@ public class WebPushService {
 
         if (publicKey.isBlank() || privateKey.isBlank()) {
             throw new IllegalStateException("web-push is enabled but VAPID keys are missing");
+        }
+
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
         }
 
         try {

@@ -10,6 +10,8 @@ import com.memorin.domain.chat_rooms.dto.response.ChatRoomResponse;
 import com.memorin.domain.chat_rooms.repository.ChatRoomsRepository;
 import com.memorin.domain.chat_rooms.service.ChatRoomService;
 import com.memorin.domain.users.entity.User;
+import com.memorin.global.common.ErrorCode;
+import com.memorin.global.exception.BusinessException;
 import com.memorin.support.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -91,8 +93,12 @@ class ChatRoomCriticalPathTest extends PostgresTestSupport {
     void 자기_자신과는_1대1_채팅방을_만들_수_없다() {
         UUID userId = tx.execute(status -> persistUser("solo" + UUID.randomUUID().toString().substring(0, 6)).getId());
 
+        // 사용자 입력 문제이므로 400이어야 한다. 예전에는 IllegalArgumentException이라
+        // GlobalExceptionHandler의 Exception 핸들러로 떨어져 500 + COMMON_001이 나갔다(#219).
         assertThatThrownBy(() -> chatRoomService.createDirectRoom(userId, userId))
-            .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(BusinessException.class)
+            .extracting(e -> ((BusinessException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOMS_002);
     }
 
     @Test
@@ -210,11 +216,15 @@ class ChatRoomCriticalPathTest extends PostgresTestSupport {
 
         assertThatThrownBy(() ->
             chatRoomService.renameRoom(room.roomId(), ids[0], new RenameRoomRequest("이름")))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(BusinessException.class)
+            .extracting(e -> ((BusinessException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOMS_002);
 
         assertThatThrownBy(() ->
             chatRoomService.inviteMembers(room.roomId(), ids[0], new InviteMembersRequest(List.of(ids[1]))))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(BusinessException.class)
+            .extracting(e -> ((BusinessException) e).getErrorCode())
+            .isEqualTo(ErrorCode.CHAT_ROOMS_002);
     }
 
     @Test
@@ -234,5 +244,48 @@ class ChatRoomCriticalPathTest extends PostgresTestSupport {
         assertThatThrownBy(() -> chatRoomService.leaveRoom(room.roomId(), ids[1]))
             .as("이미 나간 사람이 다시 나가기를 시도하면 활성 멤버가 아니므로 거부돼야 한다")
             .isInstanceOf(com.memorin.global.exception.BusinessException.class);
+    }
+
+    // chat_room_members에는 (room_id, user_id) 유니크 제약이 있다. 같은 요청에 같은 UUID가
+    // 두 번 들어오면 두 번째 INSERT가 제약을 위반해 500이 났다(docs/sprint4-code-review.md §11-5).
+    // [A, A, B]를 보낸 클라이언트의 의도는 "A와 B를 초대"이지 오류를 보는 것이 아니므로
+    // 거절하지 않고 걸러낸다.
+    @Test
+    void 같은_멤버를_중복으로_넣어도_방이_정상적으로_만들어진다() {
+        UUID[] ids = tx.execute(status -> {
+            User owner = persistUser("dup-o" + UUID.randomUUID().toString().substring(0, 6));
+            User member = persistUser("dup-m" + UUID.randomUUID().toString().substring(0, 6));
+            em.flush();
+            return new UUID[]{owner.getId(), member.getId()};
+        });
+
+        ChatRoomResponse room = chatRoomService.createGroupRoom(
+            ids[0], new CreateGroupRoomRequest("중복 초대 방", List.of(ids[1], ids[1], ids[1])));
+
+        assertThat(chatRoomMemberRepository.findByRoom_IdAndLeftAtIsNull(room.roomId()))
+            .as("중복 UUID를 걸러내 방장 1명 + 멤버 1명이어야 한다")
+            .hasSize(2);
+    }
+
+    // 초대 경로도 같은 제약을 지난다.
+    @Test
+    void 같은_멤버를_중복으로_초대해도_실패하지_않는다() {
+        UUID[] ids = tx.execute(status -> {
+            User owner = persistUser("inv-o" + UUID.randomUUID().toString().substring(0, 6));
+            User first = persistUser("inv-a" + UUID.randomUUID().toString().substring(0, 6));
+            User second = persistUser("inv-b" + UUID.randomUUID().toString().substring(0, 6));
+            em.flush();
+            return new UUID[]{owner.getId(), first.getId(), second.getId()};
+        });
+
+        ChatRoomResponse room = chatRoomService.createGroupRoom(
+            ids[0], new CreateGroupRoomRequest("초대 방", List.of(ids[1])));
+
+        chatRoomService.inviteMembers(room.roomId(), ids[0],
+            new InviteMembersRequest(List.of(ids[2], ids[2])));
+
+        assertThat(chatRoomMemberRepository.findByRoom_IdAndLeftAtIsNull(room.roomId()))
+            .as("방장 + 최초 멤버 + 중복 제거된 초대 1명")
+            .hasSize(3);
     }
 }
