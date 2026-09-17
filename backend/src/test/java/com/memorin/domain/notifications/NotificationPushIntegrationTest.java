@@ -273,10 +273,10 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
 
             entityManager.persist(post);
             entityManager.persist(room);
-            entityManager.persist(ChatRoomMembers.of(room, post, sender));
-            entityManager.persist(ChatRoomMembers.of(room, post, recipientA));
-            entityManager.persist(ChatRoomMembers.of(room, post, recipientB));
-            ChatRoomMembers departedMember = ChatRoomMembers.of(room, post, departedRecipient);
+            entityManager.persist(ChatRoomMembers.ofOwner(room, sender));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientA));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientB));
+            ChatRoomMembers departedMember = ChatRoomMembers.ofMember(room, departedRecipient);
             departedMember.leave();
             entityManager.persist(departedMember);
             entityManager.flush();
