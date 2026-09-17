@@ -4,6 +4,7 @@ import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.follows.controller.FollowController;
 import com.memorin.domain.follows.service.FollowService;
+import com.memorin.domain.users.dto.UserFollowRequestPageResponse;
 import com.memorin.domain.messages.controller.MessageController;
 import com.memorin.domain.messages.dto.response.MessagePageResponse;
 import com.memorin.domain.messages.service.MessageService;
@@ -134,17 +135,26 @@ class AuthenticatedEndpointSliceTest {
     @Test
     void 받은_팔로우_요청_목록은_로그인_사용자의_id를_서비스로_넘긴다() throws Exception {
         UUID me = UUID.randomUUID();
-        given(followService.getFollowRequests(any())).willReturn(List.of());
+        UUID cursor = UUID.randomUUID();
+        given(followService.getFollowRequests(any(), any(), any()))
+            .willReturn(new UserFollowRequestPageResponse(List.of(), null, false));
 
-        mockMvc.perform(get("/api/follows/requests").with(user(principalOf(me))))
+        mockMvc.perform(get("/api/follows/requests")
+                .param("cursor", cursor.toString())
+                .param("size", "30")
+                .with(user(principalOf(me))))
             .andExpect(status().isOk());
 
         ArgumentCaptor<UUID> userId = ArgumentCaptor.forClass(UUID.class);
-        verify(followService).getFollowRequests(userId.capture());
+        ArgumentCaptor<UUID> requestedCursor = ArgumentCaptor.forClass(UUID.class);
+        ArgumentCaptor<Integer> size = ArgumentCaptor.forClass(Integer.class);
+        verify(followService).getFollowRequests(userId.capture(), requestedCursor.capture(), size.capture());
 
         assertThat(userId.getValue())
             .as("내가 받은 요청이어야 한다. 틀리면 남이 받은 요청 목록이 나온다")
             .isEqualTo(me);
+        assertThat(requestedCursor.getValue()).isEqualTo(cursor);
+        assertThat(size.getValue()).isEqualTo(30);
     }
 
     @Test
