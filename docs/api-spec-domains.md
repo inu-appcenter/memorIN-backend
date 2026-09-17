@@ -1325,11 +1325,15 @@ CONNECT에서 "누구인지"를 확인하고, 그 뒤 **"이 방을 볼 자격�
 
 #### 발행 payload
 
-```json
-// /app/chat.sendText
-{ "roomId": "0198f2e0-...", "text": "안녕하세요" }
+`/app/chat.sendText`
 
-// /app/chat.sharePost
+```json
+{ "roomId": "0198f2e0-...", "text": "안녕하세요" }
+```
+
+`/app/chat.sharePost`
+
+```json
 { "roomId": "0198f2e0-...", "postId": "0198f1a2-..." }
 ```
 
