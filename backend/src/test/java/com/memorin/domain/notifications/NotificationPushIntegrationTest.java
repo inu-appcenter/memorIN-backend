@@ -2,6 +2,9 @@ package com.memorin.domain.notifications;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
+import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
+import com.memorin.domain.chat_rooms.entity.ChatRooms;
+import com.memorin.domain.chat_rooms.entity.Chat_type;
 import com.memorin.domain.fcm_token.entity.DeviceType;
 import com.memorin.domain.fcm_token.entity.FcmToken;
 import com.memorin.domain.follows.entity.Follow_state;
@@ -12,6 +15,8 @@ import com.memorin.domain.notifications.dto.PushNotificationRequested;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.repository.NotificationRepository;
 import com.memorin.domain.notifications.service.FcmPushService;
+import com.memorin.domain.messages.dto.request.TextRequest;
+import com.memorin.domain.messages.service.MessageService;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import com.memorin.domain.post_comments.service.PostCommentService;
 import com.memorin.domain.posts.entity.Post;
@@ -72,6 +77,9 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
 
     @Autowired
     private PostCommentService postCommentService;
+
+    @Autowired
+    private MessageService messageService;
 
     @Autowired
     private FollowRepository followRepository;
@@ -244,6 +252,48 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             NotificationType.COMMENT,
             commentId
         );
+    }
+
+    @Test
+    void textMessage_createsOneRoomNotificationForEachActiveRecipientExceptSender() {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User sender = persistUser("message-sender-" + suffix());
+            User recipientA = persistUser("message-recipient-a-" + suffix());
+            User recipientB = persistUser("message-recipient-b-" + suffix());
+            User departedRecipient = persistUser("message-departed-" + suffix());
+            Post post = Post.create(
+                sender,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+            ChatRooms room = ChatRooms.builder().name("notification-room").type(Chat_type.GROUP).build();
+
+            entityManager.persist(post);
+            entityManager.persist(room);
+            entityManager.persist(ChatRoomMembers.ofOwner(room, sender));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientA));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientB));
+            ChatRoomMembers departedMember = ChatRoomMembers.ofMember(room, departedRecipient);
+            departedMember.leave();
+            entityManager.persist(departedMember);
+            entityManager.flush();
+
+            return new UUID[]{sender.getId(), recipientA.getId(), recipientB.getId(), departedRecipient.getId(), room.getId()};
+        });
+
+        messageService.sendText(ids[0], new TextRequest(ids[4], "hello recipients"));
+
+        assertNotification(ids[1], NotificationType.MESSAGE, ids[4]);
+        assertNotification(ids[2], NotificationType.MESSAGE, ids[4]);
+        assertThat(notificationRepository.findNotifications(
+            ids[0], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
+        assertThat(notificationRepository.findNotifications(
+            ids[3], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
     }
 
     private void enableNoDeviceDelivery() {
