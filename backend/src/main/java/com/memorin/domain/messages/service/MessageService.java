@@ -86,16 +86,8 @@ public class MessageService {
     // 텍스트 메세지 생성
     @Transactional
     public MessageResponse sendText(UUID senderId, TextRequest request) {
-<<<<<<< Updated upstream
         ChatRooms room = chatRoomsRepository.findById(request.roomId())
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방이 존재하지 않습니다: "));
-=======
-        ChatRooms room = (ChatRooms) chatRoomsRepository.findById(request.roomId())
-            .orElseThrow(() -> new BusinessException(
-                ErrorCode.CHAT_ROOMS_001,
-                "채팅방이 존재하지 않습니다: "
-            ));
->>>>>>> Stashed changes
 
         if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(
             request.roomId(), senderId)) {
