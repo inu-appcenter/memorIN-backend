@@ -6,7 +6,10 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +47,7 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMembers,
     @EntityGraph(attributePaths = "room")
     List<ChatRoomMembers> findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(UUID userId);
 
+<<<<<<< Updated upstream
     // 방 목록 화면의 안읽은 수·마지막 메시지를 방 개수와 무관하게 쿼리 1번으로 집계한다(#258).
     // 안읽음 기준 시각은 GREATEST(last_read_at, joined_at) — rejoin()이 last_read_at은 그대로
     // 둔 채 joined_at만 갱신하므로, 재입장 전에 읽었던 시각을 그대로 쓰면 자리를 비운 동안
@@ -77,5 +81,18 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMembers,
         WHERE crm.user_id = :userId AND crm.left_at IS NULL
         """, nativeQuery = true)
     List<RoomActivityProjection> findRoomActivityByUserId(@Param("userId") UUID userId);
+=======
+    @Query("""
+    SELECT m.user.id
+    FROM ChatRoomMembers m
+    WHERE m.room.id = :roomId
+      AND m.leftAt IS NULL
+      AND m.user.id <> :senderId
+    """)
+    List<UUID> findActiveMemberIdsExcludingSender(
+        @Param("roomId") UUID roomId,
+        @Param("senderId") UUID senderId
+    );
+>>>>>>> Stashed changes
 
 }

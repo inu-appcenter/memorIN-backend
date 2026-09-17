@@ -4,5 +4,6 @@ public enum NotificationType {
     FOLLOW_REQUEST,
     FOLLOW_ACCEPTED,
     COMMENT,
-    LIKE
+    LIKE,
+    MESSAGE
 }

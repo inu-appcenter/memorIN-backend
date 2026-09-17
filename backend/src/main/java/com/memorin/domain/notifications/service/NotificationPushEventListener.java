@@ -2,6 +2,7 @@ package com.memorin.domain.notifications.service;
 
 import com.memorin.domain.notifications.dto.PushNotificationRequested;
 import com.memorin.domain.web_push.service.WebPushService;
+import com.memorin.global.config.WebSocketSessionRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -16,10 +17,16 @@ public class NotificationPushEventListener {
 
     private final FcmPushService fcmPushService;
     private final WebPushService webPushService;
+    private final WebSocketSessionRegistry webSocketSessionRegistry;
 
     @Async("notificationPushExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPushNotificationRequested(PushNotificationRequested event) {
+        if (webSocketSessionRegistry.isConnected(event.recipientId())) {
+            log.debug("Skipping push for connected recipient. recipientId={}", event.recipientId());
+            return;
+        }
+
         try {
             fcmPushService.send(event);
         } catch (RuntimeException e) {

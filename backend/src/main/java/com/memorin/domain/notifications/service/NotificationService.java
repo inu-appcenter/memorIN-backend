@@ -53,6 +53,30 @@ public class NotificationService {
         ));
     }
 
+    @Transactional
+    public void saveMessages(List<UUID> recipientIds, UUID actorId, String title, String message, UUID roomId) {
+        if (recipientIds.isEmpty()) {
+            return;
+        }
+
+        User actor = userRepository.getReferenceById(actorId);
+        List<Notification> notifications = recipientIds.stream()
+            .map(recipientId -> new Notification(
+                userRepository.getReferenceById(recipientId),
+                actor,
+                NotificationType.MESSAGE,
+                title,
+                message,
+                roomId
+            ))
+            .toList();
+
+        notificationRepository.saveAll(notifications);
+        recipientIds.forEach(recipientId -> eventPublisher.publishEvent(new PushNotificationRequested(
+            recipientId, actorId, NotificationType.MESSAGE, title, message, roomId
+        )));
+    }
+
     public NotificationPageResponse getNotifications(UUID userId, UUID cursor, Integer size) {
         int limit = normalizeSize(size);
         Pageable pageable = PageRequest.of(0, limit + 1);

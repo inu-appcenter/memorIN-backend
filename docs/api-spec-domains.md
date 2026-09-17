@@ -1581,6 +1581,7 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
+<<<<<<< Updated upstream
 조회·읽음 처리 구현(#168, 2026-08-19) → **생성 트리거 연결 완료**(#186, 2026-08-26) →
 **발송(FCM·Web Push) 연결 완료**(#192·#211·#213).
 
@@ -1613,6 +1614,15 @@ NotificationService.save()
 
 `MessageService`는 `NotificationService`를 전혀 호출하지 않는다. `NotificationType`에 메시지용 타입도 없다.
 README의 핵심 기능인 "미접속 상태면 FCM / Web Push로 전환"이 **채팅에는 연결돼 있지 않다.** → #216
+=======
+**조회·읽음·발생 지점 연결이 구현됨.** 메시지 알림은 #211 이후 추가됐다.
+
+#### 알림 생성 및 푸시 정책
+
+팔로우 요청·수락·댓글·메시지 발신은 같은 트랜잭션에서 알림을 적재한다. 메시지는 발신자를 제외한 `leftAt IS NULL` 방 멤버마다 하나의 알림을 만들며, `saveAll`과 Hibernate JDBC 배치(50건)로 적재한다.
+
+알림 이벤트는 커밋 후 비동기로 FCM·Web Push를 발송한다. 단, 수신자에게 인증된 STOMP 세션이 하나라도 있으면 WebSocket이 실시간 전달을 담당하므로 푸시는 발송하지 않는다. 알림 히스토리는 접속 상태와 무관하게 저장한다.
+>>>>>>> Stashed changes
 
 #### 목록 조회
 
@@ -1647,9 +1657,9 @@ Status: `200 OK`
 
 | 필드 | 설명 |
 |---|---|
-| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` |
+| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` · `MESSAGE` |
 | `actor*` | 알림을 발생시킨 사람. 시스템 알림이면 셋 다 `null` |
-| `referenceId` | 이동 대상 id(팔로우 행·게시물·댓글 등). **타입별 의미가 다르고 문서화되지 않았다** → §14 |
+| `referenceId` | 이동 대상 id. `FOLLOW_REQUEST`·`FOLLOW_ACCEPTED`는 팔로우 행 id, `COMMENT`는 댓글 id, `MESSAGE`는 **채팅방 id**다. FE는 `MESSAGE` 알림 탭 시 해당 방으로 이동한다. |
 | `read` | 읽음 여부 |
 
 > `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 제거 여부는 #182 결정 대기.
@@ -1791,9 +1801,20 @@ Content-Type: application/json
 
 | 이전 # | 항목 | 결말 |
 |---|---|---|
+<<<<<<< Updated upstream
 | 4 | 알림 저장 트리거 위치 | **이벤트 + `AFTER_COMMIT`으로 결정**(#186·#192). §11에 반영 |
 | 7 | `content` JSONB 태그 키 표준 | 별도 `tags` 컬럼으로 **우회**(#199). 구조 스키마 문제는 위 6번으로 남았다 |
 | 10 | 채팅 REST/STOMP 경계 | REST는 `/api/chat-rooms/**`, 실시간은 `/app`·`/topic`으로 갈렸다. §10에 반영 |
+=======
+| 1 | **공통 응답 봉투 통일 여부**(§2-6) | 8개 엔드포인트가 DTO를 직접 반환한다. 통일은 FE 파싱을 전부 바꾸는 파괴적 변경이라 스프린트 경계에서만 가능하다 |
+| 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지. #165와 직결 |
+| 3 | **`GET /api/follows/requests` 페이지네이션**(§9-7) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 |
+| 4 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 유일하게 전체를 반환한다. 댓글이 많은 게시물에서 응답 크기가 제한 없이 커진다 |
+| 5 | **`content` JSONB 태그 키 표준** | Sprint 3 "태그/메타데이터 탐색 API"의 선행 조건. `@ValidJson`은 "유효한 JSON"만 보고 구조는 보지 않는다. Sprint 2에서 죽은 GIN 인덱스를 제거했으므로 재도입 여부도 함께 결정 |
+| 6 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음 · 관계 없음 · PENDING 아님 세 가지에 같은 코드가 쓰인다 |
+| 7 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 열 것인지 정해야 문서와 구현이 일치한다 |
+| 8 | **채팅 REST/STOMP 경계**(§10) | PR #169가 `WebSocketConfig`를 함께 들고 온다. Sprint 4 착수 전에 범위를 나눠야 한다 |
+>>>>>>> Stashed changes
 
 이전 리비전의 "유저 엔티티 단일화 / 도메인 참조 방식 / 엔티티 필드 네이밍"은 구현이 이미 한 방향으로 굳었다.
 남은 것은 문서 정합성 정리(#41)이며, 이 표에서는 제외했다.
