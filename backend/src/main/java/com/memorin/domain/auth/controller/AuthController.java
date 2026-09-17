@@ -45,8 +45,8 @@ public class AuthController {
 
     @Operation(summary = "토큰 재발급", description = "Refresh Token으로 새 Access Token을 재발급한다.")
     @PostMapping("/refresh")
-    public ResponseEntity<LoginResponse> refresh(@RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(authService.reissue(request.refreshToken()));
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(@RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.reissue(request.refreshToken())));
     }
 
     @Operation(summary = "로그아웃", description = "현재 사용자의 Refresh Token을 삭제해 이후 토큰 재발급을 차단한다.")

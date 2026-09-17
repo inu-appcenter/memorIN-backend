@@ -77,8 +77,8 @@ Authorization: Bearer {accessToken}
 }
 ```
 
-봉투를 쓰지 않고 DTO를 그대로 반환하는 엔드포인트가 **33개 중 8개** 있다(미디어 4개, 댓글 이모지 2개,
-`POST /auth/refresh`, `GET /api/users/{userId}`). 전체 목록은 `docs/api-spec-domains.md` §2-6에 있다.
+봉투를 쓰지 않고 DTO를 그대로 반환하는 엔드포인트가 남아 있다(미디어 API, 댓글 이모지 API,
+`GET /api/users/{userId}` 등). 전체 목록은 `docs/api-spec-domains.md` §2-6에 있다.
 
 통일 여부는 아직 결정되지 않았다 — 봉투로 맞추면 FE 파싱이 전부 바뀌는 파괴적 변경이라
 스프린트 경계에서 한 번에 처리해야 한다(`docs/api-spec-domains.md` §14).
@@ -243,13 +243,14 @@ Content-Type: application/json
 
 Status: `200 OK`
 
-> ⚠️ 현재 이 API는 로그인과 달리 **공통 `ApiResponse` 봉투 없이** `LoginResponse`(토큰 쌍)를 그대로 반환한다.
-> 응답 포맷 일관성은 후속 API 정리 시 맞춘다.
-
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  },
+  "error": null
 }
 ```
 

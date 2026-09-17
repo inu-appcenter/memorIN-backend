@@ -6,6 +6,7 @@ import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.service.NotificationService;
 import com.memorin.domain.users.dto.UserFollowRequestResponse;
+import com.memorin.domain.users.dto.UserFollowRequestPageResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
@@ -13,6 +14,8 @@ import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +25,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class FollowService {
+
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 50;
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
@@ -35,10 +41,10 @@ public class FollowService {
         }
 
         User follower = userRepository.findById(followerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FOLLOW_001));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         User following = userRepository.findById(followingId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.FOLLOW_001));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         if (followRepository.existsByFollowerIdAndFollowingId(followerId, followingId)) {
             throw new BusinessException(ErrorCode.FOLLOW_003);
@@ -71,7 +77,7 @@ public class FollowService {
         }
 
         if (follows.getStatus() != Follow_state.PENDING) {
-            throw new BusinessException(ErrorCode.FOLLOW_001);
+            throw new BusinessException(ErrorCode.FOLLOW_005);
         }
 
         follows.accept();
@@ -96,7 +102,7 @@ public class FollowService {
         }
 
         if (follows.getStatus() != Follow_state.PENDING) {
-            throw new BusinessException(ErrorCode.FOLLOW_001);
+            throw new BusinessException(ErrorCode.FOLLOW_005);
         }
 
         followRepository.delete(follows);
@@ -112,15 +118,31 @@ public class FollowService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserFollowRequestResponse> getFollowRequests(UUID userId) {
+    public UserFollowRequestPageResponse getFollowRequests(UUID userId, UUID cursor, Integer size) {
+        int limit = normalizeSize(size);
+        Pageable pageable = PageRequest.of(0, limit + 1);
+        List<Follows> follows = cursor == null
+            ? followRepository.findReceivedRequestsFirstPage(userId, Follow_state.PENDING, pageable)
+            : followRepository.findReceivedRequestsAfterCursor(userId, Follow_state.PENDING, cursor, pageable);
 
-        List<Follows> follows = followRepository.findReceivedRequests(userId, Follow_state.PENDING);
+        boolean hasNext = follows.size() == limit + 1;
+        if (hasNext) {
+            follows.remove(limit);
+        }
         List<UserFollowRequestResponse> responses = new ArrayList<>();
 
         for (Follows follow : follows) {
             responses.add(UserFollowRequestResponse.from(follow));
         }
 
-        return responses;
+        UUID nextCursor = hasNext ? follows.get(follows.size() - 1).getId() : null;
+        return new UserFollowRequestPageResponse(responses, nextCursor, hasNext);
+    }
+
+    private int normalizeSize(Integer size) {
+        if (size == null) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 }
