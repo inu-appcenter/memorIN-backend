@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -77,5 +76,17 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMembers,
         WHERE crm.user_id = :userId AND crm.left_at IS NULL
         """, nativeQuery = true)
     List<RoomActivityProjection> findRoomActivityByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT m.user.id
+    FROM ChatRoomMembers m
+    WHERE m.room.id = :roomId
+      AND m.leftAt IS NULL
+      AND m.user.id <> :senderId
+    """)
+    List<UUID> findActiveMemberIdsExcludingSender(
+        @Param("roomId") UUID roomId,
+        @Param("senderId") UUID senderId
+    );
 
 }

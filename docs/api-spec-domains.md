@@ -1581,8 +1581,7 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-조회·읽음 처리 구현(#168, 2026-08-19) → **생성 트리거 연결 완료**(#186, 2026-08-26) →
-**발송(FCM·Web Push) 연결 완료**(#192·#211·#213).
+조회·읽음 처리(#168)와 생성 트리거(#186), FCM·Web Push 발송(#192·#211·#213)이 구현됐다.
 
 #### 발생 지점 — 어디서 알림이 만들어지나
 
@@ -1591,8 +1590,11 @@ Authorization: Bearer {accessToken}
 | `FOLLOW_REQUEST` | `FollowService` — 팔로우 요청 |
 | `FOLLOW_ACCEPTED` | `FollowService` — 요청 수락 |
 | `COMMENT` | `PostCommentService` — 댓글 작성 |
+| `MESSAGE` | `MessageService` — 텍스트·게시물 공유 메시지 발신 |
 
 Sprint 3 결산 §4가 "호출부 0개 — 항상 빈 배열"로 적었던 구멍은 #186에서 메워졌다.
+
+채팅 메시지는 발신자를 제외한 활성(`leftAt IS NULL`) 방 멤버마다 알림을 하나씩 저장한다. `saveAll`로 한 번에 적재하며, 알림 히스토리는 접속 상태와 무관하게 남는다.
 
 #### 저장 → 발송 파이프라인
 
@@ -1609,10 +1611,7 @@ NotificationService.save()
 두 발송 경로 모두 **기본 비활성**이다(`FIREBASE_ENABLED` · `WEB_PUSH_ENABLED`). 꺼도 알림은 DB에 저장되고
 조회 API로 보인다. 발송만 일어나지 않는다.
 
-#### 🔴 채팅 메시지는 이 파이프라인을 타지 않는다
-
-`MessageService`는 `NotificationService`를 전혀 호출하지 않는다. `NotificationType`에 메시지용 타입도 없다.
-README의 핵심 기능인 "미접속 상태면 FCM / Web Push로 전환"이 **채팅에는 연결돼 있지 않다.** → #216
+수신자에게 인증된 STOMP 세션이 하나라도 있으면 WebSocket이 실시간 전달을 담당하므로 FCM·Web Push는 발송하지 않는다.
 
 #### 목록 조회
 
@@ -1647,9 +1646,9 @@ Status: `200 OK`
 
 | 필드 | 설명 |
 |---|---|
-| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` |
+| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` · `MESSAGE` |
 | `actor*` | 알림을 발생시킨 사람. 시스템 알림이면 셋 다 `null` |
-| `referenceId` | 이동 대상 id(팔로우 행·게시물·댓글 등). **타입별 의미가 다르고 문서화되지 않았다** → §14 |
+| `referenceId` | 이동 대상 id. `FOLLOW_REQUEST`·`FOLLOW_ACCEPTED`는 팔로우 행 id, `COMMENT`는 댓글 id, `MESSAGE`는 **채팅방 id**다. FE는 `MESSAGE` 알림 탭 시 해당 방으로 이동한다. |
 | `read` | 읽음 여부 |
 
 > `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 제거 여부는 #182 결정 대기.
