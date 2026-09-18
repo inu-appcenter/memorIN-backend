@@ -15,6 +15,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.UUID;
 
 @Service
@@ -60,7 +62,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(user.getId());
         String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
-        refreshTokenRepository.save(new RefreshToken(user.getId(), refreshToken));
+        refreshTokenRepository.save(new RefreshToken(user.getId(), jwtTokenProvider.hashRefreshToken(refreshToken)));
 
         return new LoginResponse(accessToken, refreshToken);
     }
@@ -68,7 +70,7 @@ public class AuthService {
     @Transactional
     public LoginResponse reissue(String refreshToken) {
 
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
             throw new BusinessException(ErrorCode.AUTH_003);
         }
 
@@ -77,14 +79,16 @@ public class AuthService {
         RefreshToken savedToken = refreshTokenRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_003));
 
-        if (!savedToken.getRefreshToken().equals(refreshToken)) {
+        if (!MessageDigest.isEqual(
+                jwtTokenProvider.hashRefreshToken(refreshToken).getBytes(StandardCharsets.UTF_8),
+                savedToken.getRefreshTokenHash().getBytes(StandardCharsets.UTF_8))) {
             throw new BusinessException(ErrorCode.AUTH_003);
         }
 
         String newAccessToken = jwtTokenProvider.createAccessToken(userId);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId);
 
-        savedToken.update(newRefreshToken);
+        savedToken.update(jwtTokenProvider.hashRefreshToken(newRefreshToken));
 
         return new LoginResponse(newAccessToken, newRefreshToken);
     }
