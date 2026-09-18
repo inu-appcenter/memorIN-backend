@@ -21,14 +21,14 @@ public class RefreshToken {
     private UUID userId;
 
     @Column(name = "refresh_token", nullable = false, length = 500)
-    private String refreshToken;
+    private String refreshTokenHash;
 
-    public RefreshToken(UUID userId, String refreshToken) {
+    public RefreshToken(UUID userId, String refreshTokenHash) {
         this.userId = userId;
-        this.refreshToken = refreshToken;
+        this.refreshTokenHash = refreshTokenHash;
     }
 
-    public void update(String refreshToken) {
-        this.refreshToken = refreshToken;
+    public void update(String refreshTokenHash) {
+        this.refreshTokenHash = refreshTokenHash;
     }
 }
