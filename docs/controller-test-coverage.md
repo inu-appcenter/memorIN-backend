@@ -81,6 +81,7 @@ postService.search(ids[1], scoped, null, 20);       // UUID를 직접 넘김
 | CommentEmoji | `DELETE` | `/api/comments/{commentId}/emojis/{emojiType}` | O | ❌ |
 | CommentEmoji | `GET` | `/api/comments/{commentId}/emojis` | O | ❌ |
 | FcmToken | `POST` | `/api/fcm/token` | O | ❌ |
+| FcmToken | `DELETE` | `/api/fcm/token` | O | ✅ FcmTokenControllerTest |
 | Follow | `POST` | `/api/follows` | O | ❌ |
 | Follow | `PATCH` | `/api/follows/{followId}/accept` | O | ✅ AuthenticatedEndpointSliceTest |
 | Follow | `DELETE` | `/api/follows/requests/{followId}` | O | ❌ |

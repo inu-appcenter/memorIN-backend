@@ -46,4 +46,8 @@ public class FcmTokenService {
 
         token.update(request.token());
     }
+
+    public void delete(UUID userId, String token) {
+        fcmTokenRepository.deleteByUserIdAndToken(userId, token);
+    }
 }
