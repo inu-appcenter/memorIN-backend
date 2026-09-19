@@ -119,7 +119,7 @@ class StompAuthChannelInterceptorTest {
 
     @Test
     void 유효하지_않은_토큰은_거부된다() {
-        given(jwtTokenProvider.validateToken("bad")).willReturn(false);
+        given(jwtTokenProvider.validateAccessToken("bad")).willReturn(false);
 
         assertThatThrownBy(() -> send(connectFrame("Bearer bad")))
             .isInstanceOf(MessagingException.class)
@@ -130,7 +130,7 @@ class StompAuthChannelInterceptorTest {
     // 그 예외가 그대로 새어나가면 클라이언트가 받는 에러가 제각각이 된다.
     @Test
     void 만료된_토큰도_같은_방식으로_거부된다() {
-        given(jwtTokenProvider.validateToken("expired"))
+        given(jwtTokenProvider.validateAccessToken("expired"))
             .willThrow(new BusinessException(ErrorCode.AUTH_003));
 
         assertThatThrownBy(() -> send(connectFrame("Bearer expired")))
@@ -140,7 +140,7 @@ class StompAuthChannelInterceptorTest {
 
     @Test
     void 유효한_토큰이면_세션에_사용자가_붙는다() {
-        given(jwtTokenProvider.validateToken("good")).willReturn(true);
+        given(jwtTokenProvider.validateAccessToken("good")).willReturn(true);
         given(jwtTokenProvider.getAuthentication("good")).willReturn(authentication);
 
         StompHeaderAccessor accessor = connectFrame("Bearer good");

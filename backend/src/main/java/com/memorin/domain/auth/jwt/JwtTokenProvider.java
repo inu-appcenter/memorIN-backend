@@ -19,13 +19,21 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import javax.crypto.Mac;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 @Component
 public class JwtTokenProvider {
+
+    private static final String TOKEN_TYPE_CLAIM = "typ";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
 
     private final SecretKey secretKey;
     private final long accessExpiry;
@@ -51,6 +59,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey)
@@ -70,11 +79,39 @@ public class JwtTokenProvider {
 
     // 토큰 검증
     public boolean validateToken(String token) {
+        return validateToken(token, null);
+    }
+
+    public boolean validateAccessToken(String token) {
+        return validateToken(token, ACCESS_TOKEN_TYPE);
+    }
+
+    public boolean validateRefreshToken(String token) {
+        return validateToken(token, REFRESH_TOKEN_TYPE);
+    }
+
+    public String hashRefreshToken(String refreshToken) {
         try {
-            Jwts.parser()
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(secretKey);
+            return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(mac.doFinal(refreshToken.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("Could not hash refresh token", e);
+        }
+    }
+
+    private boolean validateToken(String token, String expectedType) {
+        try {
+            Claims claims = Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
-                .parseSignedClaims(token);
+                .parseSignedClaims(token)
+                .getPayload();
+
+            if (expectedType != null && !expectedType.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+                throw new BusinessException(ErrorCode.AUTH_004);
+            }
 
             return true;
 
@@ -118,6 +155,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(userId.toString())
+                .claim(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey)
