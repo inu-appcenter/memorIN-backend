@@ -19,6 +19,7 @@ import com.memorin.domain.messages.dto.request.TextRequest;
 import com.memorin.domain.messages.service.MessageService;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import com.memorin.domain.post_comments.service.PostCommentService;
+import com.memorin.domain.post_likes.service.PostLikeService;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
@@ -77,6 +78,9 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
 
     @Autowired
     private PostCommentService postCommentService;
+
+    @Autowired
+    private PostLikeService postLikeService;
 
     @Autowired
     private MessageService messageService;
@@ -252,6 +256,71 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             NotificationType.COMMENT,
             commentId
         );
+    }
+
+    @Test
+    void postLike_createsOneNotificationAndPushesOnlyOnceAcrossRepeatedToggles() throws Exception {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User owner = persistUser("like-owner-" + suffix());
+            User liker = persistUser("like-actor-" + suffix());
+            Post post = Post.create(
+                owner,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+
+            entityManager.persist(post);
+            entityManager.persist(new FcmToken(owner, DeviceType.ANDROID, "fcm-" + suffix()));
+            entityManager.persist(new WebPushSubscription(
+                owner, "https://push.test/" + suffix(), "p256dh", "auth"
+            ));
+            entityManager.flush();
+
+            return new UUID[]{owner.getId(), liker.getId(), post.getId()};
+        });
+
+        ReflectionTestUtils.setField(fcmPushService, "enabled", true);
+        FirebaseMessaging firebaseMessaging = mock(FirebaseMessaging.class);
+
+        try (MockedStatic<FirebaseMessaging> firebase = mockStatic(FirebaseMessaging.class)) {
+            firebase.when(FirebaseMessaging::getInstance).thenReturn(firebaseMessaging);
+
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isTrue();
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isFalse();
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isTrue();
+
+            verify(firebaseMessaging).send(any(Message.class));
+        }
+
+        assertNotification(ids[0], NotificationType.LIKE, ids[2]);
+        verify(webPushService).send(any(PushNotificationRequested.class));
+    }
+
+    @Test
+    void selfPostLike_doesNotCreateNotification() {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User owner = persistUser("self-like-owner-" + suffix());
+            Post post = Post.create(
+                owner,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+            entityManager.persist(post);
+            entityManager.flush();
+            return new UUID[]{owner.getId(), post.getId()};
+        });
+
+        assertThat(postLikeService.toggleLike(ids[1], ids[0])).isTrue();
+
+        assertThat(notificationRepository.findNotifications(
+            ids[0], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
     }
 
     @Test

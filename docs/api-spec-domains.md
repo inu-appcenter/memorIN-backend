@@ -717,8 +717,9 @@ Status: `200 OK` — 응답 형태는 `POST`와 동일(`liked` · `likeCount`). 
 `likeCount * 3` 항을 점수 공식에 되살렸다(§6-6). 후보 게시물 ID를 모아 댓글 수와 동일하게
 한 번의 `IN` 조회로 배치 집계한다 — 게시물마다 조회하면 N+1이다(`RecommendedFeedQueryTest`).
 
-> `NotificationType.LIKE`(§11)는 이번 복구에 포함하지 않았다 — 좋아요를 눌러도 알림이 가지 않는다.
-> 필요해지면 별도 이슈로 처리한다.
+좋아요를 등록하면 게시물 작성자에게 `LIKE` 알림을 남긴다. `referenceId`는 게시물 id다. 자기 게시물
+좋아요는 알림을 만들지 않으며, 취소해도 이미 만든 알림은 유지한다. 같은 사람이 같은 게시물에 좋아요를
+다시 등록해도 최초 알림 한 건만 유지한다.
 
 ---
 
@@ -1594,6 +1595,7 @@ Authorization: Bearer {accessToken}
 | `FOLLOW_REQUEST` | `FollowService` — 팔로우 요청 |
 | `FOLLOW_ACCEPTED` | `FollowService` — 요청 수락 |
 | `COMMENT` | `PostCommentService` — 댓글 작성 |
+| `LIKE` | `PostLikeService` — 게시물 좋아요 등록 |
 | `MESSAGE` | `MessageService` — 텍스트·게시물 공유 메시지 발신 |
 
 Sprint 3 결산 §4가 "호출부 0개 — 항상 빈 배열"로 적었던 구멍은 #186에서 메워졌다.
@@ -1652,11 +1654,9 @@ Status: `200 OK`
 |---|---|
 | `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` · `MESSAGE` |
 | `actor*` | 알림을 발생시킨 사람. 시스템 알림이면 셋 다 `null` |
-| `referenceId` | 이동 대상 id. `FOLLOW_REQUEST`·`FOLLOW_ACCEPTED`는 팔로우 행 id, `COMMENT`는 댓글 id, `MESSAGE`는 **채팅방 id**다. FE는 `MESSAGE` 알림 탭 시 해당 방으로 이동한다. |
+| `referenceId` | 이동 대상 id. `FOLLOW_REQUEST`·`FOLLOW_ACCEPTED`는 팔로우 행 id, `COMMENT`는 댓글 id, `LIKE`는 게시물 id, `MESSAGE`는 **채팅방 id**다. FE는 `MESSAGE` 알림 탭 시 해당 방으로 이동한다. |
 | `read` | 읽음 여부 |
 
-> `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 제거 여부는 #182 결정 대기.
-> 채팅 메시지용 `MESSAGE` 타입은 **아직 없다**(#216).
 
 #### 읽음 처리
 

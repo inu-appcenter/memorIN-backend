@@ -32,6 +32,13 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         UUID userId
     );
 
+    boolean existsByUserIdAndActorIdAndTypeAndReferenceId(
+        UUID userId,
+        UUID actorId,
+        com.memorin.domain.notifications.entity.NotificationType type,
+        UUID referenceId
+    );
+
     @Modifying
     @Query("""
         UPDATE Notification n SET n.read = true

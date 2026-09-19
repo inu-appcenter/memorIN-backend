@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,18 @@ public class NotificationService {
         eventPublisher.publishEvent(new PushNotificationRequested(
             userId, actorId, type, title, message, referenceId
         ));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveLikeIfAbsent(UUID userId, UUID actorId, String actorDisplayName, UUID postId) {
+        if (notificationRepository.existsByUserIdAndActorIdAndTypeAndReferenceId(
+            userId, actorId, NotificationType.LIKE, postId
+        )) {
+            return;
+        }
+
+        save(userId, actorId, NotificationType.LIKE,
+            "새 좋아요", actorDisplayName + "님이 회원님의 게시물을 좋아합니다.", postId);
     }
 
     @Transactional
