@@ -1,6 +1,7 @@
 package com.memorin.domain.post_likes.service;
 
 import com.memorin.domain.post_likes.entity.PostLikes;
+import com.memorin.domain.post_likes.event.PostLiked;
 import com.memorin.domain.post_likes.repository.PostLikeRepository;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.posts.repository.PostRepository;
@@ -10,6 +11,7 @@ import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ public class PostLikeService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final PostAccessPolicy postAccessPolicy;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** @return true면 좋아요 등록, false면 좋아요 취소 (토글) */
     @Transactional
@@ -53,6 +56,15 @@ public class PostLikeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "사용자를 찾을 수 없습니다: " + userId));
 
         postLikesRepository.save(PostLikes.of(post, user));
+
+        if (!post.isOwnedBy(userId)) {
+            eventPublisher.publishEvent(new PostLiked(
+                post.getId(),
+                post.getUser().getId(),
+                userId,
+                user.getDisplayName()
+            ));
+        }
         return true;
     }
 
