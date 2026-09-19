@@ -2,6 +2,7 @@ package com.memorin.domain.auth.controller;
 
 import com.memorin.domain.auth.dto.LoginRequest;
 import com.memorin.domain.auth.dto.LoginResponse;
+import com.memorin.domain.auth.dto.LogoutRequest;
 import com.memorin.domain.auth.dto.RefreshTokenRequest;
 import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.domain.auth.service.AuthService;
@@ -51,8 +52,11 @@ public class AuthController {
 
     @Operation(summary = "로그아웃", description = "현재 사용자의 Refresh Token을 삭제해 이후 토큰 재발급을 차단한다.")
     @DeleteMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        authService.logout(userDetails.getUserId());
+    public ResponseEntity<Void> logout(
+        @AuthenticationPrincipal UserDetailsImpl userDetails,
+        @RequestBody(required = false) LogoutRequest request
+    ) {
+        authService.logout(userDetails.getUserId(), request);
         return ResponseEntity.noContent().build();
     }
 }

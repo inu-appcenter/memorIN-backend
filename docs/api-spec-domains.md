@@ -26,7 +26,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | **채팅 메시지** | `MessageController` | **1** (REST) + STOMP 2 | 구현 반영 (§10-1·§10-6, #190·#201·#209) |
 | 인증 | `AuthController` | 4 | `docs/api-spec.md` §3. **로그아웃 신설**(#184) |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
-| FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
+| FCM 토큰 | `FcmTokenController` | 2 | `docs/api-spec.md` |
 | 게시물 좋아요 | `PostLikeController` | 2 | 구현 반영 — #148에서 제거했다가 #182에서 복구(§7) |
 
 REST 합계 **50개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지

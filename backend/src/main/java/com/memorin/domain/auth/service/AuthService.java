@@ -2,10 +2,13 @@ package com.memorin.domain.auth.service;
 
 import com.memorin.domain.auth.dto.LoginRequest;
 import com.memorin.domain.auth.dto.LoginResponse;
+import com.memorin.domain.auth.dto.LogoutRequest;
 import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.domain.auth.entity.RefreshToken;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.auth.repository.RefreshTokenRepository;
+import com.memorin.domain.fcm_token.service.FcmTokenService;
+import com.memorin.domain.web_push.service.WebPushSubscriptionService;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.domain.users.entity.User;
@@ -27,6 +30,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final FcmTokenService fcmTokenService;
+    private final WebPushSubscriptionService webPushSubscriptionService;
 
     public void signup(SignupRequest request) {
 
@@ -93,7 +98,20 @@ public class AuthService {
         return new LoginResponse(newAccessToken, newRefreshToken);
     }
 
-    public void logout(UUID userId) {
+    @Transactional
+    public void logout(UUID userId, LogoutRequest request) {
         refreshTokenRepository.deleteById(userId);
+
+        if (request == null) {
+            return;
+        }
+
+        if (request.fcmToken() != null && !request.fcmToken().isBlank()) {
+            fcmTokenService.delete(userId, request.fcmToken());
+        }
+
+        if (request.webPushEndpoint() != null && !request.webPushEndpoint().isBlank()) {
+            webPushSubscriptionService.delete(userId, request.webPushEndpoint());
+        }
     }
 }

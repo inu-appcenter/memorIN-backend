@@ -2,12 +2,15 @@ package com.memorin.domain.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.memorin.domain.auth.entity.RefreshToken;
+import com.memorin.domain.auth.dto.LogoutRequest;
 import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.auth.repository.RefreshTokenRepository;
 import com.memorin.domain.auth.service.AuthService;
+import com.memorin.domain.fcm_token.service.FcmTokenService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.domain.web_push.service.WebPushSubscriptionService;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.exception.BusinessException;
@@ -88,8 +91,13 @@ class JwtTokenSecurityTest {
         UserRepository userRepository = mock(UserRepository.class);
         RefreshTokenRepository refreshTokenRepository = mock(RefreshTokenRepository.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        FcmTokenService fcmTokenService = mock(FcmTokenService.class);
+        WebPushSubscriptionService webPushSubscriptionService = mock(WebPushSubscriptionService.class);
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, 60_000, 60_000, userRepository);
-        AuthService service = new AuthService(userRepository, passwordEncoder, provider, refreshTokenRepository);
+        AuthService service = new AuthService(
+            userRepository, passwordEncoder, provider, refreshTokenRepository,
+            fcmTokenService, webPushSubscriptionService
+        );
         UUID userId = UUID.randomUUID();
 
         assertThatThrownBy(() -> service.reissue(provider.createAccessToken(userId)))
@@ -110,6 +118,29 @@ class JwtTokenSecurityTest {
         assertThat(token.getValue().getRefreshTokenHash()).isNotEqualTo(response.refreshToken());
         assertThat(token.getValue().getRefreshTokenHash())
             .isEqualTo(provider.hashRefreshToken(response.refreshToken()));
+    }
+
+    @Test
+    void logout_removes_only_the_current_devices_push_registrations() {
+        UserRepository userRepository = mock(UserRepository.class);
+        RefreshTokenRepository refreshTokenRepository = mock(RefreshTokenRepository.class);
+        FcmTokenService fcmTokenService = mock(FcmTokenService.class);
+        WebPushSubscriptionService webPushSubscriptionService = mock(WebPushSubscriptionService.class);
+        AuthService service = new AuthService(
+            userRepository,
+            mock(PasswordEncoder.class),
+            provider(),
+            refreshTokenRepository,
+            fcmTokenService,
+            webPushSubscriptionService
+        );
+        UUID userId = UUID.randomUUID();
+
+        service.logout(userId, new LogoutRequest("current-fcm-token", "https://push.test/current"));
+
+        verify(refreshTokenRepository).deleteById(userId);
+        verify(fcmTokenService).delete(userId, "current-fcm-token");
+        verify(webPushSubscriptionService).delete(userId, "https://push.test/current");
     }
 
     private JwtTokenProvider provider() {

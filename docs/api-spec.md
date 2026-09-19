@@ -264,6 +264,12 @@ Status: `200 OK`
 ```http
 DELETE /auth/logout
 Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "fcmToken": "current-device-fcm-token",
+  "webPushEndpoint": "https://fcm.googleapis.com/fcm/send/..."
+}
 ```
 
 #### 상태
@@ -279,6 +285,8 @@ Status: `204 No Content` — 본문 없음. 전역 응답 봉투를 쓰지 않�
 #### 처리 규칙
 
 해당 사용자의 Refresh Token 행을 삭제한다. 이후 `POST /auth/refresh`는 저장된 토큰을 찾지 못해 `AUTH_003`으로 거절된다.
+`fcmToken`과 `webPushEndpoint`는 선택값이며, FE는 로그아웃하는 현재 기기에 등록된 값을 함께 보낸다.
+서버는 현재 사용자 소유인 값만 멱등 삭제한다.
 
 #### ⚠️ Access Token은 즉시 무효화되지 않는다
 
