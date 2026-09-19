@@ -86,6 +86,10 @@ public class ChatRoomMembers {
         this.leftAt = LocalDateTime.now();
     }
 
+    public void updateLastRead() {
+        this.lastReadAt = LocalDateTime.now();
+    }
+
     public void rejoin() {
         this.leftAt = null;
         this.joinedAt = LocalDateTime.now();

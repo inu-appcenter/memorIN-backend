@@ -1,6 +1,6 @@
 # memorIN API 명세서
 
-> 최신 기준 문서: 2026-08-20 (Sprint 3 W8 — 구현 대조 갱신)
+> 최신 기준 문서: 2026-09-08 (#182 게시물 좋아요 복구 반영)
 >
 > Notion API 명세서에 남아 있는 이전 주제/초안 내용은 잔재일 수 있다. 최신 명세는 이 레포의 `docs/` 문서를 기준으로 확인한다.
 
@@ -19,9 +19,10 @@
 | 로그아웃 API | 설계 예정 | 저장소 Refresh Token 삭제 방식 검토 |
 | 미디어 Presigned Upload / 업로드 커밋 / Storage Quota | 구현됨 | JWT 인증 필수, `/api/media/**` permitAll 제외됨 |
 | 게시물·댓글·팔로우·사용자 API | 구현됨 | 도메인 상세는 `docs/api-spec-domains.md` + Swagger UI 참고 |
-| 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 반응은 댓글에만 붙는다(게시물 좋아요는 미채택) |
+| 게시물 좋아요 API | 구현됨 | `docs/api-spec-domains.md` §7. #148에서 제거했다가 #182에서 복구 |
+| 댓글 이모지(반응) API | 구현됨 | `docs/api-spec-domains.md` §8-5. 게시물 단위는 좋아요(§7), 댓글 단위는 이모지로 반응 채널이 둘이다 |
 | 알림 히스토리 API | 구현됨(조회) | `docs/api-spec-domains.md` §11. **알림을 생성하는 호출부가 아직 없다** |
-| 채팅 API | 미구현 | 엔티티만 존재. Sprint 4 |
+| 채팅 API | 구현됨 | `docs/api-spec-domains.md` §10. 방 관리·메시지·읽음 처리까지 완료 |
 
 ## 2. 공통 규칙
 
@@ -76,8 +77,8 @@ Authorization: Bearer {accessToken}
 }
 ```
 
-봉투를 쓰지 않고 DTO를 그대로 반환하는 엔드포인트가 **33개 중 8개** 있다(미디어 4개, 댓글 이모지 2개,
-`POST /auth/refresh`, `GET /api/users/{userId}`). 전체 목록은 `docs/api-spec-domains.md` §2-6에 있다.
+봉투를 쓰지 않고 DTO를 그대로 반환하는 엔드포인트가 남아 있다(미디어 API, 댓글 이모지 API,
+`GET /api/users/{userId}` 등). 전체 목록은 `docs/api-spec-domains.md` §2-6에 있다.
 
 통일 여부는 아직 결정되지 않았다 — 봉투로 맞추면 FE 파싱이 전부 바뀌는 파괴적 변경이라
 스프린트 경계에서 한 번에 처리해야 한다(`docs/api-spec-domains.md` §14).
@@ -242,13 +243,14 @@ Content-Type: application/json
 
 Status: `200 OK`
 
-> ⚠️ 현재 이 API는 로그인과 달리 **공통 `ApiResponse` 봉투 없이** `LoginResponse`(토큰 쌍)를 그대로 반환한다.
-> 응답 포맷 일관성은 후속 API 정리 시 맞춘다.
-
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  },
+  "error": null
 }
 ```
 
@@ -262,6 +264,12 @@ Status: `200 OK`
 ```http
 DELETE /auth/logout
 Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "fcmToken": "current-device-fcm-token",
+  "webPushEndpoint": "https://fcm.googleapis.com/fcm/send/..."
+}
 ```
 
 #### 상태
@@ -277,6 +285,8 @@ Status: `204 No Content` — 본문 없음. 전역 응답 봉투를 쓰지 않�
 #### 처리 규칙
 
 해당 사용자의 Refresh Token 행을 삭제한다. 이후 `POST /auth/refresh`는 저장된 토큰을 찾지 못해 `AUTH_003`으로 거절된다.
+`fcmToken`과 `webPushEndpoint`는 선택값이며, FE는 로그아웃하는 현재 기기에 등록된 값을 함께 보낸다.
+서버는 현재 사용자 소유인 값만 멱등 삭제한다.
 
 #### ⚠️ Access Token은 즉시 무효화되지 않는다
 

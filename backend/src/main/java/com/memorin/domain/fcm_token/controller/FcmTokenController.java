@@ -1,12 +1,15 @@
 package com.memorin.domain.fcm_token.controller;
 
 import com.memorin.domain.fcm_token.dto.FcmTokenRequest;
+import com.memorin.domain.fcm_token.dto.FcmTokenDeleteRequest;
 import com.memorin.domain.fcm_token.service.FcmTokenService;
 import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +29,16 @@ public class FcmTokenController {
     @PostMapping("/token")
     public ApiResponse<Void> save(@AuthenticationPrincipal UserDetailsImpl userDetails, @RequestBody FcmTokenRequest request) {
         fcmTokenService.save(userDetails.getUserId(), request);
+        return ApiResponse.ok();
+    }
+
+    @Operation(summary = "FCM 토큰 삭제", description = "현재 사용자에게 등록된 현재 기기의 FCM 토큰만 삭제합니다.")
+    @DeleteMapping("/token")
+    public ApiResponse<Void> delete(
+        @AuthenticationPrincipal UserDetailsImpl userDetails,
+        @Valid @RequestBody FcmTokenDeleteRequest request
+    ) {
+        fcmTokenService.delete(userDetails.getUserId(), request.token());
         return ApiResponse.ok();
     }
 }

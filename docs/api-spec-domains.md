@@ -1,8 +1,8 @@
 # memorIN API 명세서 — 도메인 API (유저 / 게시물 / 댓글 / 이모지 / 팔로우 / 알림 / 채팅)
 
-> 최신 기준 문서: 2026-09-14 (Sprint 5 W11 — 구현 대조 갱신)
+> 최신 기준 문서: 2026-09-15 (#182 게시물 좋아요 복구 반영)
 >
-> 이전 갱신: 2026-08-20 (Sprint 3 W8)
+> 이전 갱신: 2026-09-14 (Sprint 5 W11 — 구현 대조 갱신) · 2026-08-20 (Sprint 3 W8)
 >
 > 이 문서는 `docs/api-spec.md`(인증 · 미디어)의 **후속 도메인 명세**다. 노션 전체 API 명세 페이지에서는 미디어 API 다음, 환경 변수 앞에 이어 붙인다.
 >
@@ -22,14 +22,14 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | 팔로우 | `FollowController` | 5 | 구현 반영. 받은 요청 거절 경로 신설(#174, §9-4) |
 | 알림 | `NotificationController` | 3 | 구현 반영. **생성 트리거·발송 연결 완료**(§11) |
 | Web Push 구독 | `WebPushSubscriptionController` | 2 | 구현 반영 (§11-1, #192) |
-| **채팅방** | `ChatRoomController` | **7** | 구현 반영 (§10-2~§10-5, #193) |
+| **채팅방** | `ChatRoomController` | **8** | 구현 반영 (§10-2~§10-5·§10-7, #193·#215) |
 | **채팅 메시지** | `MessageController` | **1** (REST) + STOMP 2 | 구현 반영 (§10-1·§10-6, #190·#201·#209) |
 | 인증 | `AuthController` | 4 | `docs/api-spec.md` §3. **로그아웃 신설**(#184) |
 | 미디어 | `MediaController` | 4 | `docs/api-spec.md` §4 |
-| FCM 토큰 | `FcmTokenController` | 1 | `docs/api-spec.md` |
-| 게시물 좋아요 | 없음 | 0 | **미채택** — 반응은 댓글 이모지로 단일화(§7). 복구 여부 #182 결정 대기 |
+| FCM 토큰 | `FcmTokenController` | 2 | `docs/api-spec.md` |
+| 게시물 좋아요 | `PostLikeController` | 2 | 구현 반영 — #148에서 제거했다가 #182에서 복구(§7) |
 
-REST 합계 **47개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **50개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -68,11 +68,10 @@ REST 합계 **47개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger
 ## 2-6. 공통 응답 봉투를 쓰지 않는 엔드포인트 (현황)
 
 `docs/api-spec.md` §2-4는 응답을 `{success, data, error}` 봉투로 감싼다고 규정하지만,
-실제로는 **47개 중 16개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
+실제로는 **47개 중 15개가 DTO를 그대로 반환한다.** FE가 엔드포인트마다 파싱을 분기해야 하므로 현황을 명시한다.
 
 | 엔드포인트 | 실제 반환 | 비고 |
 |---|---|---|
-| `POST /auth/refresh` | `LoginResponse` | 같은 컨트롤러의 signup·login은 봉투를 쓴다 → #218 |
 | `DELETE /auth/logout` | `204 No Content` | 본문 없음 |
 | **`/api/chat-rooms/**` 7개 전부** | 각 DTO / 본문 없음 | **#203** — 채팅방 생성·목록·초대·강퇴·나가기·이름변경 |
 | **`GET /api/posts/search`** | `PostListResponse` | **#203** — 같은 컨트롤러의 나머지 7개는 봉투를 쓴다 |
@@ -545,13 +544,13 @@ Authorization: Bearer {accessToken}
 최근 **14일 내 전체공개** 게시물을 후보(최대 300건)로 모아 점수순으로 정렬한다.
 
 ```
-engagement = 1 + 댓글수 × 2 + 조회수 × 0.1
+engagement = 1 + 좋아요수 × 3 + 댓글수 × 2 + 조회수 × 0.1
 score      = log(engagement) / (경과시간h + 2)^1.6
 ```
 
 - 분모가 시간이라 **오래될수록 점수가 내려간다**(새 글이 자연스럽게 위로 온다).
 - 정렬 기준은 `score DESC`, 동점이면 `postId DESC`.
-- 게시물 좋아요는 미채택이므로(§7) 점수에 반영되지 않는다. 게시물 단위 반응이 생기면 항을 되살린다.
+- 좋아요 수는 #182에서 다시 반영했다(§7). 댓글 수와 동일하게 후보 게시물 ID를 모아 한 번의 `IN` 조회로 배치 조회한다 — 게시물마다 조회하면 N+1이다.
 
 #### 커서
 
@@ -668,27 +667,59 @@ Authorization: Bearer {accessToken}
 
 ---
 
-## 7. 좋아요 API — 미채택 (Sprint 2 결정)
+## 7. 좋아요 API (#182, 2026-09-15 복구)
 
-**이 API는 만들지 않는다.** 2026-08-11에 반응 모델을 **댓글 이모지 하나로 단일화**하기로 확정했다(#145,
-`docs/sprint2-wrapup.md` §6). 게시물에 붙는 좋아요/반응 테이블(`post_emoji`)은 신설하지 않았다.
+```http
+POST /api/posts/{postId}/likes
+GET  /api/posts/{postId}/likes
+Authorization: Bearer {accessToken}
+```
 
-- 엔드포인트: 없음. `POST/DELETE /api/posts/{postId}/likes`는 **구현된 적이 없다.**
-- 이전 리비전의 7-1·7-2 설계 초안은 이 결정으로 폐기했다.
-- 실제 반응 API는 **§8-5 댓글 이모지**다.
+#### 상태
 
-### 정리 결과 (#148, 2026-08-20)
+**구현됨** (#182). 2026-08-11에 반응 모델을 댓글 이모지로 단일화하며(#145) 게시물 좋아요를 미채택으로
+정리했었고(#148), 이후 요구사항이 다시 생겨 되살렸다. `PostLikes` · `PostLikeRepository` ·
+`PostLikeService`는 삭제 전 커밋에서 그대로 복원했고, 컨트롤러/DTO는 이번에 새로 작성했다
+(과거에도 컨트롤러는 존재한 적이 없다). 반응 채널이 두 개가 됐다 — 게시물 단위는 좋아요, 댓글 단위는
+이모지(§8-5)다.
 
-`PostLikes` 엔티티 · `PostLikeRepository` · `PostLikeService`를 **삭제했다.** 어떤 컨트롤러에도 연결되지
-않은 채 스프린트 두 개를 넘어온 코드였다.
+#### 토글 — `POST`
 
-추천 피드 점수 공식에 있던 `likeCount * 3` 항도 함께 걷어냈다 — 입력이 영구히 0이라 계산에 기여하지 않았다(§6-6).
+이미 눌렀으면 취소, 안 눌렀으면 등록한다(요청 Body 없음). 취소는 게시물 접근 권한과 무관하게 항상
+가능하다 — 팔로우를 끊거나 게시물 공개범위가 바뀌어도 과거에 누른 좋아요는 뗄 수 있다. 등록만
+`PostAccessPolicy`로 접근 권한을 검사한다.
 
-**DB는 이번 스프린트에서 건드리지 않는다.** `post_likes` 테이블과 `idx_post_likes_post` 인덱스는 그대로 둔다.
-스키마 변경은 PM 승인이 필요하다는 Sprint 0 게이트 규칙이 있고, 되돌리려면 또 다른 마이그레이션이 필요한
-파괴적 변경이기 때문이다. 테이블 드롭은 별도 안건으로 올린다.
+Status: `200 OK`
 
-> `NotificationType.LIKE`(§11)도 이 결정으로 쓰이지 않는 값이 됐다. 알림 도메인 정리 시 함께 판단한다.
+```json
+{ "success": true, "data": { "liked": true, "likeCount": 12 }, "error": null }
+```
+
+`liked`는 토글 후 최종 상태다. 동시 더블탭은 멱등 처리한다(`liked=true` 유지) — 같은 게시물에 대한
+동시 "처음 누르기" 요청은 게시물 행 잠금(`PostRepository.findByIdForUpdate`, `PESSIMISTIC_WRITE`)으로
+직렬화해 `uq_post_like` 위반을 막는다. 예외를 잡아 삼키는 방식은 쓰지 않는다 — Postgres는 제약 위반이
+나면 트랜잭션 전체를 abort 상태로 만들어, 잡아도 커밋 시점에 실패할 수 있다.
+
+#### 집계 조회 — `GET`
+
+Status: `200 OK` — 응답 형태는 `POST`와 동일(`liked` · `likeCount`). 접근 권한이 없으면 `POST_002`다.
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 403 | `POST_002` | 접근 권한 없는 게시물(비공개 등)에 처음 좋아요를 시도 |
+| 404 | `POST_001` | 존재하지 않는 게시물 |
+
+#### 추천 피드 반영
+
+`likeCount * 3` 항을 점수 공식에 되살렸다(§6-6). 후보 게시물 ID를 모아 댓글 수와 동일하게
+한 번의 `IN` 조회로 배치 집계한다 — 게시물마다 조회하면 N+1이다(`RecommendedFeedQueryTest`).
+
+좋아요를 등록하면 게시물 작성자에게 `LIKE` 알림을 남긴다. `referenceId`는 게시물 id다. 자기 게시물
+좋아요는 알림을 만들지 않으며, 취소해도 이미 만든 알림은 유지한다. 같은 사람이 같은 게시물에 좋아요를
+다시 등록해도 최초 알림 한 건만 유지한다.
 
 ---
 
@@ -1112,7 +1143,7 @@ Authorization: Bearer {accessToken}
 수락과 거절이 같은 식별자를 쓰고, 취소/언팔로우(§9-2)만 상대 사용자 id를 쓴다.
 
 - 요청의 **수신자 본인**만 거절할 수 있다(아니면 403 `FOLLOW_004`).
-- 이미 `ACCEPTED`가 된 관계는 거절 대상이 아니다(404 `FOLLOW_001`). 이 경우 §9-2로 해제한다.
+- 이미 `ACCEPTED`가 된 관계는 거절 대상이 아니다(409 `FOLLOW_005`). 이 경우 §9-2로 해제한다.
 
 #### 응답
 
@@ -1128,7 +1159,8 @@ Status: `200 OK`
 |---:|---|---|
 | 401 | `AUTH_001` | 인증 누락/만료 |
 | 403 | `FOLLOW_004` | 내게 온 요청이 아님 |
-| 404 | `FOLLOW_001` | 존재하지 않거나 PENDING이 아닌 요청 |
+| 404 | `FOLLOW_001` | 존재하지 않는 팔로우 요청 |
+| 409 | `FOLLOW_005` | PENDING 상태의 팔로우 요청이 아님 |
 
 ### 9-5. 팔로워 목록 조회
 
@@ -1187,17 +1219,17 @@ Authorization: Bearer {accessToken}
 ### 9-7. 받은 팔로우 요청 목록
 
 ```http
-GET /api/follows/requests
+GET /api/follows/requests?cursor={uuid}&size=20
 Authorization: Bearer {accessToken}
 ```
 
 #### 상태
 
-**구현됨** (#136). 소셜 탐색 화면에서 "나에게 온 요청"을 그릴 때 쓴다.
+**구현됨** (#136, #218). 소셜 탐색 화면에서 "나에게 온 요청"을 그릴 때 쓴다.
 
 #### 설명
 
-내게 온 `PENDING` 요청을 최신순(`id DESC`)으로 반환한다. 요청을 보낸 사람(`follower`)의 요약 정보가 함께 온다.
+내게 온 `PENDING` 요청을 최신순(`id DESC`)으로 커서 페이지네이션해 반환한다. 요청을 보낸 사람(`follower`)의 요약 정보가 함께 온다. `cursor`와 `size`는 §2-5를 따른다.
 
 #### 응답
 
@@ -1206,26 +1238,26 @@ Status: `200 OK`
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "followId": "0198f2d0-...",
-      "userId": "0198f2a3-...",
-      "username": "friend_a",
-      "displayName": "Friend A",
-      "bio": "안녕하세요"
-    }
-  ],
+  "data": {
+    "items": [
+      {
+        "followId": "0198f2d0-...",
+        "userId": "0198f2a3-...",
+        "username": "friend_a",
+        "displayName": "Friend A",
+        "bio": "안녕하세요"
+      }
+    ],
+    "nextCursor": "0198f2d0-...",
+    "hasNext": true
+  },
   "error": null
 }
 ```
 
-`followId`를 수락(§9-3)·거절(§9-4)에 그대로 넘긴다.
+`nextCursor`를 다음 요청의 `cursor`로 전달한다. `hasNext=false`면 마지막 페이지다. `followId`를 수락(§9-3)·거절(§9-4)에 그대로 넘긴다.
 
-#### 제약
-
-- **페이지네이션이 없다.** 요청이 쌓이면 전부 내려간다. 팔로워/팔로잉 목록(§9-5·§9-6)은 커서 페이징으로
-  전환했지만 이 API는 남아 있다 → §14
-- `JOIN FETCH`로 요청자를 함께 조회하므로 N+1은 없다.
+`JOIN FETCH`로 요청자를 함께 조회하므로 N+1은 없다.
 
 ---
 
@@ -1233,9 +1265,10 @@ Status: `200 OK`
 
 채팅은 **실시간 전송은 WebSocket/STOMP**, **방·멤버·메시지 관리는 REST**로 나눈다.
 
-- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209)
-- 아직 없는 것: 읽음 처리(§10-6) · 메시지 이모지(#196)
-- ⚠️ `ChatRoomController`의 7개 엔드포인트는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+- 현재 구현: **완료.** 방 관리(#193) · 텍스트/공유 메시지(#190·#169) · 메시지 히스토리(#201) · CONNECT 인증과 SUBSCRIBE 인가(#209) · 읽음 처리(§10-7, #215)
+- 아직 없는 것: 메시지 이모지(#196)
+- ⚠️ `ChatRoomController`의 8개 엔드포인트 중 7개는 **전역 응답 봉투를 쓰지 않는다.** DTO를 그대로 반환한다 → §2-6 · #203
+  읽음 처리(§10-7)만 예외로 `ApiResponse<T>` 봉투를 쓴다 — #215가 명시적으로 요구해서 이 엔드포인트만 다르다.
 
 ### 10-1. 실시간 메시지 (STOMP)
 
@@ -1293,11 +1326,15 @@ CONNECT에서 "누구인지"를 확인하고, 그 뒤 **"이 방을 볼 자격�
 
 #### 발행 payload
 
-```json
-// /app/chat.sendText
-{ "roomId": "0198f2e0-...", "text": "안녕하세요" }
+`/app/chat.sendText`
 
-// /app/chat.sharePost
+```json
+{ "roomId": "0198f2e0-...", "text": "안녕하세요" }
+```
+
+`/app/chat.sharePost`
+
+```json
 { "roomId": "0198f2e0-...", "postId": "0198f1a2-..." }
 ```
 
@@ -1409,10 +1446,23 @@ Status: `200 OK` — **봉투 없음**(#203), **페이지네이션 없음**
 
 ```json
 [
-  { "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER" },
-  { "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER" }
+  {
+    "roomId": "0198f2e0-...", "type": "GROUP", "name": "스터디방", "myRole": "OWNER",
+    "unreadCount": 12,
+    "lastMessage": { "preview": "안녕하세요", "sentAt": "2026-09-07T14:03:11" }
+  },
+  {
+    "roomId": "0198f2e1-...", "type": "DIRECT", "name": null, "myRole": "MEMBER",
+    "unreadCount": 0,
+    "lastMessage": null
+  }
 ]
 ```
+
+`unreadCount`는 `GREATEST(lastReadAt, joinedAt)` 이후 도착한, **내가 보내지 않은** 메시지 수다(#258).
+`lastMessage`는 그 방에 메시지가 한 번도 없으면 `null`. `preview`는 `TEXT`면 본문, `IMAGE`면
+`"사진"`, `POST_SHARE`면 `"게시물을 공유했습니다"` 고정 문구다 — `content`(jsonb) 파싱 없이
+`type` 컬럼만으로 분기한다.
 
 > 목록 API 중 커서 페이지네이션을 쓰지 않는 둘 중 하나다(다른 하나는 댓글 스레드 §8-2).
 > 방 개수가 많아지면 재검토 대상이다.
@@ -1486,15 +1536,42 @@ Status: `200 OK` — 이쪽은 **봉투를 쓴다**
 | 404 | `CHAT_ROOMS_001` | 방이 없음 |
 | 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님 |
 
-### 10-7. 읽음 처리 — 미구현
+### 10-7. 읽음 처리
 
 ```http
 POST /api/chat-rooms/{roomId}/read
+Authorization: Bearer {accessToken}
 ```
 
-`chat_room_members.last_read_at` 컬럼과 엔티티 필드는 **있으나 갱신하는 코드가 없다.**
-입장 시각으로 한 번 채워지고 그대로다. 따라서 "안 읽은 메시지 N개"와 그룹 "읽음 N"을
-현재로서는 계산할 수 없다. → #215
+#### 상태
+
+**구현됨** (#215). `chat_room_members.last_read_at`은 입장 시각으로 한 번 채워진 뒤
+갱신하는 코드가 없었다 — 이 엔드포인트가 호출 시점으로 값을 갱신하는 유일한 경로다.
+이 컨트롤러의 다른 엔드포인트와 달리 **`ApiResponse<T>` 공통 봉투를 쓴다**(§2-6 예외).
+
+#### 설명
+
+호출 시점을 `lastReadAt`으로 기록한다. DIRECT·GROUP 채팅방 모두 대상이다.
+활성 멤버(나간 사람 제외)만 호출할 수 있다.
+
+#### 응답
+
+Status: `200 OK`
+
+```json
+{ "success": true, "data": null, "error": null }
+```
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료 |
+| 404 | `CHAT_ROOMS_001` | 방이 없음 |
+| 404 | `CHAT_ROOM_MEMBERS_001` | 활성 멤버가 아님(나갔거나 강퇴당함) |
+
+> "안 읽은 메시지 N개"는 §10-4(`GET /api/chat-rooms`)의 `unreadCount`로 구현됐다(#258).
+> 이 엔드포인트 자체는 `lastReadAt` 갱신만 하고, 계산은 방 목록 조회 쪽 책임이다.
 
 ---
 
@@ -1509,8 +1586,7 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-조회·읽음 처리 구현(#168, 2026-08-19) → **생성 트리거 연결 완료**(#186, 2026-08-26) →
-**발송(FCM·Web Push) 연결 완료**(#192·#211·#213).
+조회·읽음 처리(#168)와 생성 트리거(#186), FCM·Web Push 발송(#192·#211·#213)이 구현됐다.
 
 #### 발생 지점 — 어디서 알림이 만들어지나
 
@@ -1519,8 +1595,12 @@ Authorization: Bearer {accessToken}
 | `FOLLOW_REQUEST` | `FollowService` — 팔로우 요청 |
 | `FOLLOW_ACCEPTED` | `FollowService` — 요청 수락 |
 | `COMMENT` | `PostCommentService` — 댓글 작성 |
+| `LIKE` | `PostLikeService` — 게시물 좋아요 등록 |
+| `MESSAGE` | `MessageService` — 텍스트·게시물 공유 메시지 발신 |
 
 Sprint 3 결산 §4가 "호출부 0개 — 항상 빈 배열"로 적었던 구멍은 #186에서 메워졌다.
+
+채팅 메시지는 발신자를 제외한 활성(`leftAt IS NULL`) 방 멤버마다 알림을 하나씩 저장한다. `saveAll`로 한 번에 적재하며, 알림 히스토리는 접속 상태와 무관하게 남는다.
 
 #### 저장 → 발송 파이프라인
 
@@ -1537,10 +1617,7 @@ NotificationService.save()
 두 발송 경로 모두 **기본 비활성**이다(`FIREBASE_ENABLED` · `WEB_PUSH_ENABLED`). 꺼도 알림은 DB에 저장되고
 조회 API로 보인다. 발송만 일어나지 않는다.
 
-#### 🔴 채팅 메시지는 이 파이프라인을 타지 않는다
-
-`MessageService`는 `NotificationService`를 전혀 호출하지 않는다. `NotificationType`에 메시지용 타입도 없다.
-README의 핵심 기능인 "미접속 상태면 FCM / Web Push로 전환"이 **채팅에는 연결돼 있지 않다.** → #216
+수신자에게 인증된 STOMP 세션이 하나라도 있으면 WebSocket이 실시간 전달을 담당하므로 FCM·Web Push는 발송하지 않는다.
 
 #### 목록 조회
 
@@ -1575,13 +1652,11 @@ Status: `200 OK`
 
 | 필드 | 설명 |
 |---|---|
-| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` |
+| `type` | `FOLLOW_REQUEST` · `FOLLOW_ACCEPTED` · `COMMENT` · `LIKE` · `MESSAGE` |
 | `actor*` | 알림을 발생시킨 사람. 시스템 알림이면 셋 다 `null` |
-| `referenceId` | 이동 대상 id(팔로우 행·게시물·댓글 등). **타입별 의미가 다르고 문서화되지 않았다** → §14 |
+| `referenceId` | 이동 대상 id. `FOLLOW_REQUEST`·`FOLLOW_ACCEPTED`는 팔로우 행 id, `COMMENT`는 댓글 id, `LIKE`는 게시물 id, `MESSAGE`는 **채팅방 id**다. FE는 `MESSAGE` 알림 탭 시 해당 방으로 이동한다. |
 | `read` | 읽음 여부 |
 
-> `LIKE`는 폐기된 게시물 좋아요(§7)에서 온 값이라 실제로 쓰이지 않는다. 제거 여부는 #182 결정 대기.
-> 채팅 메시지용 `MESSAGE` 타입은 **아직 없다**(#216).
 
 #### 읽음 처리
 
@@ -1666,10 +1741,11 @@ Content-Type: application/json
 | `USER_001` | 404 | 존재하지 않는 회원 |
 | `USER_002` | 409 | 이미 사용 중인 이메일 |
 | `USER_003` | 409 | 이미 사용 중인 이름 |
-| `FOLLOW_001` | 404 | 존재하지 않는 사용자/팔로우 관계 |
+| `FOLLOW_001` | 404 | 존재하지 않는 팔로우 관계 |
 | `FOLLOW_002` | 400 | 자기 자신 팔로우 |
 | `FOLLOW_003` | 409 | 이미 존재하는 팔로우 관계 |
 | `FOLLOW_004` | 403 | 내게 온 요청이 아님 |
+| `FOLLOW_005` | 409 | PENDING 상태의 팔로우 요청이 아님 |
 | `POST_001` | 404 | 존재하지 않는 게시물 |
 | `POST_002` | 403 | 게시물 접근 권한 없음 |
 | `POST_003` | 400 | 잘못된 cursor 값 |
@@ -1685,8 +1761,7 @@ Content-Type: application/json
 
 **아직 없는 것:** 채팅용 `CHAT_001`(방 없음)·`CHAT_002`(멤버 아님). Sprint 4 채팅 구현 시 추가한다.
 
-> `FOLLOW_001`이 "존재하지 않는 사용자"와 "존재하지 않는 팔로우 관계" 두 상황에 함께 쓰인다.
-> FE가 두 경우를 구분해야 한다면 코드를 나눠야 한다 → §14
+> 사용자 조회 실패는 `USER_001`, 팔로우 관계 조회 실패는 `FOLLOW_001`, PENDING 상태 불일치는 `FOLLOW_005`로 구분한다.
 
 ## 13. 관련 문서
 
@@ -1704,13 +1779,11 @@ Content-Type: application/json
 
 | # | 항목 | 왜 지금 정해야 하나 | 이슈 |
 |---|---|---|---|
-| 1 | **공통 응답 봉투 통일 여부**(§2-6) | 16개 엔드포인트가 DTO를 직접 반환한다. Sprint 4에 채팅방·검색 8개가 새로 들어와 **오히려 늘었다.** FE 연동 본격화 전이 가장 싸다 | #203 · #218 |
+| 1 | **공통 응답 봉투 통일 여부**(§2-6) | 15개 엔드포인트가 DTO를 직접 반환한다. Sprint 4에 채팅방·검색 8개가 새로 들어와 **오히려 늘었다.** FE 연동 본격화 전이 가장 싸다 | #203 |
 | 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지 | — |
-| 3 | **`GET /api/follows/requests` 페이지네이션**(§9-7) | 팔로워/팔로잉 목록은 커서 페이징으로 전환했는데 이 API만 전체를 반환한다 | #218 |
 | 4 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다. 채팅 메시지 알림이 붙으면 더 필요해진다 | #216 |
 | 5 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 전체를 반환하는 둘 중 하나다 (다른 하나는 채팅방 목록 §10-4) | #225 |
 | 6 | **`content` JSONB 구조 스키마·크기** | #199가 태그를 `content` 안이 아니라 별도 `posts.tags` 컬럼으로 빼면서 "태그 키" 문제는 우회됐다. 그러나 `@ValidJson`은 여전히 "유효한 JSON"만 보고 **구조도 크기도 검증하지 않는다** | #244 |
-| 7 | **`FOLLOW_001` 의미 분리**(§12) | 사용자 없음 · 관계 없음 · PENDING 아님 세 가지에 같은 코드가 쓰인다 | #218 |
 | 8 | **비로그인 열람 허용 여부**(§6-2) | 서비스는 비로그인 공개글 조회를 지원하는데 보안 설정이 전부 막고 있다. 오픈소스 배포로 인스턴스가 늘면 "둘러보기"를 열지 말지가 실제 선택이 된다 | — |
 | 9 | **채팅방 목록 페이지네이션**(§10-4) | 방 개수가 많아지면 전체 반환이 문제가 된다 | — |
 | 10 | **강퇴당한 사람의 재입장 차단**(§10-5) | 현재 강퇴는 "타인에 의한 나가기"라 다시 초대할 수 있다. 차단이 필요한 개념인지부터 정해야 한다 | — |
@@ -1719,6 +1792,9 @@ Content-Type: application/json
 
 | 이전 # | 항목 | 결말 |
 |---|---|---|
+| 1 | `POST /auth/refresh` 응답 봉투 | `ApiResponse<LoginResponse>`로 통일. FE 파싱 변경 사항은 `docs/fe-api-change-notice.md`에 기록 |
+| 3 | `GET /api/follows/requests` 페이지네이션 | `cursor`·`size`와 `{items, nextCursor, hasNext}` 응답으로 전환 |
+| 7 | `FOLLOW_001` 의미 분리 | 사용자 없음은 `USER_001`, 관계 없음은 `FOLLOW_001`, 상태 불일치는 `FOLLOW_005` |
 | 4 | 알림 저장 트리거 위치 | **이벤트 + `AFTER_COMMIT`으로 결정**(#186·#192). §11에 반영 |
 | 7 | `content` JSONB 태그 키 표준 | 별도 `tags` 컬럼으로 **우회**(#199). 구조 스키마 문제는 위 6번으로 남았다 |
 | 10 | 채팅 REST/STOMP 경계 | REST는 `/api/chat-rooms/**`, 실시간은 `/app`·`/topic`으로 갈렸다. §10에 반영 |

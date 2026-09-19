@@ -2,6 +2,9 @@ package com.memorin.domain.notifications;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
+import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
+import com.memorin.domain.chat_rooms.entity.ChatRooms;
+import com.memorin.domain.chat_rooms.entity.Chat_type;
 import com.memorin.domain.fcm_token.entity.DeviceType;
 import com.memorin.domain.fcm_token.entity.FcmToken;
 import com.memorin.domain.follows.entity.Follow_state;
@@ -12,8 +15,11 @@ import com.memorin.domain.notifications.dto.PushNotificationRequested;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.repository.NotificationRepository;
 import com.memorin.domain.notifications.service.FcmPushService;
+import com.memorin.domain.messages.dto.request.TextRequest;
+import com.memorin.domain.messages.service.MessageService;
 import com.memorin.domain.post_comments.repository.PostCommentRepository;
 import com.memorin.domain.post_comments.service.PostCommentService;
+import com.memorin.domain.post_likes.service.PostLikeService;
 import com.memorin.domain.posts.entity.Post;
 import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
@@ -72,6 +78,12 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
 
     @Autowired
     private PostCommentService postCommentService;
+
+    @Autowired
+    private PostLikeService postLikeService;
+
+    @Autowired
+    private MessageService messageService;
 
     @Autowired
     private FollowRepository followRepository;
@@ -244,6 +256,113 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             NotificationType.COMMENT,
             commentId
         );
+    }
+
+    @Test
+    void postLike_createsOneNotificationAndPushesOnlyOnceAcrossRepeatedToggles() throws Exception {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User owner = persistUser("like-owner-" + suffix());
+            User liker = persistUser("like-actor-" + suffix());
+            Post post = Post.create(
+                owner,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+
+            entityManager.persist(post);
+            entityManager.persist(new FcmToken(owner, DeviceType.ANDROID, "fcm-" + suffix()));
+            entityManager.persist(new WebPushSubscription(
+                owner, "https://push.test/" + suffix(), "p256dh", "auth"
+            ));
+            entityManager.flush();
+
+            return new UUID[]{owner.getId(), liker.getId(), post.getId()};
+        });
+
+        ReflectionTestUtils.setField(fcmPushService, "enabled", true);
+        FirebaseMessaging firebaseMessaging = mock(FirebaseMessaging.class);
+
+        try (MockedStatic<FirebaseMessaging> firebase = mockStatic(FirebaseMessaging.class)) {
+            firebase.when(FirebaseMessaging::getInstance).thenReturn(firebaseMessaging);
+
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isTrue();
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isFalse();
+            assertThat(postLikeService.toggleLike(ids[2], ids[1])).isTrue();
+
+            verify(firebaseMessaging).send(any(Message.class));
+        }
+
+        assertNotification(ids[0], NotificationType.LIKE, ids[2]);
+        verify(webPushService).send(any(PushNotificationRequested.class));
+    }
+
+    @Test
+    void selfPostLike_doesNotCreateNotification() {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User owner = persistUser("self-like-owner-" + suffix());
+            Post post = Post.create(
+                owner,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+            entityManager.persist(post);
+            entityManager.flush();
+            return new UUID[]{owner.getId(), post.getId()};
+        });
+
+        assertThat(postLikeService.toggleLike(ids[1], ids[0])).isTrue();
+
+        assertThat(notificationRepository.findNotifications(
+            ids[0], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
+    }
+
+    @Test
+    void textMessage_createsOneRoomNotificationForEachActiveRecipientExceptSender() {
+        UUID[] ids = transactionTemplate.execute(status -> {
+            User sender = persistUser("message-sender-" + suffix());
+            User recipientA = persistUser("message-recipient-a-" + suffix());
+            User recipientB = persistUser("message-recipient-b-" + suffix());
+            User departedRecipient = persistUser("message-departed-" + suffix());
+            Post post = Post.create(
+                sender,
+                "[{\"type\":\"text\",\"text\":\"post\"}]",
+                VisibilityType.PUBLIC,
+                TimeslotType.AM,
+                Date.valueOf(LocalDate.of(2026, 9, 1)),
+                java.util.List.of()
+            );
+            ChatRooms room = ChatRooms.builder().name("notification-room").type(Chat_type.GROUP).build();
+
+            entityManager.persist(post);
+            entityManager.persist(room);
+            entityManager.persist(ChatRoomMembers.ofOwner(room, sender));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientA));
+            entityManager.persist(ChatRoomMembers.ofMember(room, recipientB));
+            ChatRoomMembers departedMember = ChatRoomMembers.ofMember(room, departedRecipient);
+            departedMember.leave();
+            entityManager.persist(departedMember);
+            entityManager.flush();
+
+            return new UUID[]{sender.getId(), recipientA.getId(), recipientB.getId(), departedRecipient.getId(), room.getId()};
+        });
+
+        messageService.sendText(ids[0], new TextRequest(ids[4], "hello recipients"));
+
+        assertNotification(ids[1], NotificationType.MESSAGE, ids[4]);
+        assertNotification(ids[2], NotificationType.MESSAGE, ids[4]);
+        assertThat(notificationRepository.findNotifications(
+            ids[0], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
+        assertThat(notificationRepository.findNotifications(
+            ids[3], null, org.springframework.data.domain.PageRequest.of(0, 1)
+        )).isEmpty();
     }
 
     private void enableNoDeviceDelivery() {
