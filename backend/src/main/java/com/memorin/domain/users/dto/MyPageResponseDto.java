@@ -1,17 +1,15 @@
 package com.memorin.domain.users.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
-// 마이 페이지 조회 응답 dto
 public record MyPageResponseDto(
-
-        @NotBlank
-        String username,
-
-        @NotBlank
-        String displayName,
-
-        String bio
-
+    UUID id,
+    String email,
+    String username,
+    String displayName,
+    String bio,
+    String profileImageUrl,
+    LocalDateTime createdAt
 ) {
 }

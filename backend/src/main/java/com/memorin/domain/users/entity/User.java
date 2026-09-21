@@ -74,4 +74,12 @@ public class User {
         this.bio = bio;
     }
 
+    public void updateProfile(String displayName, boolean updateDisplayName,
+                              String bio, boolean updateBio,
+                              String profileImageKey, boolean updateProfileImageKey) {
+        if (updateDisplayName) this.displayName = displayName;
+        if (updateBio) this.bio = bio;
+        if (updateProfileImageKey) this.profileImageKey = profileImageKey;
+    }
+
 }
