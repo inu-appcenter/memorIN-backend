@@ -17,6 +17,7 @@ import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.UserMediaDeletionService;
+import com.memorin.global.media.service.MediaUploadCommitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,7 @@ public class UserService {
     private final PendingUploadRepository pendingUploadRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final UserMediaDeletionService userMediaDeletionService;
+    private final MediaUploadCommitService mediaUploadCommitService;
 
     // PostService.normalizeSize와 같은 규칙. 클라이언트가 size=100000을 보내면 그대로
     // PageRequest에 실려 100만 행을 로드하고, size=-1이면 PageRequest.of가 예외를 던져 500이 된다.
@@ -112,9 +114,34 @@ public class UserService {
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
         return new MyPageResponseDto(
+            user.getId(),
+            user.getEmail(),
             user.getUsername(),
             user.getDisplayName(),
-            user.getBio()
+            user.getBio(),
+            resolveProfileImageUrl(user.getProfileImageKey()),
+            user.getCreatedAt()
+        );
+    }
+
+    public MyPageResponseDto updateMyProfile(UUID userId, UpdateMyProfileRequest request) {
+        request.validate();
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+
+        if (request.hasProfileImageKey() && !request.profileImageKey().isNull()) {
+            mediaUploadCommitService.commitUpload(userId, request.profileImageKeyValue());
+        }
+
+        user.updateProfile(
+            request.displayNameValue(), request.hasDisplayName(),
+            request.bioValue(), request.hasBio(),
+            request.profileImageKeyValue(), request.hasProfileImageKey()
+        );
+
+        return new MyPageResponseDto(
+            user.getId(), user.getEmail(), user.getUsername(), user.getDisplayName(), user.getBio(),
+            resolveProfileImageUrl(user.getProfileImageKey()), user.getCreatedAt()
         );
     }
 

@@ -74,6 +74,14 @@ public class User {
         this.bio = bio;
     }
 
+    public void updateProfile(String displayName, boolean updateDisplayName,
+                              String bio, boolean updateBio,
+                              String profileImageKey, boolean updateProfileImageKey) {
+        if (updateDisplayName) this.displayName = displayName;
+        if (updateBio) this.bio = bio;
+        if (updateProfileImageKey) this.profileImageKey = profileImageKey;
+    }
+
     /** Retains the row for FK-backed content while removing personal account data. */
     public void withdraw() {
         if (this.deletedAt != null) return;

@@ -15,7 +15,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 
 | 도메인 | 컨트롤러 | 엔드포인트 | 이 문서 상태 |
 |---|---|---:|---|
-| 유저 / 프로필 | `UserController` | 6 | 구현 반영 (프로필 수정은 미구현 — §5-3 · #217, 회원 탈퇴 §5-4) |
+| 유저 / 프로필 | `UserController` | 7 | 구현 반영 (프로필 수정 §5-3 · #217, 회원 탈퇴 §5-4) |
 | 게시물 | `PostController` | 8 | 구현 반영. **검색 신설**(§6-7, #199) |
 | 댓글 | `PostCommentController` | 4 | 구현 반영 |
 | 댓글 이모지(반응) | `CommentEmojiController` | 3 | 구현 반영 (§8-5) |
@@ -29,7 +29,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | FCM 토큰 | `FcmTokenController` | 2 | `docs/api-spec.md` |
 | 게시물 좋아요 | `PostLikeController` | 2 | 구현 반영 — #148에서 제거했다가 #182에서 복구(§7) |
 
-REST 합계 **51개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **52개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -101,7 +101,7 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**구현됨.** `GET /api/users/me` — 응답은 `username`·`displayName`·`bio` 3개뿐이다(이메일·프로필 이미지 없음).
+**구현됨.** `GET /api/users/me`는 본인 식별 정보와 `profileImageUrl`을 포함한 프로필을 반환한다.
 
 #### 설명
 
@@ -124,7 +124,7 @@ Status: `200 OK`
     "username": "daily_user",
     "displayName": "Daily User",
     "bio": "매일 기록합니다",
-    "profileImageKey": "uploads/2026/07/01/{uuid}/profile.jpg",
+    "profileImageUrl": "https://storage.example/...",
     "createdAt": "2026-07-01T12:00:00Z"
   },
   "error": null
@@ -173,19 +173,19 @@ Status: `200 OK` — **공통 봉투 없이 DTO를 그대로 반환한다**(§2-
   "userId": "0198f2a1-8b3c-7def-9012-3456789abcde",
   "username": "daily_user",
   "displayName": "Daily User",
-  "profileImage": "uploads/2026/07/01/{uuid}/profile.jpg",
+  "profileImage": "https://storage.example/...",
   "bio": "매일 기록합니다"
 }
 ```
 
 - `userId`는 UUID **문자열**이다(다른 API는 uuid 타입 그대로 내려간다).
-- `profileImage`는 **MinIO object key**다. 화면에 그리려면 미디어 다운로드 presigned URL이 따로 필요하다.
+- `profileImage`는 서버가 object key에서 발급한 다운로드 presigned URL이다. URL 발급에 실패하면 `null`이다.
 
 #### 알려진 결함 (Sprint 3 미해결)
 
 | 이슈 | 내용 |
 |---|---|
-| #165 | 공통 응답 봉투 미적용 + 이미지 키를 URL 변환 없이 그대로 내려준다 |
+| #165 | 공통 응답 봉투 미적용 |
 
 #### 주요 실패 케이스
 
@@ -204,8 +204,7 @@ Content-Type: application/json
 
 #### 상태
 
-**미구현 (설계 초안).** `UserController`에 이 매핑이 없다 — 호출하면 404다.
-프로필 이미지 등록 경로가 없어 §5-2의 `profileImage`는 현재 회원가입 시점 값에서 바뀌지 않는다.
+**구현됨** (#217). `PATCH /api/users/me`만 제공하므로 다른 사용자의 프로필을 수정할 경로는 없다.
 
 #### 설명
 
@@ -219,11 +218,11 @@ Content-Type: application/json
 
 | 필드 | 타입 | 필수 | 검증 | 설명 |
 |---|---|---:|---|---|
-| `displayName` | string | X | 최대 100자 | 화면 표시명 |
-| `bio` | string | X | 최대 길이 정책 미정 | 자기소개 |
+| `displayName` | string | X | 1~100자, 중복 허용, `null` 불가 | 화면 표시명 |
+| `bio` | string | X | 최대 500자 | 자기소개 |
 | `profileImageKey` | string | X | 최대 500자 | MinIO object key |
 
-> 부분 수정(PATCH): 전달된 필드만 갱신한다. 전부 생략 시 변경 없음.
+> 부분 수정(PATCH): 전달된 필드만 갱신한다. 전부 생략 시 변경 없음. `bio`와 `profileImageKey`에 명시적으로 `null`을 주면 각각 소개와 프로필 이미지를 제거한다. `displayName`의 `null`·빈 문자열은 400이다. 새 `profileImageKey`는 요청 사용자 본인의 업로드 예약을 커밋해 실제 파일·크기·quota를 검증한다.
 
 예시:
 
@@ -243,7 +242,8 @@ Status: `200 OK` — 수정된 프로필을 5-1과 동일 스키마로 반환한
 
 | HTTP Status | 코드 | 상황 |
 |---:|---|---|
-| 400 | `COMMON_002` | 필드 길이 등 검증 실패 |
+| 400 | `COMMON_002` | 필드 타입·길이·빈 표시명 등 검증 실패 |
+| 400 | `MEDIA_007` | 업로드 예약이 없거나 만료됨, 또는 다른 사용자의 key |
 | 401 | `AUTH_001` | 인증 누락/만료 |
 
 ---
@@ -1812,7 +1812,6 @@ Content-Type: application/json
 | # | 항목 | 왜 지금 정해야 하나 | 이슈 |
 |---|---|---|---|
 | 1 | **공통 응답 봉투 통일 여부**(§2-6) | 15개 엔드포인트가 DTO를 직접 반환한다. Sprint 4에 채팅방·검색 8개가 새로 들어와 **오히려 늘었다.** FE 연동 본격화 전이 가장 싸다 | #203 |
-| 2 | **`profileImage` 키 → URL 변환 주체**(§5-2) | 서버가 presigned URL로 바꿔 줄지, FE가 미디어 API를 한 번 더 부를지 | — |
 | 4 | **`referenceId`의 타입별 의미**(§11) | FE가 알림 탭 시 어디로 보낼지 판단하려면 타입별 규약이 필요하다. 채팅 메시지 알림이 붙으면 더 필요해진다 | #216 |
 | 5 | **댓글 스레드 페이지네이션**(§8-2) | 목록 API 중 전체를 반환하는 둘 중 하나다 (다른 하나는 채팅방 목록 §10-4) | #225 |
 | 6 | **`content` JSONB 구조 스키마·크기** | #199가 태그를 `content` 안이 아니라 별도 `posts.tags` 컬럼으로 빼면서 "태그 키" 문제는 우회됐다. 그러나 `@ValidJson`은 여전히 "유효한 JSON"만 보고 **구조도 크기도 검증하지 않는다** | #244 |
@@ -1825,6 +1824,7 @@ Content-Type: application/json
 | 이전 # | 항목 | 결말 |
 |---|---|---|
 | 1 | `POST /auth/refresh` 응답 봉투 | `ApiResponse<LoginResponse>`로 통일. FE 파싱 변경 사항은 `docs/fe-api-change-notice.md`에 기록 |
+| 2 | `profileImage` 키 → URL 변환 주체 | **서버**가 조회 응답에서 다운로드 presigned URL로 변환한다. FE는 object key를 다루지 않는다. |
 | 3 | `GET /api/follows/requests` 페이지네이션 | `cursor`·`size`와 `{items, nextCursor, hasNext}` 응답으로 전환 |
 | 7 | `FOLLOW_001` 의미 분리 | 사용자 없음은 `USER_001`, 관계 없음은 `FOLLOW_001`, 상태 불일치는 `FOLLOW_005` |
 | 4 | 알림 저장 트리거 위치 | **이벤트 + `AFTER_COMMIT`으로 결정**(#186·#192). §11에 반영 |
