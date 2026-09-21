@@ -13,4 +13,6 @@ public interface WebPushSubscriptionRepository extends JpaRepository<WebPushSubs
     List<WebPushSubscription> findAllByUserId(UUID userId);
 
     void deleteByUserIdAndEndpoint(UUID userId, String endpoint);
+
+    void deleteByUserId(UUID userId);
 }

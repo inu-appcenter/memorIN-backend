@@ -1,10 +1,11 @@
 package com.memorin.domain.chat_room_members.repository;
 
 import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
+import com.memorin.domain.chat_room_members.repository.projection.RoomActivityProjection;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,5 +42,51 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMembers,
     // 첫 화면이라 방이 20개면 쿼리도 21개가 된다. ChatRoomListQueryCountTest가 이 숫자를 고정한다.
     @EntityGraph(attributePaths = "room")
     List<ChatRoomMembers> findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(UUID userId);
+
+    // 방 목록 화면의 안읽은 수·마지막 메시지를 방 개수와 무관하게 쿼리 1번으로 집계한다(#258).
+    // 안읽음 기준 시각은 GREATEST(last_read_at, joined_at) — rejoin()이 last_read_at은 그대로
+    // 둔 채 joined_at만 갱신하므로, 재입장 전에 읽었던 시각을 그대로 쓰면 자리를 비운 동안
+    // 쌓인 메시지까지 읽음으로 잘못 처리된다.
+    // 두 LATERAL 서브쿼리 모두 idx_messages_room_id(room_id, sent_at DESC)를 타므로
+    // 방이 N개여도 실행계획상 인덱스 룩업 N번일 뿐 SQL 문장 자체는 이 한 줄이다.
+    @Query(value = """
+        SELECT
+            crm.room_id AS roomId,
+            COALESCE(uc.unread_count, 0) AS unreadCount,
+            lm.id AS lastMessageId,
+            lm.type AS lastMessageType,
+            lm.content ->> 'text' AS lastMessageText,
+            lm.sent_at AS lastMessageSentAt
+        FROM chat_room_members crm
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*) AS unread_count
+            FROM messages m
+            WHERE m.room_id = crm.room_id
+              AND m.deleted_at IS NULL
+              AND m.sent_at > GREATEST(crm.last_read_at, crm.joined_at)
+              AND m.sender_id <> crm.user_id
+        ) uc ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT m.id, m.type, m.content, m.sent_at
+            FROM messages m
+            WHERE m.room_id = crm.room_id AND m.deleted_at IS NULL
+            ORDER BY m.sent_at DESC
+            LIMIT 1
+        ) lm ON TRUE
+        WHERE crm.user_id = :userId AND crm.left_at IS NULL
+        """, nativeQuery = true)
+    List<RoomActivityProjection> findRoomActivityByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+    SELECT m.user.id
+    FROM ChatRoomMembers m
+    WHERE m.room.id = :roomId
+      AND m.leftAt IS NULL
+      AND m.user.id <> :senderId
+    """)
+    List<UUID> findActiveMemberIdsExcludingSender(
+        @Param("roomId") UUID roomId,
+        @Param("senderId") UUID senderId
+    );
 
 }

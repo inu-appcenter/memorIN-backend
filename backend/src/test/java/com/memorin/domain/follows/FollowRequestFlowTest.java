@@ -5,6 +5,7 @@ import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.follows.service.FollowService;
 import com.memorin.domain.users.dto.UserFollowRequestResponse;
+import com.memorin.domain.users.dto.UserFollowRequestPageResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
@@ -17,7 +18,6 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,8 +80,8 @@ class FollowRequestFlowTest extends PostgresTestSupport {
         Request request = seedPendingRequest("reject-ok");
 
         // 목록이 내려주는 followId를 그대로 쓰는 것이 API 계약이다.
-        List<UserFollowRequestResponse> received = followService.getFollowRequests(request.receiverId());
-        UUID followId = received.stream()
+        UserFollowRequestPageResponse received = followService.getFollowRequests(request.receiverId(), null, null);
+        UUID followId = received.items().stream()
                 .filter(r -> r.userId().equals(request.requesterId()))
                 .findFirst().orElseThrow().followId();
         assertThat(followId).isEqualTo(request.followId());
@@ -91,6 +91,41 @@ class FollowRequestFlowTest extends PostgresTestSupport {
         assertThat(followRepository.findById(followId))
                 .as("거절하면 요청 행이 삭제된다")
                 .isEmpty();
+    }
+
+    @Test
+    void 받은_요청_목록은_cursor로_다음_페이지를_조회한다() {
+        Request[] requests = tx.execute(status -> {
+            User receiver = newUser("page-recv");
+            User olderRequester = newUser("page-older");
+            User newerRequester = newUser("page-newer");
+            Follows olderFollow = new Follows(olderRequester, receiver);
+            Follows newerFollow = new Follows(newerRequester, receiver);
+            em.persist(olderFollow);
+            em.persist(newerFollow);
+            em.flush();
+            return new Request[] {
+                new Request(olderRequester.getId(), receiver.getId(), olderFollow.getId()),
+                new Request(newerRequester.getId(), receiver.getId(), newerFollow.getId())
+            };
+        });
+        Request older = requests[0];
+        Request newer = requests[1];
+
+        UserFollowRequestPageResponse first = followService.getFollowRequests(newer.receiverId(), null, 1);
+
+        assertThat(first.items()).hasSize(1);
+        assertThat(first.hasNext()).isTrue();
+        assertThat(first.nextCursor()).isEqualTo(first.items().get(0).followId());
+
+        UserFollowRequestPageResponse second = followService.getFollowRequests(
+            newer.receiverId(), first.nextCursor(), 1);
+
+        assertThat(second.items()).hasSize(1);
+        assertThat(second.items().get(0).followId()).isNotEqualTo(first.nextCursor());
+        assertThat(second.hasNext()).isFalse();
+        assertThat(second.nextCursor()).isNull();
+        assertThat(second.items().get(0).followId()).isIn(older.followId(), newer.followId());
     }
 
     @Test
@@ -119,7 +154,7 @@ class FollowRequestFlowTest extends PostgresTestSupport {
         assertThatThrownBy(() -> followService.reject(request.followId(), request.receiverId()))
                 .isInstanceOf(BusinessException.class)
                 .extracting(e -> ((BusinessException) e).getErrorCode())
-                .isEqualTo(ErrorCode.FOLLOW_001);
+                .isEqualTo(ErrorCode.FOLLOW_005);
 
         assertThat(statusOf(request.followId())).isEqualTo(Follow_state.ACCEPTED);
     }

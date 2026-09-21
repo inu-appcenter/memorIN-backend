@@ -2,7 +2,7 @@ package com.memorin.domain.follows.controller;
 
 import com.memorin.domain.follows.dto.FollowRequest;
 import com.memorin.domain.follows.service.FollowService;
-import com.memorin.domain.users.dto.UserFollowRequestResponse;
+import com.memorin.domain.users.dto.UserFollowRequestPageResponse;
 import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "팔로우", description = "팔로우 요청 · 수락 · 거절/취소")
@@ -62,9 +61,13 @@ public class FollowController {
             내게 온 PENDING 상태의 팔로우 요청을 최신순으로 조회한다.
             응답의 followId를 수락(PATCH /api/follows/{followId}/accept)과
             거절(DELETE /api/follows/requests/{followId})에 그대로 쓴다.
-            페이지네이션이 없어 요청이 많으면 전부 내려간다 — 커서 페이징 전환은 별도 이슈.""")
+            cursor는 이전 응답의 nextCursor를 사용하며, size의 기본값은 20, 최대값은 50이다.""")
     @GetMapping("/requests")
-    public ApiResponse<List<UserFollowRequestResponse>> getReceivedRequests(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId()));
+    public ApiResponse<UserFollowRequestPageResponse> getReceivedRequests(
+        @AuthenticationPrincipal UserDetailsImpl userDetails,
+        @RequestParam(required = false) UUID cursor,
+        @RequestParam(required = false) Integer size
+    ) {
+        return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId(), cursor, size));
     }
 }

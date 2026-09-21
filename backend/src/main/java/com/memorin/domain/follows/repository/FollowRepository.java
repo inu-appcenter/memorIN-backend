@@ -15,6 +15,8 @@ import java.util.UUID;
 @Repository
 public interface FollowRepository extends JpaRepository<Follows, UUID> {
 
+    void deleteByFollowerIdOrFollowingId(UUID followerId, UUID followingId);
+
     boolean existsByFollowerIdAndFollowingId(UUID followerId, UUID followingId);
 
     Optional<Follows> findByFollowerIdAndFollowingId(UUID followerId, UUID followingId);
@@ -51,9 +53,25 @@ public interface FollowRepository extends JpaRepository<Follows, UUID> {
         AND f.status = :status
         ORDER BY f.id DESC
     """)
-    List<Follows> findReceivedRequests(
+    List<Follows> findReceivedRequestsFirstPage(
         @Param("userId") UUID userId,
-        @Param("status") Follow_state status
+        @Param("status") Follow_state status,
+        Pageable pageable
+    );
+
+    @Query("""
+        SELECT f FROM Follows f
+        JOIN FETCH f.follower
+        WHERE f.following.id = :userId
+        AND f.status = :status
+        AND f.id < :cursor
+        ORDER BY f.id DESC
+    """)
+    List<Follows> findReceivedRequestsAfterCursor(
+        @Param("userId") UUID userId,
+        @Param("status") Follow_state status,
+        @Param("cursor") UUID cursor,
+        Pageable pageable
     );
 
     // 팔로워/팔로잉 목록은 "1페이지"와 "커서 이후"를 별도 쿼리로 나눠 둔다.

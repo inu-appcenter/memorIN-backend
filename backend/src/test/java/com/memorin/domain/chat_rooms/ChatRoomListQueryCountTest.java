@@ -4,6 +4,7 @@ import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
 import com.memorin.domain.chat_rooms.dto.response.ChatRoomSummaryResponse;
 import com.memorin.domain.chat_rooms.entity.ChatRooms;
 import com.memorin.domain.chat_rooms.service.ChatRoomService;
+import com.memorin.domain.messages.entity.Messages;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
@@ -53,15 +54,20 @@ class ChatRoomListQueryCountTest extends PostgresTestSupport {
         return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
     }
 
-    // roomCount개의 그룹 방을 만들고 전부 owner로 참여시킨다. 그 사용자의 id를 반환.
+    // roomCount개의 그룹 방을 만들고 전부 owner로 참여시킨다. 방마다 상대가 보낸 안읽은
+    // 메시지를 하나씩 심어 unreadCount·lastMessage 계산이 쿼리 수에 영향을 주지 않는지도 함께 잰다.
+    // 그 사용자의 id를 반환.
     private UUID seedRooms(String tag, int roomCount) {
         return tx.execute(status -> {
             User owner = new User(tag + "@memorin.test", "hash", tag, tag, null);
+            User sender = new User(tag + "-sender@memorin.test", "hash", tag + "-sender", tag + "-sender", null);
             em.persist(owner);
+            em.persist(sender);
             for (int i = 0; i < roomCount; i++) {
                 ChatRooms room = ChatRooms.createGroup("%s-room-%d".formatted(tag, i));
                 em.persist(room);
                 em.persist(ChatRoomMembers.ofOwner(room, owner));
+                em.persist(Messages.createText(room, sender, "{\"type\":\"TEXT\",\"text\":\"hi\"}"));
             }
             em.flush();
             return owner.getId();
@@ -78,6 +84,12 @@ class ChatRoomListQueryCountTest extends PostgresTestSupport {
         // 않아 N+1이 있어도 이 테스트가 통과해 버린다.
         assertThat(rooms).hasSize(expected);
         assertThat(rooms).allSatisfy(r -> assertThat(r.name()).isNotBlank());
+        // unreadCount·lastMessage도 실제로 채워졌는지 확인한다 — activity 조회를 안 태우면
+        // 이 값들이 비어 있어도(0·null) 쿼리 수 비교만으로는 드러나지 않는다.
+        assertThat(rooms).allSatisfy(r -> {
+            assertThat(r.unreadCount()).isEqualTo(1);
+            assertThat(r.lastMessage()).isNotNull();
+        });
 
         return stats.getPrepareStatementCount();
     }

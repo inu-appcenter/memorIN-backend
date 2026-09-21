@@ -2,6 +2,7 @@ package com.memorin.domain.chat_rooms.service;
 
 import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
 import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
+import com.memorin.domain.chat_room_members.repository.projection.RoomActivityProjection;
 import com.memorin.domain.chat_rooms.dto.request.CreateGroupRoomRequest;
 import com.memorin.domain.chat_rooms.dto.request.InviteMembersRequest;
 import com.memorin.domain.chat_rooms.dto.request.RenameRoomRequest;
@@ -23,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -152,6 +156,16 @@ public class ChatRoomService {
         }
     }
 
+    // DIRECT·GROUP 둘 다 대상이라 getGroupRoomOrThrow가 아니라 leaveRoom과 같은 방식으로 조회한다.
+    @Transactional
+    public void markAsRead(UUID roomId, UUID requesterId) {
+        ChatRooms room = chatRoomsRepository.findById(roomId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방을 찾을 수 없습니다." + roomId));
+        ChatRoomMembers member = requireActiveMember(room, requesterId);
+
+        member.updateLastRead();
+    }
+
     @Transactional
     public void renameRoom(UUID roomId, UUID requesterId, RenameRoomRequest request) {
         ChatRooms room = getGroupRoomOrThrow(roomId);
@@ -164,8 +178,17 @@ public class ChatRoomService {
 
     @Transactional(readOnly = true)
     public List<ChatRoomSummaryResponse> listMyRooms(UUID requesterId) {
-        return chatRoomMembersRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(requesterId).stream()
-            .map(m -> new ChatRoomSummaryResponse(m.getRoom().getId(), m.getRoom().getType(), m.getRoom().getName(), m.getRole()))
+        List<ChatRoomMembers> memberships = chatRoomMembersRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(requesterId);
+
+        // memberships와 동일한 WHERE 조건(user_id, left_at IS NULL)으로 같은 트랜잭션에서 조회하므로
+        // 방 id 집합이 완전히 겹친다 — 방 개수와 무관하게 이 한 쿼리로 unreadCount·lastMessage를 채운다.
+        Map<UUID, RoomActivityProjection> activityByRoomId = chatRoomMembersRepository.findRoomActivityByUserId(requesterId).stream()
+            .collect(Collectors.toMap(RoomActivityProjection::getRoomId, Function.identity()));
+
+        return memberships.stream()
+            .map(m -> ChatRoomSummaryResponse.of(
+                m.getRoom().getId(), m.getRoom().getType(), m.getRoom().getName(), m.getRole(),
+                activityByRoomId.get(m.getRoom().getId())))
             .toList();
     }
 

@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.memorin.domain.notifications.service.NotificationService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final PostAccessPolicy postAccessPolicy;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     // 게시물 공유 메세지 생성
     @Transactional
@@ -71,6 +73,13 @@ public class MessageService {
         Messages message = Messages.createPostShare(room, sender, writeJson(shareContent));
         messagesRepository.save(message);
 
+        notifyMessageRecipients(
+            request.roomId(),
+            senderId,
+            "새 메시지",
+            "게시물을 공유했습니다."
+        );
+
         return MessageResponse.of(message, shareContent);
     }
 
@@ -80,15 +89,31 @@ public class MessageService {
         ChatRooms room = chatRoomsRepository.findById(request.roomId())
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방이 존재하지 않습니다: "));
 
-        if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(request.roomId(), senderId)) {
-            throw new BusinessException(ErrorCode.CHAT_ROOM_MEMBERS_001, "존재하지 않는 참여자입니다: ");
+        if (!chatRoomMemberRepository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(
+            request.roomId(), senderId)) {
+            throw new BusinessException(
+                ErrorCode.CHAT_ROOM_MEMBERS_001,
+                "존재하지 않는 참여자입니다: "
+            );
         }
 
         User sender = userRepository.getReferenceById(senderId);
 
         TextContent textContent = new TextContent(request.text());
-        Messages message = Messages.createText(room, sender, writeJson(textContent));
+        Messages message = Messages.createText(
+            room,
+            sender,
+            writeJson(textContent)
+        );
+
         messagesRepository.save(message);
+
+        notifyMessageRecipients(
+            request.roomId(),
+            senderId,
+            "새 메시지",
+            request.text()
+        );
 
         return MessageResponse.of(message, textContent);
     }
@@ -145,5 +170,16 @@ public class MessageService {
             return 1;
         }
         return Math.min(size, MAX_PAGE_SIZE);
+    }
+
+    private void notifyMessageRecipients(
+        UUID roomId,
+        UUID senderId,
+        String title,
+        String message
+    ) {
+        List<UUID> recipientIds = chatRoomMemberRepository.findActiveMemberIdsExcludingSender(roomId, senderId);
+
+        notificationService.saveMessages(recipientIds, senderId, title, message, roomId);
     }
 }

@@ -5,6 +5,7 @@ import com.memorin.domain.users.dto.UserProfileResponse;
 import com.memorin.domain.users.dto.UserSearchPageResponse;
 import com.memorin.domain.users.service.UserService;
 import com.memorin.domain.users.dto.MyPageResponseDto;
+import com.memorin.domain.users.dto.UpdateMyProfileRequest;
 import com.memorin.global.common.ApiResponse;
 import com.memorin.global.exception.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,23 @@ public class UserController {
     public ResponseEntity<ApiResponse<MyPageResponseDto>> getMyPage(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         MyPageResponseDto response = userService.getMyPage(userDetails.getUserId());
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "현재 계정을 비활성화하고 인증 토큰 및 푸시 구독을 정리합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        userService.withdraw(userDetails.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "내 프로필 수정", description = "로그인한 사용자의 표시명, 자기소개, 프로필 이미지를 부분 수정합니다.")
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<MyPageResponseDto>> updateMyProfile(
+        @AuthenticationPrincipal UserDetailsImpl userDetails,
+        @RequestBody UpdateMyProfileRequest request
+    ) {
+        request.validate();
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateMyProfile(userDetails.getUserId(), request)));
     }
 
     @Operation(summary = "사용자 검색", description = "keyword로 사용자를 검색한다. cursor·size 커서 페이지네이션.")

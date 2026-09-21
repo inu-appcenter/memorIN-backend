@@ -22,4 +22,6 @@ public interface PendingUploadRepository extends JpaRepository<PendingUpload, UU
     long sumReservedBytesByUserId(@Param("userId") UUID userId, @Param("now") LocalDateTime now);
 
     List<PendingUpload> findByExpiresAtBefore(LocalDateTime now);
+
+    List<PendingUpload> findByUserId(UUID userId);
 }
