@@ -36,6 +36,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    @Operation(summary = "회원 탈퇴", description = "현재 계정을 비활성화하고 인증 토큰 및 푸시 구독을 정리합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        userService.withdraw(userDetails.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "사용자 검색", description = "keyword로 사용자를 검색한다. cursor·size 커서 페이지네이션.")
     @GetMapping("/search")
     public ApiResponse<UserSearchPageResponse> search(
