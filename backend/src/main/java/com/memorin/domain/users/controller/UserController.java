@@ -37,6 +37,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    @Operation(summary = "회원 탈퇴", description = "현재 계정을 비활성화하고 인증 토큰 및 푸시 구독을 정리합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        userService.withdraw(userDetails.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "내 프로필 수정", description = "로그인한 사용자의 표시명, 자기소개, 프로필 이미지를 부분 수정합니다.")
     @PatchMapping("/me")
     public ResponseEntity<ApiResponse<MyPageResponseDto>> updateMyProfile(

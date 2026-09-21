@@ -15,7 +15,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 
 | 도메인 | 컨트롤러 | 엔드포인트 | 이 문서 상태 |
 |---|---|---:|---|
-| 유저 / 프로필 | `UserController` | 6 | 구현 반영 (프로필 수정 포함 — §5-3 · #217) |
+| 유저 / 프로필 | `UserController` | 7 | 구현 반영 (프로필 수정 §5-3 · #217, 회원 탈퇴 §5-4) |
 | 게시물 | `PostController` | 8 | 구현 반영. **검색 신설**(§6-7, #199) |
 | 댓글 | `PostCommentController` | 4 | 구현 반영 |
 | 댓글 이모지(반응) | `CommentEmojiController` | 3 | 구현 반영 (§8-5) |
@@ -29,7 +29,7 @@ Sprint 0 시점 이 문서는 도메인 API 전부가 "엔티티만 있고 컨�
 | FCM 토큰 | `FcmTokenController` | 2 | `docs/api-spec.md` |
 | 게시물 좋아요 | `PostLikeController` | 2 | 구현 반영 — #148에서 제거했다가 #182에서 복구(§7) |
 
-REST 합계 **50개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
+REST 합계 **52개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger UI**(`/swagger-ui/index.html`)다. 이 문서는 Swagger가 자동 생성하지
 못하는 것 — 요청 예시, 실패 케이스, 정책 배경, **알려진 결함** — 을 보충한다.
 
 `OpenApiDocsTest`가 모든 엔드포인트에 `@Operation(summary)`와 `@Tag`가 붙어 있는지 검증한다.
@@ -73,6 +73,7 @@ REST 합계 **50개** (+ STOMP 발행 목적지 2개). **정본(live)은 Swagger
 | 엔드포인트 | 실제 반환 | 비고 |
 |---|---|---|
 | `DELETE /auth/logout` | `204 No Content` | 본문 없음 |
+| `DELETE /api/users/me` | `204 No Content` | 탈퇴 처리 후 본문 없음 |
 | **`/api/chat-rooms/**` 7개 전부** | 각 DTO / 본문 없음 | **#203** — 채팅방 생성·목록·초대·강퇴·나가기·이름변경 |
 | **`GET /api/posts/search`** | `PostListResponse` | **#203** — 같은 컨트롤러의 나머지 7개는 봉투를 쓴다 |
 | `POST /api/comments/{commentId}/emojis` | `EmojiToggleResponse` | §8-5 |
@@ -146,7 +147,7 @@ Authorization: Bearer {accessToken}
 
 #### 상태
 
-**구현됨** (#162, 2026-08-11). 다만 아래 "알려진 결함" 3건이 미해결이다.
+**구현됨** (#162, 2026-08-11). 탈퇴 사용자는 `deleted_at` 필터로 조회되지 않는다.
 
 #### 설명
 
@@ -184,7 +185,6 @@ Status: `200 OK` — **공통 봉투 없이 DTO를 그대로 반환한다**(§2-
 
 | 이슈 | 내용 |
 |---|---|
-| #164 | 탈퇴(`deleted_at`) 사용자도 그대로 조회된다. 유저 검색은 2026-08-14에 `deleted_at` 필터를 넣었는데 이 API만 빠져 있다 |
 | #165 | 공통 응답 봉투 미적용 |
 
 #### 주요 실패 케이스
@@ -245,6 +245,38 @@ Status: `200 OK` — 수정된 프로필을 5-1과 동일 스키마로 반환한
 | 400 | `COMMON_002` | 필드 타입·길이·빈 표시명 등 검증 실패 |
 | 400 | `MEDIA_007` | 업로드 예약이 없거나 만료됨, 또는 다른 사용자의 key |
 | 401 | `AUTH_001` | 인증 누락/만료 |
+
+---
+
+### 5-4. 회원 탈퇴
+
+```http
+DELETE /api/users/me
+Authorization: Bearer {accessToken}
+```
+
+#### 상태
+
+**구현됨.** 현재 로그인한 계정만 탈퇴할 수 있으며, 경로에 사용자 ID를 받지 않는다.
+
+#### 처리 방침
+
+- `users.deleted_at`을 채우고 이메일·username·표시명·소개·프로필 이미지 key를 익명화한다. 따라서 같은 이메일과 username으로 재가입할 수 있다.
+- 리프레시 토큰, FCM 토큰, Web Push 구독, pending 업로드 예약, 팔로우 관계를 삭제한다. 이미 발급된 access token도 다음 API 요청에서 탈퇴 사용자를 조회하지 못해 거절된다.
+- 게시물·댓글·채팅 메시지는 다른 사용자의 기록과 대화 맥락을 보존하기 위해 유지한다. 작성자 정보는 익명화된 사용자 행을 통해 `탈퇴한 사용자`로 표시된다.
+- 게시물에 연결된 미디어는 게시물이 유지되므로 유지한다. 프로필 이미지와 아직 커밋되지 않은 업로드 객체는 MinIO에서 삭제한다.
+- 채팅방 멤버십은 나간 상태로 전환해 이후 메시지 수신 대상에서 제외한다.
+
+#### 응답
+
+Status: `204 No Content`
+
+#### 주요 실패 케이스
+
+| HTTP Status | 코드 | 상황 |
+|---:|---|---|
+| 401 | `AUTH_001` | 인증 누락/만료/위조 |
+| 500 | `COMMON_001` | 프로필 또는 pending 미디어 객체 삭제 실패 |
 
 ---
 

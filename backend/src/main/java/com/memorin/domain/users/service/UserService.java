@@ -6,9 +6,17 @@ import com.memorin.domain.follows.entity.Follows;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.domain.auth.repository.RefreshTokenRepository;
+import com.memorin.domain.fcm_token.repository.FcmTokenRepository;
+import com.memorin.domain.web_push.repository.WebPushSubscriptionRepository;
+import com.memorin.domain.pending_upload.entity.PendingUpload;
+import com.memorin.domain.pending_upload.repository.PendingUploadRepository;
+import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
+import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.media.service.PresignedDownloadService;
+import com.memorin.global.media.service.UserMediaDeletionService;
 import com.memorin.global.media.service.MediaUploadCommitService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +39,12 @@ public class UserService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final PresignedDownloadService presignedDownloadService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final FcmTokenRepository fcmTokenRepository;
+    private final WebPushSubscriptionRepository webPushSubscriptionRepository;
+    private final PendingUploadRepository pendingUploadRepository;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final UserMediaDeletionService userMediaDeletionService;
     private final MediaUploadCommitService mediaUploadCommitService;
 
     // PostService.normalizeSize와 같은 규칙. 클라이언트가 size=100000을 보내면 그대로
@@ -129,6 +143,35 @@ public class UserService {
             user.getId(), user.getEmail(), user.getUsername(), user.getDisplayName(), user.getBio(),
             resolveProfileImageUrl(user.getProfileImageKey()), user.getCreatedAt()
         );
+    }
+
+    public void withdraw(UUID userId) {
+        User user = userRepository.findByIdAndDeletedAtIsNull(userId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
+
+        String profileImageKey = user.getProfileImageKey();
+        List<PendingUpload> pendingUploads = pendingUploadRepository.findByUserId(userId);
+
+        // Delete storage first so a failure cannot leave a deactivated account with retained
+        // personal media. The transaction rolls back if an object cannot be removed.
+        userMediaDeletionService.delete(profileImageKey);
+        for (PendingUpload pendingUpload : pendingUploads) {
+            userMediaDeletionService.delete(pendingUpload.getObjectKey());
+        }
+
+        refreshTokenRepository.deleteById(userId);
+        fcmTokenRepository.deleteByUserId(userId);
+        webPushSubscriptionRepository.deleteByUserId(userId);
+        pendingUploadRepository.deleteAll(pendingUploads);
+        followRepository.deleteByFollowerIdOrFollowingId(userId, userId);
+
+        // The account can no longer authenticate, and leaving its rooms stops future delivery
+        // attempts. Existing messages remain and identify only the anonymised user row.
+        for (ChatRoomMembers membership : chatRoomMemberRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(userId)) {
+            membership.leave();
+        }
+
+        user.withdraw();
     }
 
     @Transactional(readOnly = true)

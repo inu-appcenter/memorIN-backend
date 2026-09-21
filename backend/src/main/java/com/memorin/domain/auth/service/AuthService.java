@@ -57,7 +57,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.email())
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_002));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -80,6 +80,11 @@ public class AuthService {
         }
 
         UUID userId = jwtTokenProvider.getUserId(refreshToken);
+
+        if (userRepository.findByIdAndDeletedAtIsNull(userId).isEmpty()) {
+            refreshTokenRepository.deleteById(userId);
+            throw new BusinessException(ErrorCode.AUTH_003);
+        }
 
         RefreshToken savedToken = refreshTokenRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AUTH_003));

@@ -75,6 +75,23 @@ class JwtTokenSecurityTest {
     }
 
     @Test
+    void access_token_for_a_withdrawn_user_is_rejected_with_401() throws Exception {
+        UserRepository userRepository = mock(UserRepository.class);
+        JwtTokenProvider provider = new JwtTokenProvider(SECRET, 60_000, 60_000, userRepository);
+        UUID userId = UUID.randomUUID();
+        given(userRepository.findByIdAndDeletedAtIsNull(userId)).willReturn(java.util.Optional.empty());
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/users/me");
+        request.addHeader("Authorization", "Bearer " + provider.createAccessToken(userId));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        new JwtAuthenticationFilter(provider, new RestAuthenticationEntryPoint(new ObjectMapper()))
+            .doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
     void old_token_without_typ_claim_is_rejected() {
         JwtTokenProvider provider = provider();
         String oldToken = Jwts.builder()
@@ -109,7 +126,7 @@ class JwtTokenSecurityTest {
         given(user.getId()).willReturn(userId);
         given(passwordEncoder.matches("password", "password-hash")).willReturn(true);
         given(user.getPasswordHash()).willReturn("password-hash");
-        given(userRepository.findByEmail("user@example.com")).willReturn(java.util.Optional.of(user));
+        given(userRepository.findByEmailAndDeletedAtIsNull("user@example.com")).willReturn(java.util.Optional.of(user));
         var response = service.login(
             new com.memorin.domain.auth.dto.LoginRequest("user@example.com", "password"));
 
