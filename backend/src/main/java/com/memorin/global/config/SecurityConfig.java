@@ -54,7 +54,7 @@ public class SecurityConfig {
                         // 자체가 등록되지 않아 여기 도달하기 전에 404가 난다(#261).
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // 인프라 헬스체크(docker-compose). 인증을 요구하면 항상 401을 받아 계속 unhealthy로 뜬다.
-                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers("/api/health", "/api/instance/info").permitAll()
                         .anyRequest().authenticated()
                 );
 

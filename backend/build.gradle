@@ -7,6 +7,14 @@ plugins {
 group = 'com.memorin'
 version = '0.0.1-SNAPSHOT'
 
+springBoot {
+	buildInfo()
+}
+
+tasks.named('processResources') {
+	dependsOn tasks.named('bootBuildInfo')
+}
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
