@@ -6,6 +6,13 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Compose 확장 필드에 환경변수 치환을 모아 둔다. deploy.memory에는 앵커만 사용해
+# Docker Compose 스키마의 ByteSize 검사와 환경변수 기본값 구문이 충돌하지 않게 한다.
+x-memory-limits:
+  postgres: &postgres-memory "${POSTGRES_MEMORY_LIMIT:-512M}"
+  minio: &minio-memory "${MINIO_MEMORY_LIMIT:-512M}"
+  backend: &backend-memory "${BACKEND_MEMORY_LIMIT:-1G}"
+
 services:
   postgres:
     image: postgres:18-alpine # alpine 80mb 초경량 리눅스 버전
@@ -37,7 +44,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${POSTGRES_MEMORY_LIMIT:-512m}
+          memory: *postgres-memory
 
   minio:
     image: minio/minio:latest
@@ -67,7 +74,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${MINIO_MEMORY_LIMIT:-512m}
+          memory: *minio-memory
 
   backend:
     build:
@@ -142,7 +149,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${BACKEND_MEMORY_LIMIT:-1g}
+          memory: *backend-memory
     # postgres, minio 전부 켜져야 backend 실행됨.
     depends_on:
       postgres:
