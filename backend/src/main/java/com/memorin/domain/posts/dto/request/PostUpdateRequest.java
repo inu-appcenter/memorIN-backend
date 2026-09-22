@@ -11,6 +11,7 @@ import java.util.List;
 
 /** PATCH 요청이므로 모든 필드는 null이면 "변경하지 않음"을 의미한다. */
 public record PostUpdateRequest(
+        @Size(max = PostCreateRequest.CONTENT_MAX_LENGTH, message = "게시글 내용이 너무 깁니다.")
         @ValidJson(message = "게시글 내용이 올바른 JSON 형식이 아닙니다.")
         String content,
         VisibilityType visibilityType,
