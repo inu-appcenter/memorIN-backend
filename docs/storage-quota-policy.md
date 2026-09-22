@@ -53,6 +53,17 @@ presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 
 
 커밋 없이 `pendingTtlSeconds`가 지난 예약은 `PendingUploadCleanupJob`(주기: `storage.quota.pending-cleanup-interval-ms`, 기본 5분)이 MinIO 오브젝트와 `pending_uploads` 행을 함께 정리한다. MinIO 삭제가 실패하면 DB 행은 남겨 다음 주기에 재시도한다.
 
+## 삭제된 미디어 정리
+
+게시물을 지우면 quota는 즉시 회수되지만 MinIO 오브젝트는 남는다. 그대로 두면 올렸다 지우기를 반복해 quota를 우회하고 디스크를 채울 수 있어서, `DeletedMediaCleanupJob`(주기: `storage.media-gc.interval-ms`, 기본 1시간)이 유예 기간 후 오브젝트를 회수한다(이슈 #259).
+
+- **소프트 삭제된 게시물**: `posts.deleted_at`이 유예 기간(기본 7일)을 넘긴 게시물의 `post_media`가 대상이다. 오브젝트를 지운 뒤 `post_media` 행을 하드 삭제한다.
+- **첨부 교체**: `PostService.update`가 `post_media` 행을 하드 삭제하기 전에 `file_key`를 `media_deletion_queue`에 남기고, 배치가 같은 유예 기간 후 회수한다.
+- MinIO 삭제에 성공한 뒤에만 DB 행을 지운다. 실패하면 행이 남아 다음 주기에 재시도한다.
+- 같은 `file_key`를 살아 있는 게시물이 쓰고 있으면 오브젝트는 건드리지 않고 행만 지운다.
+- 한 주기에 `batch-size`개까지만 처리한다. `STORAGE_MEDIA_GC_ENABLED=false`로 끌 수 있다.
+- 오브젝트 삭제는 되돌릴 수 없다. 유예 기간을 줄이면 오삭제 복구 여지도 줄어든다.
+
 ## 환경 변수
 
 | 이름 | 기본값 | 설명 |
@@ -60,6 +71,10 @@ presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 
 | `STORAGE_QUOTA_DEFAULT_LIMIT_BYTES` | `1073741824` (1GiB) | 사용자 전체 저장 용량 한도 |
 | `STORAGE_QUOTA_PENDING_TTL_SECONDS` | `900` (15분) | pending 예약이 커밋 없이 유지되는 최대 시간 |
 | `STORAGE_QUOTA_WARNING_THRESHOLD_PERCENT` | `80` | 사용률이 이 값(%) 이상이면 `GET /api/media/quota` 응답의 `warning`이 `true`가 된다 |
+| `STORAGE_MEDIA_GC_ENABLED` | `true` | 삭제된 미디어 정리 배치 on/off |
+| `STORAGE_MEDIA_GC_GRACE_DAYS` | `7` | 삭제 후 오브젝트를 지우기까지의 유예 일수 |
+| `STORAGE_MEDIA_GC_INTERVAL_MS` | `3600000` (1시간) | 정리 배치 실행 주기 |
+| `STORAGE_MEDIA_GC_BATCH_SIZE` | `100` | 한 주기에 처리하는 최대 개수 |
 | `MINIO_MAX_UPLOAD_SIZE_BYTES` | `52428800` (50MiB) | **단일 파일** 상한. 전체 quota(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)와 별개 설정이다 |
 
 ## 사용량 조회 (대시보드)
