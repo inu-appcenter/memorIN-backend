@@ -6,13 +6,6 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
-# Compose 확장 필드에 환경변수 치환을 모아 둔다. deploy.memory에는 앵커만 사용해
-# Docker Compose 스키마의 ByteSize 검사와 환경변수 기본값 구문이 충돌하지 않게 한다.
-x-memory-limits:
-  postgres: &postgres-memory "${POSTGRES_MEMORY_LIMIT:-512M}"
-  minio: &minio-memory "${MINIO_MEMORY_LIMIT:-512M}"
-  backend: &backend-memory "${BACKEND_MEMORY_LIMIT:-1G}"
-
 services:
   postgres:
     image: postgres:18-alpine # alpine 80mb 초경량 리눅스 버전
@@ -44,7 +37,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: *postgres-memory
+          memory: ${POSTGRES_MEMORY_LIMIT:-512m}
 
   minio:
     image: minio/minio:latest
@@ -74,7 +67,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: *minio-memory
+          memory: ${MINIO_MEMORY_LIMIT:-512m}
 
   backend:
     build:
@@ -102,10 +95,6 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXPIRY_MS: ${JWT_ACCESS_EXPIRY_MS:-900000}
       JWT_REFRESH_EXPIRY_MS: ${JWT_REFRESH_EXPIRY_MS:-604800000}
-      INSTANCE_PUBLIC: ${INSTANCE_PUBLIC:-true}
-      INSTANCE_NAME: ${INSTANCE_NAME:-memorIN}
-      INSTANCE_DESCRIPTION: ${INSTANCE_DESCRIPTION:-A memorIN instance}
-      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
       STORAGE_QUOTA_DEFAULT_LIMIT_BYTES: ${STORAGE_QUOTA_DEFAULT_LIMIT_BYTES:-1073741824}
       STORAGE_QUOTA_PENDING_TTL_SECONDS: ${STORAGE_QUOTA_PENDING_TTL_SECONDS:-900}
       STORAGE_QUOTA_WARNING_THRESHOLD_PERCENT: ${STORAGE_QUOTA_WARNING_THRESHOLD_PERCENT:-80}
@@ -153,7 +142,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: *backend-memory
+          memory: ${BACKEND_MEMORY_LIMIT:-1g}
     # postgres, minio 전부 켜져야 backend 실행됨.
     depends_on:
       postgres:
