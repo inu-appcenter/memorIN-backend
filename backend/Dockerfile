@@ -21,6 +21,11 @@ FROM eclipse-temurin:17-jre AS runtime
 
 WORKDIR /app
 
+# docker-compose의 backend healthcheck가 /api/health 응답 상태를 확인한다.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # 보안: non-root 실행
 RUN groupadd -r spring && useradd -r -g spring spring
 
