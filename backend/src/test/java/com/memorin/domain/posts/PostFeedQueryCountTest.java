@@ -8,10 +8,9 @@ import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.posts.dto.response.PostListResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -38,8 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostFeedQueryCountTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -50,10 +49,6 @@ class PostFeedQueryCountTest extends PostgresTestSupport {
 
     @PersistenceContext
     private EntityManager em;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     private UUID seed(String tag, int posts, int mediaPerPost) {
         return tx.execute(status -> {
@@ -75,13 +70,12 @@ class PostFeedQueryCountTest extends PostgresTestSupport {
     }
 
     private long countQueriesForFeed(UUID authorId, int expectedPosts) {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
 
         PostListResponse response = postService.list(authorId, authorId, null, 20);
 
         assertThat(response.items()).hasSize(expectedPosts);
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 
     @Test

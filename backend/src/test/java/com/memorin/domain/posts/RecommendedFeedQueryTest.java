@@ -11,10 +11,9 @@ import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.posts.service.RecommendedFeedService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,8 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RecommendedFeedQueryTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -43,10 +42,6 @@ class RecommendedFeedQueryTest extends PostgresTestSupport {
     @Autowired private TransactionTemplate tx;
     @PersistenceContext
     private EntityManager em;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     // 추천 피드는 특정 작성자가 아니라 "최근 전체공개 글" 전체를 후보로 삼는다.
     // 컨테이너를 공유하는 다른 테스트의 게시물도 후보에 섞이므로,
@@ -194,9 +189,8 @@ class RecommendedFeedQueryTest extends PostgresTestSupport {
     }
 
     private long countQueries() {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
         recommendedFeedService.getRecommendedFeed(null, 50);
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 }
