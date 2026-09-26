@@ -194,6 +194,9 @@ class RecommendedFeedQueryTest extends PostgresTestSupport {
     }
 
     private long countQueries() {
+        // 두 측정 모두 같은 영속성 컨텍스트 상태에서 시작해야 1차 캐시의 유무가
+        // SQL 개수 비교에 섞이지 않는다.
+        em.clear();
         Statistics stats = statistics();
         stats.clear();
         recommendedFeedService.getRecommendedFeed(null, 50);
