@@ -1,7 +1,5 @@
 package com.memorin.domain.posts.service;
 
-import com.memorin.domain.follows.entity.Follow_state;
-import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.media_deletion.entity.MediaDeletionQueue;
 import com.memorin.domain.media_deletion.repository.MediaDeletionQueueRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
@@ -50,7 +48,6 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final MediaDeletionQueueRepository mediaDeletionQueueRepository;
     private final UserRepository userRepository;
-    private final FollowRepository followRepository;
     private final PresignedDownloadService presignedDownloadService;
     private final PresignedUploadService presignedUploadService;
     private final StorageQuotaService storageQuotaService;
@@ -298,12 +295,6 @@ public class PostService {
 
     public PostListResponse friendFeed(UUID userId, String cursor, Integer size) {
 
-        List<UUID> followingIds = followRepository.findFollowingIds(userId, Follow_state.ACCEPTED);
-
-        if (followingIds.isEmpty()) {
-            return new PostListResponse(List.of(), null, false);
-        }
-
         int limit = normalizeSize(size);
 
         Date cursorRecordedDate = null;
@@ -316,11 +307,15 @@ public class PostService {
         }
 
         List<Post> rows = postRepository.findFriendFeed(
-            followingIds,
+            userId,
             cursorRecordedDate,
             cursorId,
             limit + 1
         );
+
+        if (rows.isEmpty()) {
+            return new PostListResponse(List.of(), null, false);
+        }
 
         // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
         boolean hasNext = rows.size() > limit;
