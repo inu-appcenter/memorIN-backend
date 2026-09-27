@@ -57,6 +57,12 @@ public enum ErrorCode {
     // 댓글 이모지 (comment_emoji)
     COMMENT_EMOJI_001(HttpStatus.FORBIDDEN, "삭제된 댓글에는 이모지를 달 수 없습니다."),
 
+    // 메세지 이모지 (comment_emoji)
+    MESSAGE_EMOJI_001(HttpStatus.FORBIDDEN, "삭제된 메세지에는 이모지를 달 수 없습니다."),
+
+    // 메세지 (messages)
+    MESSAGE_001(HttpStatus.NOT_FOUND, "메세지를 찾을 수 없습니다."),
+
     // 채팅방 (chat_rooms)
     CHAT_ROOMS_001(HttpStatus.NOT_FOUND, "채팅방을 찾을 수 없습니다."),
     CHAT_ROOMS_002(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),

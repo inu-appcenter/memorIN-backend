@@ -5,10 +5,9 @@ import com.memorin.domain.users.dto.UserFollowPageResponse;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.service.UserService;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -33,8 +32,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FollowListQueryCountTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -45,10 +44,6 @@ class FollowListQueryCountTest extends PostgresTestSupport {
 
     @PersistenceContext
     private EntityManager em;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     // target을 팔로우하는(ACCEPTED) follower를 followerCount명 만든다. target의 id를 반환.
     private UUID seedFollowers(String tag, int followerCount) {
@@ -69,13 +64,12 @@ class FollowListQueryCountTest extends PostgresTestSupport {
     }
 
     private long countQueriesForFollowers(UUID targetId, int expected) {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
 
         UserFollowPageResponse response = userService.getFollowers(targetId, null, 20);
 
         assertThat(response.items()).hasSize(expected);
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 
     @Test

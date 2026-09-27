@@ -1,7 +1,7 @@
 package com.memorin.domain.posts.service;
 
-import com.memorin.domain.follows.entity.Follow_state;
-import com.memorin.domain.follows.repository.FollowRepository;
+import com.memorin.domain.media_deletion.entity.MediaDeletionQueue;
+import com.memorin.domain.media_deletion.repository.MediaDeletionQueueRepository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import com.memorin.domain.post_media.repository.PostMediaRepository;
 import com.memorin.domain.posts.dto.request.PostSearchRequest;
@@ -46,8 +46,8 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostSearchRepository postSearchRepository;
     private final PostMediaRepository postMediaRepository;
+    private final MediaDeletionQueueRepository mediaDeletionQueueRepository;
     private final UserRepository userRepository;
-    private final FollowRepository followRepository;
     private final PresignedDownloadService presignedDownloadService;
     private final PresignedUploadService presignedUploadService;
     private final StorageQuotaService storageQuotaService;
@@ -220,6 +220,12 @@ public class PostService {
         List<PostMedia> media;
         if (request.attachments() != null) {
             // attachments가 명시적으로 온 경우: 기존 미디어를 통째로 교체.
+            // 행을 지우면 버려진 MinIO 오브젝트를 나중에 찾을 수 없으므로, 키를 삭제 대기열에 먼저 남긴다.
+            // 정리 배치가 유예 기간 후 회수한다 (#259).
+            List<MediaDeletionQueue> replaced = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId).stream()
+                    .map(m -> MediaDeletionQueue.of(m.getFileKey()))
+                    .toList();
+            mediaDeletionQueueRepository.saveAll(replaced);
             postMediaRepository.deleteAllByPostId(postId);
             media = saveMedia(post, request.attachments(), requesterId);
         } else {
@@ -239,7 +245,7 @@ public class PostService {
             throw new PostExceptions.PostAccessDeniedException();
         }
         post.softDelete();
-        // post_media row는 그대로 둔다. 실제 MinIO 객체 정리는 별도 배치/정책으로 처리하는 것을 권장.
+        // post_media row는 그대로 둔다. MinIO 오브젝트는 DeletedMediaCleanupJob이 유예 기간 후 회수한다 (#259).
     }
 
     // ---- private helpers ----
@@ -289,12 +295,6 @@ public class PostService {
 
     public PostListResponse friendFeed(UUID userId, String cursor, Integer size) {
 
-        List<UUID> followingIds = followRepository.findFollowingIds(userId, Follow_state.ACCEPTED);
-
-        if (followingIds.isEmpty()) {
-            return new PostListResponse(List.of(), null, false);
-        }
-
         int limit = normalizeSize(size);
 
         Date cursorRecordedDate = null;
@@ -307,11 +307,15 @@ public class PostService {
         }
 
         List<Post> rows = postRepository.findFriendFeed(
-            followingIds,
+            userId,
             cursorRecordedDate,
             cursorId,
             limit + 1
         );
+
+        if (rows.isEmpty()) {
+            return new PostListResponse(List.of(), null, false);
+        }
 
         // limit + 1개를 조회해서 다음 페이지 존재 여부만 판단 (별도 count 쿼리 없이).
         boolean hasNext = rows.size() > limit;
