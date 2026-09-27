@@ -9,11 +9,10 @@ import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import com.memorin.domain.posts.entity.TagType;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -50,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FriendFeedQueryCountTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -62,10 +61,6 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
 
     @PersistenceContext
     private EntityManager em;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     // "나"를 만들고, authorCount명을 ACCEPTED로 팔로우한다.
     // 각 작성자는 게시물 1개 + 미디어 mediaPerPost장을 가진다. 내 id를 반환.
@@ -99,13 +94,12 @@ class FriendFeedQueryCountTest extends PostgresTestSupport {
     }
 
     private long countQueriesForFriendFeed(UUID meId, int expectedPosts) {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
 
         PostListResponse response = postService.friendFeed(meId, null, 20);
 
         assertThat(response.items()).hasSize(expectedPosts);
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 
     @Test
