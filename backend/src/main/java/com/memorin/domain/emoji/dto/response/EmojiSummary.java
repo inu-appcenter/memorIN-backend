@@ -10,7 +10,11 @@ public record EmojiSummary(
 
 ) {
 
-    public static EmojiSummary from(EmojiCountDto d) {
+    public static EmojiSummary from(CommentEmojiCountDto d) {
+        return new EmojiSummary(d.emojiType(), d.count(), d.reactedByMe());
+    }
+
+    public static EmojiSummary from(MessageEmojiCountDto d) {
         return new EmojiSummary(d.emojiType(), d.count(), d.reactedByMe());
     }
 
