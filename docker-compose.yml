@@ -67,8 +67,8 @@ services:
       - minio_data:/data
     networks:
       - memorin_network
-    # mc ready local이 성공하면 minio가 요청을 받을 준비가 된 것이다. 10초 간격으로 5번까지 확인하고,
-    # backend는 이 헬스체크가 통과한 뒤에 기동한다(depends_on).
+    # mc ready local이 성공하면 minio가 요청을 받을 준비가 된 것이다. 10초마다 확인하고 5번 연속 실패하면
+    # unhealthy가 된다. backend는 이 헬스체크가 통과한 뒤에 기동한다(depends_on).
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
