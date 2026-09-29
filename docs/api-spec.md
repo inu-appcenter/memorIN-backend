@@ -353,7 +353,8 @@ Status: `200 OK`
   "objectKey": "uploads/2026/07/01/{uuid}/daily-photo.jpg",
   "method": "PUT",
   "requiredHeaders": {
-    "Content-Type": "image/jpeg"
+    "Content-Type": "image/jpeg",
+    "Content-Length": "1048576"
   },
   "expiresAt": "2026-07-01T12:10:00Z",
   "maxUploadSizeBytes": 52428800
@@ -367,7 +368,7 @@ Status: `200 OK`
 | `uploadUrl` | string | 클라이언트가 직접 PUT 요청을 보낼 presigned URL |
 | `objectKey` | string | MinIO bucket 내부 객체 키 |
 | `method` | string | 업로드 HTTP method. 현재 `PUT` |
-| `requiredHeaders` | object | 업로드 요청에 그대로 포함해야 하는 헤더 |
+| `requiredHeaders` | object | 업로드 요청에 그대로 포함해야 하는 헤더. presigned URL 서명에 들어간 헤더로, 현재 `Content-Type`과 `Content-Length`(요청의 `contentLength` 값) |
 | `expiresAt` | string | presigned URL 만료 시각 |
 | `maxUploadSizeBytes` | number | 서버가 허용하는 단일 업로드 최대 크기 |
 
@@ -378,9 +379,14 @@ Status: `200 OK`
 ```http
 PUT {uploadUrl}
 Content-Type: image/jpeg
+Content-Length: 1048576
 
 <binary>
 ```
+
+presigned URL은 `Content-Length`까지 서명하므로 업로드 본문 크기는 발급 요청의 `contentLength`와 정확히 같아야 한다. 크기가 다르면 스토리지가 `403 SignatureDoesNotMatch`로 거절한다. 압축 등으로 파일이 바뀌었다면 바뀐 파일의 크기로 URL을 다시 발급받는다.
+
+브라우저 `fetch`는 `Content-Length`를 스크립트가 넣을 수 없는 헤더로 보고 무시한 뒤 본문 크기로 직접 채운다. 앱의 네이티브 업로드도 파일 크기로 채운다. 그래서 선언한 크기의 파일을 그대로 올리면 이 헤더를 따로 다룰 필요는 없다. 본문을 `Transfer-Encoding: chunked`로 보내면 스토리지가 `Content-Length`가 없다고 `411 MissingContentLength`로 거절한다.
 
 #### 주요 실패 케이스
 
