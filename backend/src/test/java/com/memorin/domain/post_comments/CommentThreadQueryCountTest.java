@@ -10,10 +10,9 @@ import com.memorin.domain.posts.entity.TimeslotType;
 import com.memorin.domain.posts.entity.VisibilityType;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -46,8 +45,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CommentThreadQueryCountTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -60,10 +59,6 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
     private EntityManager em;
 
     private UUID readerId;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     // 댓글 commentCount개를 심고, 각 댓글에 서로 다른 사용자가 이모지를 하나씩 단다.
     // 댓글마다 작성자를 따로 두는 게 핵심이다 — 작성자가 하나면 1차 캐시에 걸려 N+1이 숨는다.
@@ -101,8 +96,7 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
     }
 
     private long countQueriesForThread(UUID postId, int expectedComments) {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
 
         List<PostCommentResponse> thread = postCommentService.getThread(postId, readerId, null, 50).items();
 
@@ -113,7 +107,7 @@ class CommentThreadQueryCountTest extends PostgresTestSupport {
             assertThat(c.emojis()).isNotEmpty();
         });
 
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 
     @Test

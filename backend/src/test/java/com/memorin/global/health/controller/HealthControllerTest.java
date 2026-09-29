@@ -6,7 +6,9 @@ import com.memorin.global.config.RestAccessDeniedHandler;
 import com.memorin.global.config.RestAuthenticationEntryPoint;
 import com.memorin.global.config.SecurityConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -36,6 +38,14 @@ class HealthControllerTest {
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
 
+    @MockitoBean
+    private BuildProperties buildProperties;
+
+    @BeforeEach
+    void setUp() {
+        given(buildProperties.getVersion()).willReturn("test-build-version");
+    }
+
     @Test
     void 인증_없이_호출해도_DB가_살아있으면_200과_UP을_반환한다() throws Exception {
         Connection connection = org.mockito.Mockito.mock(Connection.class);
@@ -44,7 +54,9 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.version").value("test-build-version"))
+                .andExpect(jsonPath("$.signupEnabled").value(true));
     }
 
     @Test

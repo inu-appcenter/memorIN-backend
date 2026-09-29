@@ -3,6 +3,7 @@ package com.memorin.domain.posts;
 import com.memorin.domain.auth.jwt.JwtAuthenticationFilter;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.posts.controller.PostController;
+import com.memorin.domain.posts.dto.request.PostCreateRequest;
 import com.memorin.domain.posts.service.PostCursor;
 import com.memorin.domain.posts.service.PostService;
 import com.memorin.domain.posts.service.RecommendedFeedService;
@@ -110,6 +111,25 @@ class PostErrorResponseTest {
         String body = """
                 {"content":"평문 텍스트","visibilityType":"PUBLIC","timeslotType":"AM","attachments":[]}
                 """;
+
+        mockMvc.perform(post("/api/posts")
+                        .with(user(principalOf(UUID.randomUUID())))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("COMMON_002"));
+    }
+
+    // content에 크기 상한이 없어 DB를 채울 수 있던 문제(#244)에 대한 회귀 방지.
+    // content는 유효한 JSON이되(@ValidJson 통과) 길이만 상한을 넘겨 @Size에서 400으로 걸리게 한다.
+    @Test
+    void 게시글_content가_상한을_초과하면_400과_COMMON_002를_반환한다() throws Exception {
+        // 따옴표로 감싼 유효한 JSON 문자열. 길이 = CONTENT_MAX_LENGTH + 2 > 상한.
+        String tooLongContent = "\"" + "a".repeat(PostCreateRequest.CONTENT_MAX_LENGTH) + "\"";
+        String body = "{\"content\":" + tooLongContent
+                + ",\"visibilityType\":\"PUBLIC\",\"timeslotType\":\"AM\",\"attachments\":[]}";
 
         mockMvc.perform(post("/api/posts")
                         .with(user(principalOf(UUID.randomUUID())))

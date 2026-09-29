@@ -102,3 +102,49 @@ jobs:
             exit 1
           fi
           echo "기존 마이그레이션 변경 없음"
+
+  image:
+    name: 이미지 빌드 및 GHCR 푸시
+    # 빌드·테스트와 Flyway 검사를 모두 통과한 커밋만 이미지가 된다.
+    needs: [build, migrations]
+    # main(release PR 머지)에서만 올린다 — develop 푸시마다 이미지를 만들면
+    # memorIN-deploy가 쓰는 latest 태그가 아직 릴리스 안 된 코드로 계속 바뀐다.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v7
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v4
+
+      - name: GHCR 로그인
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 이미지 메타데이터 (태그·라벨)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/memorin-backend
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+            type=semver,pattern={{version}}
+
+      - name: 빌드 및 푸시
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

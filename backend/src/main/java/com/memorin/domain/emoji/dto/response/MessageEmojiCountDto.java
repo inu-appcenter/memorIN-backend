@@ -4,8 +4,8 @@ import com.memorin.domain.emoji.entity.EmojiType;
 
 import java.util.UUID;
 
-public record EmojiCountDto(
-    UUID commentId,
+public record MessageEmojiCountDto(
+    UUID messageId,
     EmojiType emojiType,
     long count,
     boolean reactedByMe) {

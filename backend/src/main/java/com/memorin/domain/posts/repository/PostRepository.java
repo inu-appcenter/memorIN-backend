@@ -75,10 +75,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     );
 
     @Query(value = """
-        SELECT *
+        SELECT p.*
         FROM posts p
-        WHERE p.user_id IN (:userIds)
-          AND p.deleted_at IS NULL
+        JOIN follows f
+          ON f.following_id = p.user_id
+         AND f.follower_id = CAST(:viewerId AS uuid)
+         AND f.status = 'ACCEPTED'
+        WHERE p.deleted_at IS NULL
           AND p.visibility IN ('PUBLIC','FRIENDS')
           AND (
                 CAST(:cursorRecordedDate AS date) IS NULL
@@ -89,7 +92,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         LIMIT :limit
         """, nativeQuery = true)
     List<Post> findFriendFeed(
-        @Param("userIds") List<UUID> userIds,
+        @Param("viewerId") UUID viewerId,
         @Param("cursorRecordedDate") Date cursorRecordedDate,
         @Param("cursorId") UUID cursorId,
         @Param("limit") int limit

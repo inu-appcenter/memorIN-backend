@@ -83,6 +83,9 @@
 
 ## 🚀 시작하기
 
+> 아래는 **로컬 개발** 기준이다(소스에서 직접 빌드). 운영 배포는 GHCR에 올라간 이미지를 pull만
+> 하는 [`memorIN-deploy`](https://github.com/inu-appcenter/memorIN-deploy) 저장소를 쓴다.
+
 ### 사전 요구사항
 - Docker / Docker Compose
 - (백엔드 로컬 개발 시) JDK 17
