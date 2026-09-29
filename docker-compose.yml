@@ -51,16 +51,24 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      # 9000(S3 API)은 그대로 공개한다 — 클라이언트(브라우저/앱)가 presigned URL로
-      # 이 포트를 직접 때린다(minio.public-endpoint). 여기 막으면 업로드/다운로드가 전부 깨진다.
-      - "${MINIO_PORT:-9000}:9000"
+      # 9000(S3 API)은 클라이언트(브라우저, 앱)가 presigned URL로 직접 요청하는 포트다(minio.public-endpoint).
+      # 기본은 이 컴퓨터의 루프백(127.0.0.1)에만 연다. 모든 인터페이스에 열면 같은 네트워크(교내 와이파이 등)의
+      # 누구나 기본 계정(minioadmin)으로 스토리지에 접근할 수 있기 때문이다(#297).
+      # - 같은 컴퓨터의 브라우저는 기본값 그대로 localhost:9000으로 접근한다.
+      # - 안드로이드 에뮬레이터와 USB로 연결한 안드로이드 기기는 adb reverse tcp:9000 tcp:9000을 쓰면
+      #   기기의 localhost:9000이 호스트 루프백으로 연결되므로 기본값 그대로 동작한다.
+      # - 와이파이로만 붙는 실기기로 테스트할 때만 .env에서 MINIO_BIND_HOST=0.0.0.0으로 넓힌다. 이때는
+      #   MINIO_PUBLIC_ENDPOINT를 기기에서 닿는 주소(http://<노트북 IP>:9000)로 바꾸고, MINIO_ROOT_USER와
+      #   MINIO_ROOT_PASSWORD도 기본값이 아닌 값으로 바꾼다. 테스트가 끝나면 되돌린다.
+      - "${MINIO_BIND_HOST:-127.0.0.1}:${MINIO_PORT:-9000}:9000"
       # 9001(관리 콘솔)은 관리자 전용 도구라 postgres와 같은 이유로 루프백만 연다(#230).
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     networks:
       - memorin_network
-    # postgresql 완전히 켜지는데 보통 10-30초 걸림. 그래서 5번 재시도 설정
+    # mc ready local이 성공하면 minio가 요청을 받을 준비가 된 것이다. 10초마다 확인하고 5번 연속 실패하면
+    # unhealthy가 된다. backend는 이 헬스체크가 통과한 뒤에 기동한다(depends_on).
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
