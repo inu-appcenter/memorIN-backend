@@ -72,7 +72,7 @@
 | **Frontend** | React Native (Expo), React Native for Web |
 | **Backend** | Spring Boot 3.5, Hibernate 6.x, Java 17 |
 | **Database** | PostgreSQL 18 (`io_uring`, `JSONB`) |
-| **Storage** | MinIO (AWS S3 호환, Docker) |
+| **Storage** | Silo (MinIO 커뮤니티 포크, AWS S3 호환, Docker) |
 | **Realtime** | Spring STOMP In-Memory Broker + SockJS Fallback |
 | **Push** | Firebase Cloud Messaging (Web Push 포함) |
 | **Infra** | Docker Compose, pgAdmin 4 |
@@ -122,9 +122,15 @@ docker compose --profile tools up -d
 | 서비스 | 주소 |
 |---|---|
 | Backend API | http://localhost:8080 |
-| MinIO Console | http://localhost:9001 |
+| Silo(MinIO 호환) Console | http://localhost:9001 |
+| Silo(MinIO 호환) S3 API | http://localhost:9000 |
 | pgAdmin | http://localhost:5050 |
 | PostgreSQL | localhost:5432 |
+
+> 스토리지는 MinIO 커뮤니티 포크인 Silo(`pgsty/silo`) 이미지로 띄운다. 설정과 환경변수 이름(`MINIO_*`)은
+> MinIO와 같고, 콘솔 로그인 계정은 `.env`의 `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`다.
+> 콘솔(9001)과 S3 API(9000)는 이 컴퓨터(127.0.0.1)에만 열린다. 와이파이로 붙는 실기기로 테스트해야 하면
+> `.env.example`의 `MINIO_BIND_HOST` 안내를 따른다.
 
 > pgAdmin 접속·서버 등록과 PG18 `public` 스키마 `GRANT` 표준은
 > [`docs/pgadmin-onboarding-grant-guide.md`](docs/pgadmin-onboarding-grant-guide.md) 참고.
@@ -202,3 +208,4 @@ Copyright (C) 2026 INU AppCenter
 
 - AGPL-3.0은 이 서버를 수정해 네트워크로 서비스하는 경우에도, 그 서비스를 쓰는 사용자에게 수정한 소스 코드를 제공하도록 요구합니다(제13조). 수정본을 운영한다면 소스 저장소 링크를 함께 공개해 주세요.
 - 사용 중인 서드파티 라이브러리는 각자의 라이선스를 따릅니다.
+- 로컬 `docker-compose.yml`이 받아 쓰는 스토리지 이미지 Silo(`pgsty/silo`, MinIO 커뮤니티 포크)는 AGPL-3.0을 따릅니다. 이 저장소는 이 이미지를 수정하지 않고 그대로 실행합니다.

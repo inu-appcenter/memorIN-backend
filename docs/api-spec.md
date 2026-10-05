@@ -492,6 +492,19 @@ Authorization: Bearer {accessToken}
 
 Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만, 호스트 브라우저나 앱은 보통 `MINIO_PUBLIC_ENDPOINT=http://localhost:9000`으로 접근해야 한다.
 
+로컬 `docker-compose.yml`은 스토리지 S3 API 포트를 이 컴퓨터(127.0.0.1)에만 연다. 와이파이로 붙는 실기기로 테스트할 때는 `.env.example`의 `MINIO_BIND_HOST` 안내에 따라 바인딩 주소와 `MINIO_PUBLIC_ENDPOINT`를 함께 바꾼다.
+
+#### 운영 조건
+
+presigned URL은 `MINIO_PUBLIC_ENDPOINT`의 호스트와 요청 경로를 넣어 SigV4로 서명된다. 클라이언트 요청이 스토리지에 닿을 때 호스트나 경로가 서명한 값과 달라지면 스토리지가 `SignatureDoesNotMatch`(403)로 거절한다. 그래서 운영의 `MINIO_PUBLIC_ENDPOINT`는 다음 조건을 지킨다.
+
+- 스토리지 전용 호스트네임을 쓴다(예: `https://storage.example.com`). API나 웹과 같은 호스트를 경로로 나눠 쓰지 않는다.
+- 경로 접두사를 두지 않는다. `https://example.com/storage`처럼 경로가 붙은 주소는 쓸 수 없다. MinIO Java SDK는 endpoint에 경로가 있으면 클라이언트를 만들 때 예외(`no path allowed in endpoint`)를 내고, 프록시에서 접두사를 떼어 넘기면 서명한 경로와 달라진다.
+- 스토리지 앞의 리버스 프록시(Caddy 등)는 Host 헤더와 요청 경로를 바꾸지 않고 그대로 넘긴다. Caddy라면 스토리지 블록에서 `handle_path`로 경로를 자르거나 `header_up Host`로 Host를 바꾸지 않는다.
+- 웹이 https로 서비스되므로 이 주소도 https여야 한다. http면 브라우저가 혼합 콘텐츠로 요청을 막는다.
+
+서버 쪽 설정 절차는 [memorIN-deploy README](https://github.com/inu-appcenter/memorIN-deploy#readme)의 리버스 프록시(Caddy) 설정 절을 따른다.
+
 ### 5-3. Storage Quota
 
 구현됨. 환경 변수 전체 목록과 각 값의 의미는 `docs/storage-quota-policy.md` §환경 변수를 기준으로 한다(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`, `STORAGE_QUOTA_PENDING_TTL_SECONDS`, `MINIO_MAX_UPLOAD_SIZE_BYTES`). 이 문서에서는 중복 표기하지 않는다.
