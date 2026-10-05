@@ -46,7 +46,7 @@ usedBytes = SUM(post_media.file_size_bytes)      // committed: 게시물에 첨�
 
 커밋 시점엔 클라이언트가 선언한 `contentLength`를 전혀 신뢰하지 않고 MinIO 실측값만 사용한다. 즉 최종 `file_size_bytes`는 항상 실제 업로드된 바이트 수다.
 
-presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 선언한 값보다 큰(단, 단일 파일 상한 이내인) 파일을 실제로 업로드할 수 있다. 이 차이가 유저 전체 한도(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)를 넘기지 않도록, 커밋 단계에서도 실제 크기 기준으로 전체 quota를 다시 검증한다. 단일 파일 상한 검증만으로는 이 경로를 막을 수 없다.
+presigned PUT URL은 `Content-Length`를 서명 헤더에 넣으므로(#296), 예약 시 선언한 크기와 다른 본문은 스토리지가 `403 SignatureDoesNotMatch`로 거절한다. 그래도 스토리지 쪽 검증에만 기대지 않도록, 커밋 단계에서 실제 크기 기준으로 단일 파일 상한과 유저 전체 한도(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)를 다시 검증한다.
 
 ## 동시성 보장 (TOCTOU 방지)
 
