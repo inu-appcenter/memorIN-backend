@@ -145,7 +145,7 @@ sql.append(" AND p.timeslot = CAST(:timeslot AS timeslot_type)");
 WebSocket 핸드셰이크도 **같은 프로퍼티**를 쓴다(`sprint4-architecture-review.md` §8) — 예전에
 `setAllowedOriginPatterns("*")`였던 것이 정리됐다.
 
-> 기본값이 `https://memorin.inuappcenter.co.kr`로 박혀 있는 것은 보안 문제는 아니지만
+> 기본값이 특정 조직 도메인으로 박혀 있는 것은 보안 문제는 아니지만
 > 셀프호스팅 배포물로서 맞지 않는다 → #229
 
 ### 7-3. JWT 만료·재발급
