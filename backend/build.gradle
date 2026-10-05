@@ -44,7 +44,14 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
 	// JPA
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	// 스타터가 전이로 끌어오는 spring-aspects는 aspectjweaver(EPL-2.0 단독)를 함께 가져온다.
+	// GPL을 Secondary License로 지정하지 않은 EPL-2.0은 AGPL-3.0과 결합할 수 없어 제외한다(#288).
+	// Classpath Exception이 붙은 GPL-2.0을 함께 지정한 jakarta.annotation-api, jakarta.transaction-api는 해당하지 않는다.
+	// AspectJ 위빙(@Configurable, AdviceMode.ASPECTJ)을 쓰지 않으므로 영향이 없고,
+	// 프록시 방식 @Transactional과 @Async는 spring-aop만으로 동작한다.
+	implementation('org.springframework.boot:spring-boot-starter-data-jpa') {
+		exclude group: 'org.springframework', module: 'spring-aspects'
+	}
 
 	// Validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
