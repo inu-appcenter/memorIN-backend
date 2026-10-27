@@ -1,211 +1,108 @@
 # memorIN
 
-> 일상의 순간을 일자별로 기록·아카이빙하고, 이를 매개로 밀도 있는 소통을 지원하는 크로스 플랫폼 소셜 / 메신저 서비스
+> 일상의 순간을 날짜별로 기록하고, 그 기록을 매개로 소통하는 크로스 플랫폼 소셜·메신저 서비스
 
-`memorIN`은 [Setlog](https://setlog.io)처럼 하루하루의 기록을 타임라인에 쌓아두고, 그 기록을 매개로 사람들과 실시간으로 이야기를 나눌 수 있는 서비스입니다. iOS · Android 앱과 데스크탑 웹을 **하나의 코드베이스**로 지원하며, **외부 유료 클라우드 / BaaS 없이 온프레미스 저사양 서버**에서 동작하도록 설계되었습니다. 누구나 직접 **셀프 호스팅(Self-Hosting)** 할 수 있는 오픈소스 지향 프로젝트입니다.
+하루하루의 기록을 타임라인에 쌓고, 그 기록을 채팅방에 공유해 이야기를 나눕니다. iOS·Android 앱과 웹을 하나의 코드베이스로 지원하며, 외부 유료 클라우드나 BaaS 없이 저사양 온프레미스 서버에서 셀프 호스팅할 수 있게 설계했습니다.
 
----
+| 저장소 | 내용 |
+|---|---|
+| memorIN-backend (이 저장소) | Spring Boot API 서버, DB 마이그레이션, 로컬 개발용 compose |
+| [memorIN-frontend](https://github.com/inu-appcenter/memorIN-frontend) | React Native(Expo) 앱과 웹 |
+| [memorIN-deploy](https://github.com/inu-appcenter/memorIN-deploy) | 운영 배포용 compose(GHCR 이미지 사용) |
 
-## ✨ 핵심 기능
+## 주요 기능
 
-### 일상 아카이빙
-- 사진·영상·텍스트를 결합한 타임라인 기반 미디어 기록 (Setlog 데일리 뷰 형태)
-- 클라이언트 사전 압축 후 **MinIO로 직접 업로드**(Presigned URL) → 백엔드 서버 부하 최소화
-- 게시물별 가변 메타데이터·커스텀 태그는 PostgreSQL `JSONB` 컬럼에 저장
-- 달력(Calendar) 뷰 / 세로 스크롤 타임라인 뷰
-- 공개 범위 설정(전체 공개 · 친구 공개 · 나만 보기)
+- **기록**: 사진·영상·텍스트 게시물, 달력·타임라인 뷰, 공개 범위(전체·친구·나만), 클라이언트 압축 후 presigned URL로 스토리지에 직접 업로드, 사용자별 저장 용량 할당량
+- **소셜**: 팔로우, 친구 피드, 추천 피드, 댓글·이모지 반응, 좋아요, 게시물 검색
+- **메신저**: 1:1·그룹 채팅(STOMP), 커서 기반 메시지 페이징, 게시물 공유
+- **알림**: 알림 이력, FCM·Web Push 발송(선택)
+- **인증**: 이메일 회원가입, JWT access·refresh 토큰
 
-### 통합 메신저
-- 1:1 및 그룹 채팅방
-- 접속 상태: **WebSocket(STOMP / SockJS)** 실시간 메시지 처리
-- 미접속 상태: 소켓 반환 후 **FCM / Web Push** 알림으로 전환
-- 타임라인의 로그(Log)를 채팅방으로 바로 공유하여 대화 맥락 형성
-- 채팅 내역은 비동기 저장, 커서 기반 무한 스크롤 페이징
-
-### 유저 & 인증
-- 자체 회원가입(이메일 / 학번 기반)
-- **JWT** 기반 경량 인증
-- 웹/앱 도메인 간 접근을 위한 CORS 정책
-- 유저 검색, 친구 맺기 및 관리
-
----
-
-## 🏗️ 시스템 아키텍처
+## 아키텍처
 
 ```
-┌─────────────────────────────────────────────┐
-│  Client (단일 코드베이스)                       │
-│  React Native (Expo) + React Native for Web   │
-│  · 768px 미만 → Stack(Push) 내비게이션          │
-│  · 768px 이상 → Split View(Master-Detail)      │
-└───────────────┬─────────────────┬─────────────┘
-        REST/JWT │   STOMP/SockJS  │ Presigned URL (직접 업로드)
-                 ▼                 ▼                 ▼
-┌──────────────────────────┐            ┌──────────────────┐
-│ Spring Boot 3.x           │            │ MinIO            │
-│ · STOMP In-Memory Broker  │            │ (S3 호환 스토리지) │
-│ · Hibernate 6.x / JWT     │            └──────────────────┘
-└─────────────┬─────────────┘
-              ▼
-┌──────────────────────────┐            ┌──────────────────┐
-│ PostgreSQL 18             │            │ FCM / Web Push    │
-│ · io_uring 비동기 I/O      │            │ (백그라운드 알림)  │
-│ · JSONB 활용              │            └──────────────────┘
-└──────────────────────────┘
+Client (Expo 앱 / 웹)
+   │ REST + JWT        │ STOMP(/ws)        │ presigned URL
+   ▼                   ▼                   ▼
+Spring Boot 3.5 (Java 17)              Silo (MinIO 호환 S3 스토리지)
+   │                   └─▶ FCM / Web Push
+   ▼
+PostgreSQL 18 (JSONB, Flyway)
 ```
 
-### 반응형 레이아웃 정책
-| 화면 너비 | 내비게이션 | 부가 정보 |
-|---|---|---|
-| **< 768px** (모바일/세로) | Stack — 화면을 덮으며 Push 이동 | Bottom Sheet |
-| **≥ 768px** (데스크탑/가로) | Split View — 좌우 분할 병렬 배치 | 우측 분할 창 고정 |
-
-- 메신저: `[좌 30%] 채팅방 목록` \| `[우 70%] 채팅방 내부`
-- 소셜 피드: `[좌 60%] 세로 스크롤 피드` \| `[우 40%] 댓글·반응`
-
----
-
-## 🧰 기술 스택
+## 기술 스택
 
 | 영역 | 기술 |
 |---|---|
-| **Frontend** | React Native (Expo), React Native for Web |
-| **Backend** | Spring Boot 3.5, Hibernate 6.x, Java 17 |
-| **Database** | PostgreSQL 18 (`io_uring`, `JSONB`) |
-| **Storage** | Silo (MinIO 커뮤니티 포크, AWS S3 호환, Docker) |
-| **Realtime** | Spring STOMP In-Memory Broker + SockJS Fallback |
-| **Push** | Firebase Cloud Messaging (Web Push 포함) |
-| **Infra** | Docker Compose, pgAdmin 4 |
+| Backend | Spring Boot 3.5, Spring Security, Hibernate 6, Java 17 |
+| Database | PostgreSQL 18, Flyway |
+| Storage | Silo(MinIO 커뮤니티 포크, S3 호환) |
+| Realtime | Spring STOMP simple broker(SockJS 지원) |
+| Push | Firebase Admin(FCM), web-push(VAPID) |
+| Infra | Docker Compose, GHCR, pgAdmin 4(로컬) |
 
-> **설계 제약:** 100% 교내 온프레미스 저사양 서버. 외부 유료 클라우드·BaaS 사용 배제. 디스크 병목 해소를 위해 클라이언트 사전 극한 압축 + 유저별 스토리지 할당량(Quota) 정책 도입.
+## 시작하기 (로컬 개발)
 
----
+운영 배포는 [memorIN-deploy](https://github.com/inu-appcenter/memorIN-deploy)를 따릅니다.
 
-## 🚀 시작하기
+**사전 요구사항**: Docker와 Docker Compose. Docker 없이 백엔드만 띄우려면 JDK 17.
 
-> 아래는 **로컬 개발** 기준이다(소스에서 직접 빌드). 운영 배포는 GHCR에 올라간 이미지를 pull만
-> 하는 [`memorIN-deploy`](https://github.com/inu-appcenter/memorIN-deploy) 저장소를 쓴다.
-
-### 사전 요구사항
-- Docker / Docker Compose
-- (백엔드 로컬 개발 시) JDK 17
-
-### 1. 환경 변수 설정
 ```bash
-cp .env.example .env
-# .env 를 열어 비밀번호·JWT_SECRET 등을 환경에 맞게 수정
+cp .env.example .env            # 비밀번호, JWT_SECRET 등을 채운다
+docker compose up -d --build    # postgres, minio(Silo), backend
+docker compose --profile tools up -d   # pgAdmin까지 함께
 ```
 
-### 2. 푸시 알림 설정 (선택)
-FCM·Web Push는 기본적으로 **꺼져 있습니다**(`FIREBASE_ENABLED=false`, `WEB_PUSH_ENABLED=false`).
-끈 상태에서도 알림은 DB에 저장되고 `GET /api/notifications`로 조회됩니다. 발송만 일어나지 않습니다.
-
-**FCM**을 쓰려면 Firebase 콘솔에서 발급한 서비스 계정 키를 아래 경로에 두고 `FIREBASE_ENABLED=true`로 바꿉니다.
-```
-secrets/firebase-service-account.json
-```
-`secrets/` 디렉터리는 컨테이너의 `/run/secrets`로 읽기 전용 마운트되며, 내용물은 `.gitignore`로 커밋이 차단됩니다.
-컨테이너가 non-root로 돌기 때문에 `Permission denied`가 나면 `chmod 644`로 읽기 권한을 열어 주세요.
-
-**Web Push**를 쓰려면 VAPID 키 쌍(`npx web-push generate-vapid-keys`)을 생성해 `.env`에 넣고 `WEB_PUSH_ENABLED=true`로 바꿉니다.
-
-### 3. 인프라 + 백엔드 실행
-```bash
-# postgres + minio + backend
-docker compose up -d --build
-
-# pgAdmin 까지 함께 실행하려면 (tools 프로파일)
-docker compose --profile tools up -d
-```
-
-### 접속 정보 (기본값)
 | 서비스 | 주소 |
 |---|---|
 | Backend API | http://localhost:8080 |
-| Silo(MinIO 호환) Console | http://localhost:9001 |
-| Silo(MinIO 호환) S3 API | http://localhost:9000 |
+| 스토리지 S3 API / 콘솔 | http://localhost:9000 / http://localhost:9001 |
 | pgAdmin | http://localhost:5050 |
 | PostgreSQL | localhost:5432 |
 
-> 스토리지는 MinIO 커뮤니티 포크인 Silo(`pgsty/silo`) 이미지로 띄운다. 설정과 환경변수 이름(`MINIO_*`)은
-> MinIO와 같고, 콘솔 로그인 계정은 `.env`의 `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`다.
-> 콘솔(9001)과 S3 API(9000)는 이 컴퓨터(127.0.0.1)에만 열린다. 와이파이로 붙는 실기기로 테스트해야 하면
-> `.env.example`의 `MINIO_BIND_HOST` 안내를 따른다.
+- 스토리지 콘솔 계정은 `.env`의 `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`입니다. 9000·9001은 127.0.0.1에만 열립니다. 와이파이로 붙는 실기기로 테스트하려면 `.env.example`의 `MINIO_BIND_HOST` 안내를 따릅니다.
+- pgAdmin 서버 등록과 PG18 `GRANT` 표준은 [`docs/pgadmin-onboarding-grant-guide.md`](docs/pgadmin-onboarding-grant-guide.md)를 봅니다. Host는 `postgres`(서비스명)입니다.
 
-> pgAdmin 접속·서버 등록과 PG18 `public` 스키마 `GRANT` 표준은
-> [`docs/pgadmin-onboarding-grant-guide.md`](docs/pgadmin-onboarding-grant-guide.md) 참고.
-> (pgAdmin에서 서버 등록 시 Host는 `localhost`가 아니라 서비스명 `postgres`)
+### 푸시 알림 (선택)
 
-### 백엔드 로컬 개발 (Docker 없이)
+기본값은 꺼져 있습니다(`FIREBASE_ENABLED=false`, `WEB_PUSH_ENABLED=false`). 꺼져 있어도 알림은 저장되고 `GET /api/notifications`로 조회됩니다.
+
+- **FCM**: Firebase 서비스 계정 키를 `secrets/firebase-service-account.json`에 두고 `FIREBASE_ENABLED=true`. 컨테이너가 root가 아니므로 `Permission denied`가 나면 `chmod 644`.
+- **Web Push**: `npx web-push generate-vapid-keys`로 만든 키를 `.env`에 넣고 `WEB_PUSH_ENABLED=true`.
+
+### Docker 없이 실행
+
 ```bash
 cd backend
-./gradlew bootRun      # 기본 프로파일은 H2 인메모리 DB 사용 (Flyway 마이그레이션은 Postgres 전용이라 미실행)
-```
-> 엔티티가 `jsonb`/네이티브 ENUM/`uuidv7()` 등 Postgres 전용 기능에 의존하므로, 실제 DB 동작까지
-> 확인하려면 위 `docker compose up`으로 실제 Postgres에 붙여 실행하는 편이 안전하다.
-
----
-
-## 📂 프로젝트 구조
-
-```
-.
-├── backend/                  # Spring Boot 백엔드
-│   ├── src/main/java/com/memorin/
-│   │   ├── MemorinApplication.java
-│   │   └── config/           # WebSocket, FCM 설정
-│   ├── src/main/resources/db/migration/  # Flyway DB 마이그레이션 (V1, V2 ...)
-│   ├── Dockerfile            # 멀티스테이지 빌드 (non-root 실행)
-│   └── build.gradle
-├── infra/
-│   └── postgres/
-│       ├── migrations/       # 과거 수동 실행 SQL 기록 (참고용, 더 이상 신규 추가 안 함)
-│       └── postgresql.conf   # io_uring 등 튜닝 설정
-├── docs/
-│   ├── api-spec.md           # 인증/JWT + Presigned Upload 통합 API 명세
-│   ├── db-migration-guide.md # Flyway DB 마이그레이션 작성 절차
-│   ├── erd.md                # DB ERD 문서
-│   ├── minio-bucket-policy.md          # MinIO 버킷 정책 초안
-│   └── pgadmin-onboarding-grant-guide.md  # pgAdmin 온보딩 + GRANT 가이드
-├── docker-compose.yml        # postgres · minio · backend · pgadmin
-└── .env.example
+./gradlew bootRun   # 기본 프로필은 H2 인메모리 DB(Flyway 미실행)
+./gradlew test      # Testcontainers 테스트는 Docker가 필요하다
 ```
 
----
+엔티티가 `jsonb`, 네이티브 ENUM, `uuidv7()` 같은 PostgreSQL 기능을 쓰므로 실제 동작은 compose의 PostgreSQL로 확인합니다.
 
-## 👥 팀 역할 (R&R)
+## 프로젝트 구조
 
-| 파트 | 담당 |
-|---|---|
-| **Design** | 모바일(Stack)·데스크탑(Split View) 반응형 디자인 시스템, 화면 분할 비율 가이드 |
-| **Frontend** | `react-native-web` 세팅, 화면 너비 기반 동적 라우팅, 미디어 압축 모듈, FCM·Service Worker |
-| **BE 1 — 유저/인증** | JWT 인증, 친구 도메인 API, 다중 FCM 토큰 저장·갱신 |
-| **BE 2 — 인프라/미디어** | PG 18 `io_uring` 세팅, MinIO·Presigned URL, 스토리지 Quota |
-| **BE 3 — 채팅/알림** | STOMP/SockJS, In-Memory 브로커 채팅·페이징, HikariCP 튜닝 |
-| **BE 4 — 아키텍처/리뷰** | DB 설계 검수(JSONB·스키마 보안), CORS, 소켓 세션/OOM 코드 리뷰 |
+```
+backend/
+  src/main/java/com/memorin/
+    domain/            # 도메인별 controller·service·repository (auth, posts, chat_rooms, notifications ...)
+    global/            # 설정, 보안, 예외 처리, 헬스체크, 공통 유틸
+  src/main/resources/db/migration/   # Flyway 마이그레이션
+  Dockerfile           # 멀티스테이지 빌드, non-root 실행
+infra/postgres/        # postgresql.conf, 과거 수동 SQL 기록(참고용)
+docs/                  # 설계·명세·운영 문서 (목록: docs/README.md)
+docker-compose.yml     # 로컬 개발용 postgres · minio · backend · pgadmin
+```
 
----
+## 기여
 
-## ✅ QA 점검 포인트
+- 브랜치는 `develop`에서 만들고 `develop`으로 PR을 올립니다. `main`에는 `develop` → `main` 릴리스 PR로만 반영합니다.
+- PR 제목은 `<type>: <설명>` 형식입니다(`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `release`).
+- 새 DB 변경은 기존 마이그레이션을 고치지 않고 새 버전 파일로 추가합니다([`docs/db-migration-guide.md`](docs/db-migration-guide.md)).
 
-1. **반응형 상태 동기화** — 데스크탑 → 모바일 전환 시 우측 Detail 뷰가 Stack 최상단으로 자연스럽게 유지되는지
-2. **PostgreSQL 18 권한** — `public` 스키마 권한 오류 방지를 위한 표준 DDL·`GRANT` 가이드 준수
-3. **WebSocket 생명주기** — 탭 닫기/새로고침 시 인메모리 브로커 세션이 즉시 반환되는지, 누수로 인한 다운이 없는지
+## 라이선스
 
----
+[GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`). Copyright (C) 2026 INU AppCenter.
 
-## 📌 프로젝트 상태
-
-현재 **Sprint 0 (초기 세팅)** 단계입니다. 인프라(Docker Compose), 채팅·FCM 프로토타입, 초안 DDL이 구성되어 있으며 도메인 엔티티 정렬 및 스키마 확정 작업이 진행 중입니다.
-
----
-
-## 📄 라이선스
-
-이 저장소의 코드는 [GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`)을 따릅니다.
-
-Copyright (C) 2026 INU AppCenter
-
-- AGPL-3.0은 이 서버를 수정해 네트워크로 서비스하는 경우에도, 그 서비스를 쓰는 사용자에게 수정한 소스 코드를 제공하도록 요구합니다(제13조). 수정본을 운영한다면 소스 저장소 링크를 함께 공개해 주세요.
-- 사용 중인 서드파티 라이브러리는 각자의 라이선스를 따릅니다.
-- 로컬 `docker-compose.yml`이 받아 쓰는 스토리지 이미지 Silo(`pgsty/silo`, MinIO 커뮤니티 포크)는 AGPL-3.0을 따릅니다. 이 저장소는 이 이미지를 수정하지 않고 그대로 실행합니다.
+- 이 서버를 수정해 네트워크로 서비스하면, 사용자에게 수정한 소스를 제공해야 합니다(제13조).
+- 서드파티 라이브러리는 각자의 라이선스를 따릅니다. 로컬 compose가 쓰는 Silo(`pgsty/silo`)는 AGPL-3.0이며 수정 없이 실행합니다.
