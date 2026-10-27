@@ -24,8 +24,6 @@ public class FollowRecommendCursor {
             String[] parts = raw.split(":", 2);
             return new Cursor(Long.parseLong(parts[0]), UUID.fromString(parts[1]));
         } catch (Exception e) {
-            // TODO: ErrorCode.FOLLOW_005는 임시 이름이야. 실제 ErrorCode enum에
-            // 커서 파싱 실패용 코드가 있는지, 없다면 어떤 이름으로 추가할지 확인해줘.
             throw new BusinessException(ErrorCode.FOLLOW_005, "잘못된 커서입니다.");
         }
     }
