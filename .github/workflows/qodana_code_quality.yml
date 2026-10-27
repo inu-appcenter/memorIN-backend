@@ -20,12 +20,13 @@ concurrency:
 jobs:
   qodana:
     runs-on: ubuntu-latest
+    # contents: write는 push-fixes용인데 쓰지 않으므로(push-fixes: 'none') 읽기만 준다.
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
