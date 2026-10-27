@@ -90,6 +90,8 @@ dependencies {
 
     implementation 'com.google.firebase:firebase-admin:9.11.0'
     implementation 'nl.martijndwars:web-push:5.1.2'
+    // web-push 5.1.2부터 jose4j를 runtime으로만 노출한다. WebPushService가 JoseException을 직접 다루므로 컴파일 의존성으로 명시한다.
+    implementation 'org.bitbucket.b_c:jose4j:0.9.7'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.86'
 }
 
