@@ -1,0 +1,55 @@
+# 의존성 업데이트는 매주 월요일 한 번, 생태계마다 PR 하나로 묶어 받는다.
+# 보안 업데이트는 주기와 관계없이 바로 오지만, 이것도 PR 하나로 묶는다
+# (Settings → Advanced Security → Dependabot security updates가 켜져 있어야 한다).
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /backend
+    # 릴리스는 develop → main이므로 develop으로 받는다.
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 2
+    groups:
+      gradle-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      gradle-minor-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # 메이저 업데이트는 자동으로 받지 않는다. Spring Boot 4.x 이전은 #317에서 따로 다룬다.
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: docker
+    directory: /backend
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 1
+    groups:
+      docker:
+        patterns: ["*"]
+    ignore:
+      # JDK 17 → 21 같은 메이저 변경은 빌드 설정과 함께 바꿔야 한다.
+      - dependency-name: "eclipse-temurin"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+      timezone: Asia/Seoul
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
