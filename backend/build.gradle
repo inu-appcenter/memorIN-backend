@@ -62,9 +62,9 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-messaging'
 
 	// JWT (develop 확정 버전 0.12.7로 통일)
-	implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.7'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.7'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.7'
 
 	implementation 'io.minio:minio:8.5.17'
 

@@ -1,7 +1,11 @@
 package com.memorin.domain.follows.service;
 
+import com.memorin.domain.follows.dto.FollowRecommendationListResponse;
+import com.memorin.domain.follows.dto.FollowRecommendationResponse;
 import com.memorin.domain.follows.entity.Follow_state;
 import com.memorin.domain.follows.entity.Follows;
+import com.memorin.domain.follows.repository.FollowRecommendationRepository;
+import com.memorin.domain.follows.repository.FollowRecommendationRow;
 import com.memorin.domain.follows.repository.FollowRepository;
 import com.memorin.domain.notifications.entity.NotificationType;
 import com.memorin.domain.notifications.service.NotificationService;
@@ -11,6 +15,7 @@ import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
+import com.memorin.global.media.service.PresignedDownloadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +36,8 @@ public class FollowService {
 
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
+    private final FollowRecommendationRepository followRecommendationRepository;
+    private final PresignedDownloadService presignedDownloadService;
     private final NotificationService notificationService;
 
     // 팔로우 요청
@@ -139,10 +146,57 @@ public class FollowService {
         return new UserFollowRequestPageResponse(responses, nextCursor, hasNext);
     }
 
+
+    @Transactional(readOnly = true)
+    public FollowRecommendationListResponse recommend(UUID viewerId, String cursor, Integer size) {
+        int limit = normalizeSize(size);
+
+        List<FollowRecommendationRow> rows;
+        if (cursor != null && !cursor.isBlank()) {
+            FollowRecommendCursor.Cursor decoded = FollowRecommendCursor.decode(cursor);
+            rows = followRecommendationRepository.recommendAfterCursor(viewerId, decoded, limit + 1);
+        } else {
+            rows = followRecommendationRepository.recommendFirstPage(viewerId, limit + 1);
+        }
+
+        boolean hasNext = rows.size() > limit;
+        List<FollowRecommendationRow> page = hasNext ? rows.subList(0, limit) : rows;
+
+        List<FollowRecommendationResponse> items = page.stream()
+            .map(row -> new FollowRecommendationResponse(
+                row.candidateId(),
+                row.displayName(),
+                resolveProfileImageUrl(row.profileImageKey()),
+                row.mutualFriendCount()
+            ))
+            .toList();
+
+        String nextCursor = null;
+        if (hasNext && !page.isEmpty()) {
+            FollowRecommendationRow last = page.get(page.size() - 1);
+            nextCursor = FollowRecommendCursor.encode(last.score(), last.candidateId());
+        }
+
+        return new FollowRecommendationListResponse(items, nextCursor, hasNext);
+    }
+
     private int normalizeSize(Integer size) {
         if (size == null) {
             return DEFAULT_PAGE_SIZE;
         }
         return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    }
+
+    private String resolveProfileImageUrl(String profileImageKey) {
+        if (profileImageKey == null || profileImageKey.isBlank()) {
+            return null;
+        }
+        try {
+            return presignedDownloadService.createDownloadUrl(profileImageKey).downloadUrl();
+        } catch (Exception e) {
+            // PostService.resolveDownloadUrl과 동일한 이유로 null 처리:
+            // 프로필 이미지 URL 발급 실패가 추천 목록 조회 전체를 막으면 안 됨.
+            return null;
+        }
     }
 }
