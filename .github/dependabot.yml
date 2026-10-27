@@ -7,6 +7,10 @@ updates:
     directory: /backend
     # 릴리스는 develop → main이므로 develop으로 받는다.
     target-branch: develop
+    # PR 제목 컨벤션 검사(<type>: 설명)를 통과하도록 "chore(deps): ..." 형식으로 만든다.
+    commit-message:
+      prefix: chore
+      include: scope
     schedule:
       interval: weekly
       day: monday
@@ -29,6 +33,9 @@ updates:
   - package-ecosystem: docker
     directory: /backend
     target-branch: develop
+    commit-message:
+      prefix: chore
+      include: scope
     schedule:
       interval: weekly
       day: monday
@@ -46,6 +53,9 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
+    commit-message:
+      prefix: chore
+      include: scope
     schedule:
       interval: monthly
       timezone: Asia/Seoul
