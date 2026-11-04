@@ -7,10 +7,9 @@ import com.memorin.domain.chat_rooms.service.ChatRoomService;
 import com.memorin.domain.messages.entity.Messages;
 import com.memorin.domain.users.entity.User;
 import com.memorin.support.PostgresTestSupport;
+import com.memorin.support.QueryCountInspector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -37,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ChatRoomListQueryCountTest extends PostgresTestSupport {
 
     @DynamicPropertySource
-    static void enableStatistics(DynamicPropertyRegistry registry) {
-        registry.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
+    static void registerQueryCounter(DynamicPropertyRegistry registry) {
+        QueryCountInspector.register(registry);
     }
 
     @Autowired
@@ -49,10 +48,6 @@ class ChatRoomListQueryCountTest extends PostgresTestSupport {
 
     @PersistenceContext
     private EntityManager em;
-
-    private Statistics statistics() {
-        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
-    }
 
     // roomCount개의 그룹 방을 만들고 전부 owner로 참여시킨다. 방마다 상대가 보낸 안읽은
     // 메시지를 하나씩 심어 unreadCount·lastMessage 계산이 쿼리 수에 영향을 주지 않는지도 함께 잰다.
@@ -75,8 +70,7 @@ class ChatRoomListQueryCountTest extends PostgresTestSupport {
     }
 
     private long countQueriesForRooms(UUID userId, int expected) {
-        Statistics stats = statistics();
-        stats.clear();
+        QueryCountInspector.reset();
 
         List<ChatRoomSummaryResponse> rooms = chatRoomService.listMyRooms(userId);
 
@@ -91,7 +85,7 @@ class ChatRoomListQueryCountTest extends PostgresTestSupport {
             assertThat(r.lastMessage()).isNotNull();
         });
 
-        return stats.getPrepareStatementCount();
+        return QueryCountInspector.count();
     }
 
     @Test

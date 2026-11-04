@@ -151,7 +151,7 @@ public class PostController {
             게시물 전체 중에서 태그와 커스텀 메타데이터를 가진 게시물을 검색 UI에서 선택하여 검색할 수 있음.
             태그는 한번에 최대 3개까지 선택 가능하며, 이는 게시물을 올리는 상황에서도 동일함.""")
     @GetMapping("/search")
-    public PostListResponse search(
+    public ResponseEntity<ApiResponse<PostListResponse>> search(
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false) List<TagType> tags,
         @RequestParam(required = false) TimeslotType timeslot,
@@ -165,7 +165,8 @@ public class PostController {
         }
         PostSearchRequest condition = new PostSearchRequest(
             (keyword != null && !keyword.isBlank()) ? keyword.trim() : null, tags, timeslot, sort);
-        return postService.search(userDetails != null ? userDetails.getUserId() : null, condition, cursor, size);
+        PostListResponse response = postService.search(userDetails != null ? userDetails.getUserId() : null, condition, cursor, size);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
 }

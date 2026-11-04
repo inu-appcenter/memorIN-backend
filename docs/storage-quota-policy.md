@@ -13,6 +13,14 @@ usedBytes = SUM(post_media.file_size_bytes)      // committed: 게시물에 첨�
 
 별도 집계 테이블(`user_storage_quotas` 등)은 이 합산 쿼리가 병목이 되거나 미디어 저장 영역이 게시물 외 영역까지 확장될 때 도입을 검토한다.
 
+## 게시물 본문(content)과 할당량의 관계 (#244)
+
+이 할당량은 **MinIO에 저장되는 미디어 바이트만** 센다. DB에 들어가는 게시물 본문(`posts.content`, jsonb)은 할당량에 **포함하지 않는다.**
+
+- **왜 제외하나**: 할당량은 "오브젝트 스토리지(MinIO) 용량 관리" 목적이고, 사용량 산정도 `post_media` / `pending_uploads` 두 테이블 합산으로만 정의돼 있다. 본문 크기를 여기 섞으면 산정식·단위(미디어 바이트 vs 텍스트 길이)가 흐려진다.
+- **그럼 본문은 무엇이 막나**: 본문은 할당량 대신 **입력 검증 상한**으로 막는다. `PostCreateRequest` / `PostUpdateRequest`의 `content`에 `@Size(max = CONTENT_MAX_LENGTH)`(`PostCreateRequest.CONTENT_MAX_LENGTH`, 현재 100,000자)가 걸려 있어, 초과 요청은 저장 이전에 400으로 거절된다. 컨테이너 레벨에서는 `spring.servlet.multipart.*` 상한이 방어선을 보탠다(`application.properties`).
+- 즉 **미디어 = 할당량, 본문 = @Size 상한**으로 책임을 나눈다. 향후 본문 총량까지 사용자별로 관리할 필요가 생기면 그때 별도 정책으로 도입을 검토한다.
+
 ## 업로드 흐름과 검증 시점
 
 ```text
@@ -38,7 +46,7 @@ usedBytes = SUM(post_media.file_size_bytes)      // committed: 게시물에 첨�
 
 커밋 시점엔 클라이언트가 선언한 `contentLength`를 전혀 신뢰하지 않고 MinIO 실측값만 사용한다. 즉 최종 `file_size_bytes`는 항상 실제 업로드된 바이트 수다.
 
-presigned PUT은 서명이 body 크기를 강제하지 않으므로, 예약 시 선언한 값보다 큰(단, 단일 파일 상한 이내인) 파일을 실제로 업로드할 수 있다. 이 차이가 유저 전체 한도(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)를 넘기지 않도록, 커밋 단계에서도 실제 크기 기준으로 전체 quota를 다시 검증한다. 단일 파일 상한 검증만으로는 이 경로를 막을 수 없다.
+presigned PUT URL은 `Content-Length`를 서명 헤더에 넣으므로(#296), 예약 시 선언한 크기와 다른 본문은 스토리지가 `403 SignatureDoesNotMatch`로 거절한다. 그래도 스토리지 쪽 검증에만 기대지 않도록, 커밋 단계에서 실제 크기 기준으로 단일 파일 상한과 유저 전체 한도(`STORAGE_QUOTA_DEFAULT_LIMIT_BYTES`)를 다시 검증한다.
 
 ## 동시성 보장 (TOCTOU 방지)
 

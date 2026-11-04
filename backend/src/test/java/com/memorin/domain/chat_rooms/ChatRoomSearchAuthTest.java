@@ -88,7 +88,7 @@ class ChatRoomSearchAuthTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"targetUserId\":\"" + target + "\"}")
                 .with(user(principalOf(me))))
-            .andExpect(status().isOk());
+            .andExpect(status().isCreated());
 
         ArgumentCaptor<UUID> requesterId = ArgumentCaptor.forClass(UUID.class);
         verify(chatRoomService).createDirectRoom(requesterId.capture(), any());

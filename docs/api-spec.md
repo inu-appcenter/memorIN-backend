@@ -353,7 +353,8 @@ Status: `200 OK`
   "objectKey": "uploads/2026/07/01/{uuid}/daily-photo.jpg",
   "method": "PUT",
   "requiredHeaders": {
-    "Content-Type": "image/jpeg"
+    "Content-Type": "image/jpeg",
+    "Content-Length": "1048576"
   },
   "expiresAt": "2026-07-01T12:10:00Z",
   "maxUploadSizeBytes": 52428800
@@ -367,7 +368,7 @@ Status: `200 OK`
 | `uploadUrl` | string | 클라이언트가 직접 PUT 요청을 보낼 presigned URL |
 | `objectKey` | string | MinIO bucket 내부 객체 키 |
 | `method` | string | 업로드 HTTP method. 현재 `PUT` |
-| `requiredHeaders` | object | 업로드 요청에 그대로 포함해야 하는 헤더 |
+| `requiredHeaders` | object | 업로드 요청에 그대로 포함해야 하는 헤더. presigned URL 서명에 들어간 헤더로, 현재 `Content-Type`과 `Content-Length`(요청의 `contentLength` 값) |
 | `expiresAt` | string | presigned URL 만료 시각 |
 | `maxUploadSizeBytes` | number | 서버가 허용하는 단일 업로드 최대 크기 |
 
@@ -378,9 +379,14 @@ Status: `200 OK`
 ```http
 PUT {uploadUrl}
 Content-Type: image/jpeg
+Content-Length: 1048576
 
 <binary>
 ```
+
+presigned URL은 `Content-Length`까지 서명하므로 업로드 본문 크기는 발급 요청의 `contentLength`와 정확히 같아야 한다. 크기가 다르면 스토리지가 `403 SignatureDoesNotMatch`로 거절한다. 압축 등으로 파일이 바뀌었다면 바뀐 파일의 크기로 URL을 다시 발급받는다.
+
+브라우저 `fetch`는 `Content-Length`를 스크립트가 넣을 수 없는 헤더로 보고 무시한 뒤 본문 크기로 직접 채운다. 앱의 네이티브 업로드도 파일 크기로 채운다. 그래서 선언한 크기의 파일을 그대로 올리면 이 헤더를 따로 다룰 필요는 없다. 본문을 `Transfer-Encoding: chunked`로 보내면 스토리지가 `Content-Length`가 없다고 `411 MissingContentLength`로 거절한다.
 
 #### 주요 실패 케이스
 
@@ -485,6 +491,19 @@ Authorization: Bearer {accessToken}
 | `MINIO_ALLOWED_CONTENT_TYPES` | 이미지/동영상 일부 | 허용 MIME 타입 |
 
 Docker 내부 백엔드는 `MINIO_ENDPOINT=http://minio:9000`을 사용하지만, 호스트 브라우저나 앱은 보통 `MINIO_PUBLIC_ENDPOINT=http://localhost:9000`으로 접근해야 한다.
+
+로컬 `docker-compose.yml`은 스토리지 S3 API 포트를 이 컴퓨터(127.0.0.1)에만 연다. 와이파이로 붙는 실기기로 테스트할 때는 `.env.example`의 `MINIO_BIND_HOST` 안내에 따라 바인딩 주소와 `MINIO_PUBLIC_ENDPOINT`를 함께 바꾼다.
+
+#### 운영 조건
+
+presigned URL은 `MINIO_PUBLIC_ENDPOINT`의 호스트와 요청 경로를 넣어 SigV4로 서명된다. 클라이언트 요청이 스토리지에 닿을 때 호스트나 경로가 서명한 값과 달라지면 스토리지가 `SignatureDoesNotMatch`(403)로 거절한다. 그래서 운영의 `MINIO_PUBLIC_ENDPOINT`는 다음 조건을 지킨다.
+
+- 스토리지 전용 호스트네임을 쓴다(예: `https://storage.example.com`). API나 웹과 같은 호스트를 경로로 나눠 쓰지 않는다.
+- 경로 접두사를 두지 않는다. `https://example.com/storage`처럼 경로가 붙은 주소는 쓸 수 없다. MinIO Java SDK는 endpoint에 경로가 있으면 클라이언트를 만들 때 예외(`no path allowed in endpoint`)를 내고, 프록시에서 접두사를 떼어 넘기면 서명한 경로와 달라진다.
+- 스토리지 앞의 리버스 프록시(Caddy 등)는 Host 헤더와 요청 경로를 바꾸지 않고 그대로 넘긴다. Caddy라면 스토리지 블록에서 `handle_path`로 경로를 자르거나 `header_up Host`로 Host를 바꾸지 않는다.
+- 웹이 https로 서비스되므로 이 주소도 https여야 한다. http면 브라우저가 혼합 콘텐츠로 요청을 막는다.
+
+서버 쪽 설정 절차는 [memorIN-deploy README](https://github.com/inu-appcenter/memorIN-deploy#readme)의 리버스 프록시(Caddy) 설정 절을 따른다.
 
 ### 5-3. Storage Quota
 

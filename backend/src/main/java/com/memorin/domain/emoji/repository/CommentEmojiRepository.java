@@ -1,6 +1,6 @@
 package com.memorin.domain.emoji.repository;
 
-import com.memorin.domain.emoji.dto.response.EmojiCountDto;
+import com.memorin.domain.emoji.dto.response.CommentEmojiCountDto;
 import com.memorin.domain.emoji.entity.CommentEmoji;
 import com.memorin.domain.emoji.entity.EmojiType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,13 +20,13 @@ public interface CommentEmojiRepository extends JpaRepository<CommentEmoji, UUID
 
     // 댓글 목록용 집계 (N+1 방지)
     @Query("""
-        SELECT new com.memorin.domain.emoji.dto.response.EmojiCountDto(
+        SELECT new com.memorin.domain.emoji.dto.response.CommentEmojiCountDto(
             ce.postComments.id, ce.emojiType, COUNT(ce),
             SUM(CASE WHEN ce.user.id = :meId THEN 1 ELSE 0 END)>0)
         FROM CommentEmoji ce
         WHERE ce.postComments.id IN :commentIds
         GROUP BY ce.postComments.id, ce.emojiType
         """)
-    List<EmojiCountDto> countByCommentIds(List<UUID> commentIds, UUID meId);
+    List<CommentEmojiCountDto> countByCommentIds(List<UUID> commentIds, UUID meId);
 }
 
