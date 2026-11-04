@@ -9,6 +9,7 @@ public record PushNotificationRequested(
     NotificationType type,
     String title,
     String body,
-    UUID referenceId
+    UUID referenceId,
+    UUID postId
 ) {
 }

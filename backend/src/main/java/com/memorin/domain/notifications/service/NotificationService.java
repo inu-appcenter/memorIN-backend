@@ -36,6 +36,11 @@ public class NotificationService {
 
     @Transactional
     public void save(UUID userId, UUID actorId, NotificationType type, String title, String message, UUID referenceId) {
+        save(userId, actorId, type, title, message, referenceId, null);
+    }
+
+    @Transactional
+    public void save(UUID userId, UUID actorId, NotificationType type, String title, String message, UUID referenceId, UUID postId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
@@ -46,11 +51,11 @@ public class NotificationService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
         }
 
-        Notification notification = new Notification(user, actor, type, title, message, referenceId);
+        Notification notification = new Notification(user, actor, type, title, message, referenceId, postId);
 
         notificationRepository.save(notification);
         eventPublisher.publishEvent(new PushNotificationRequested(
-            userId, actorId, type, title, message, referenceId
+            userId, actorId, type, title, message, referenceId, postId
         ));
     }
 
@@ -86,7 +91,7 @@ public class NotificationService {
 
         notificationRepository.saveAll(notifications);
         recipientIds.forEach(recipientId -> eventPublisher.publishEvent(new PushNotificationRequested(
-            recipientId, actorId, NotificationType.MESSAGE, title, message, roomId
+            recipientId, actorId, NotificationType.MESSAGE, title, message, roomId, null
         )));
     }
 

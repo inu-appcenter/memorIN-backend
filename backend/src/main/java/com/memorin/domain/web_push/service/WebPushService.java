@@ -98,6 +98,7 @@ public class WebPushService {
             return objectMapper.writeValueAsString(new WebPushPayload(
                 event.title(), event.body(), event.type().name(),
                 event.referenceId() == null ? null : event.referenceId().toString(),
+                event.postId() == null ? null : event.postId().toString(),
                 event.actorId() == null ? null : event.actorId().toString()
             ));
         } catch (JsonProcessingException e) {
@@ -105,6 +106,6 @@ public class WebPushService {
         }
     }
 
-    private record WebPushPayload(String title, String body, String type, String referenceId, String actorId) {
+    private record WebPushPayload(String title, String body, String type, String referenceId, String postId, String actorId) {
     }
 }
