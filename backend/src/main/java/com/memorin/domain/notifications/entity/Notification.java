@@ -47,6 +47,10 @@ public class Notification {
     @Column(name = "reference_id", columnDefinition = "uuid")
     private UUID referenceId;
 
+    // 댓글(답글 포함) 알림이 달린 게시물의 id. 그 외 타입은 null
+    @Column(name = "post_id", columnDefinition = "uuid")
+    private UUID postId;
+
     @Column(name = "is_read", nullable = false)
     @ColumnDefault("false")
     private boolean read;
@@ -56,12 +60,17 @@ public class Notification {
     private LocalDateTime createdAt;
 
     public Notification(User user, User actor, NotificationType type, String title, String message, UUID referenceId) {
+        this(user, actor, type, title, message, referenceId, null);
+    }
+
+    public Notification(User user, User actor, NotificationType type, String title, String message, UUID referenceId, UUID postId) {
         this.user = user;
         this.actor = actor;
         this.type = type;
         this.title = title;
         this.message = message;
         this.referenceId = referenceId;
+        this.postId = postId;
         this.read = false;
     }
 
