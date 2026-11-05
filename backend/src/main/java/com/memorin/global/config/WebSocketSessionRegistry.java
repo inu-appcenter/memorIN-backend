@@ -9,12 +9,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
-/** Tracks authenticated STOMP sessions so push is sent only to offline users. */
 @Slf4j
 @Component
 public class WebSocketSessionRegistry {
@@ -22,6 +24,9 @@ public class WebSocketSessionRegistry {
     private final ConcurrentHashMap<String, UUID> usersBySessionId = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Set<String>> sessionIdsByUserId = new ConcurrentHashMap<>();
     private final Set<String> activeSessionIds = ConcurrentHashMap.newKeySet();
+    // sessionId -> (subscriptionId -> roomId). UNSUBSCRIBE 프레임에는 destination이 없어 구독 id로 찾는다.
+    private final ConcurrentHashMap<String, ConcurrentHashMap<String, UUID>> roomSubscriptionsBySessionId =
+        new ConcurrentHashMap<>();
 
     @EventListener
     public void onSessionConnected(SessionConnectedEvent event) {
@@ -48,6 +53,7 @@ public class WebSocketSessionRegistry {
         }
 
         activeSessionIds.remove(sessionId);
+        roomSubscriptionsBySessionId.remove(sessionId);
         UUID userId = usersBySessionId.remove(sessionId);
         if (userId == null) {
             return;
@@ -60,9 +66,46 @@ public class WebSocketSessionRegistry {
         log.info("WS session disconnected. userId={}, activeSessions={}", userId, activeCount());
     }
 
-    public boolean isConnected(UUID userId) {
+    @EventListener
+    public void onSessionSubscribe(SessionSubscribeEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String sessionId = accessor.getSessionId();
+        String subscriptionId = accessor.getSubscriptionId();
+        UUID roomId = ChatRoomDestinations.parseRoomIdOrNull(accessor.getDestination());
+        if (sessionId == null || subscriptionId == null || roomId == null) {
+            return;
+        }
+        roomSubscriptionsBySessionId
+            .computeIfAbsent(sessionId, ignored -> new ConcurrentHashMap<>())
+            .put(subscriptionId, roomId);
+    }
+
+    @EventListener
+    public void onSessionUnsubscribe(SessionUnsubscribeEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String sessionId = accessor.getSessionId();
+        String subscriptionId = accessor.getSubscriptionId();
+        if (sessionId == null || subscriptionId == null) {
+            return;
+        }
+        roomSubscriptionsBySessionId.computeIfPresent(sessionId, (ignored, subscriptions) -> {
+            subscriptions.remove(subscriptionId);
+            return subscriptions.isEmpty() ? null : subscriptions;
+        });
+    }
+
+    public boolean isSubscribedToRoom(UUID userId, UUID roomId) {
         Set<String> sessionIds = sessionIdsByUserId.get(userId);
-        return sessionIds != null && !sessionIds.isEmpty();
+        if (sessionIds == null || roomId == null) {
+            return false;
+        }
+        for (String sessionId : sessionIds) {
+            Map<String, UUID> subscriptions = roomSubscriptionsBySessionId.get(sessionId);
+            if (subscriptions != null && subscriptions.containsValue(roomId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int activeCount() {
