@@ -52,7 +52,7 @@ public class SecurityConfig {
                         // SockJS 폴백은 핸드셰이크에 Authorization 헤더를 싣지 못한다.
                         // 토큰 없이 붙은 소켓은 CONNECT에서 거부되고, CONNECT를 아예 안 보내면
                         // WebSocketConfig의 setTimeToFirstMessage(30초)가 정리한다.
-                        .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
+                        .requestMatchers("/ws/**", "/error").permitAll()
                         // API 문서. permitAll이어도 노출 여부는 springdoc.*.enabled가 결정한다
                         // (application-docker.properties, SWAGGER_ENABLED) — 꺼지면 엔드포인트
                         // 자체가 등록되지 않아 여기 도달하기 전에 404가 난다(#261).

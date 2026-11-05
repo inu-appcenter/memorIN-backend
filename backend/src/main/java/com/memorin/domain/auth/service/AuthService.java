@@ -14,6 +14,7 @@ import com.memorin.global.exception.BusinessException;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,15 @@ public class AuthService {
     private final FcmTokenService fcmTokenService;
     private final WebPushSubscriptionService webPushSubscriptionService;
 
+    // SIGNUP_ENABLED=false면 가입을 막는다. /api/health의 signupEnabled와 같은 값이다.
+    @Value("${signup.enabled:true}")
+    private boolean signupEnabled = true;
+
     public void signup(SignupRequest request) {
+
+        if (!signupEnabled) {
+            throw new BusinessException(ErrorCode.AUTH_005);
+        }
 
         if (userRepository.existsByEmail(request.email())) {
             throw new BusinessException(ErrorCode.USER_002);

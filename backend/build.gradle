@@ -24,7 +24,9 @@ repositories {
 dependencies {
 
 	// DB
-	runtimeOnly 'com.h2database:h2'          // 로컬 개발용 인메모리 DB
+	// 로컬 bootRun(기본 프로파일)용 인메모리 DB. developmentOnly라 bootJar(운영 이미지)에는 들어가지 않는다.
+	// 테스트는 Testcontainers Postgres를 쓰므로 test 클래스패스에도 필요 없다.
+	developmentOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'  // Docker/운영 환경 PostgreSQL
 
 	// Flyway (DB 스키마 마이그레이션)
