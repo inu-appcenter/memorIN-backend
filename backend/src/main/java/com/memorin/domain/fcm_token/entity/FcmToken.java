@@ -16,7 +16,7 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "fcm_tokens",
-    // 토큰 하나 = 앱 설치 하나 = 소유자 한 명. 다른 사용자가 같은 토큰을 등록하면 소유권이 넘어간다(V10).
+    // 토큰 하나 = 앱 설치 하나 = 소유자 한 명. 다른 사용자가 같은 토큰을 등록하면 소유권이 넘어간다(V19).
     uniqueConstraints = @UniqueConstraint(name = "uq_fcm_tokens_token", columnNames = "token"),
     indexes = @Index(name = "idx_fcm_tokens_user_id", columnList = "user_id")
 )

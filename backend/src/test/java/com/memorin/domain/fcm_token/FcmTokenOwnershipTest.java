@@ -17,7 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// FCM 토큰은 토큰 값 기준으로 소유자가 한 명이다(V10).
+// FCM 토큰은 토큰 값 기준으로 소유자가 한 명이다(V19).
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class FcmTokenOwnershipTest extends PostgresTestSupport {
