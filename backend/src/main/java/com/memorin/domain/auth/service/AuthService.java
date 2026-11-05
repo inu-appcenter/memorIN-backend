@@ -116,16 +116,29 @@ public class AuthService {
     public void logout(UUID userId, LogoutRequest request) {
         refreshTokenRepository.deleteById(userId);
 
-        if (request == null) {
+        boolean hasFcmToken = request != null && hasText(request.fcmToken());
+        boolean hasWebPushEndpoint = request != null && hasText(request.webPushEndpoint());
+
+        // 요청 기기를 특정할 수 없으면(본문 없음·빈 값) 사용자의 푸시 등록을 전부 지운다.
+        // 남겨 두면 로그아웃한 기기로 이 사용자의 알림(채팅 본문 포함)이 계속 간다.
+        // Refresh Token이 사용자당 하나라 로그아웃은 이미 모든 기기의 세션을 끝내므로, 다른 기기의
+        // 등록도 함께 지우는 것이 세션 상태와 맞다. 다른 기기는 다시 로그인할 때 토큰을 재등록한다.
+        if (!hasFcmToken && !hasWebPushEndpoint) {
+            fcmTokenService.deleteAll(userId);
+            webPushSubscriptionService.deleteAll(userId);
             return;
         }
 
-        if (request.fcmToken() != null && !request.fcmToken().isBlank()) {
+        if (hasFcmToken) {
             fcmTokenService.delete(userId, request.fcmToken());
         }
 
-        if (request.webPushEndpoint() != null && !request.webPushEndpoint().isBlank()) {
+        if (hasWebPushEndpoint) {
             webPushSubscriptionService.delete(userId, request.webPushEndpoint());
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

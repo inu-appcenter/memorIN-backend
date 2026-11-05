@@ -36,4 +36,8 @@ public class WebPushSubscriptionService {
     public void delete(UUID userId, String endpoint) {
         subscriptionRepository.deleteByUserIdAndEndpoint(userId, endpoint);
     }
+
+    public void deleteAll(UUID userId) {
+        subscriptionRepository.deleteByUserId(userId);
+    }
 }
