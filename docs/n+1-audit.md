@@ -103,7 +103,9 @@ private String resolveDownloadUrl(PostMedia media) {
 
 ### 3-1. 로그로 세기 (수동, 빠른 확인)
 
-`application.properties` (로컬 점검용, **커밋 금지**):
+docker 프로파일은 SQL 로그가 기본으로 꺼져 있다. 점검할 때만 `.env`에 `JPA_SHOW_SQL=true`를 넣고
+backend 컨테이너를 다시 띄운다(점검이 끝나면 다시 지운다).
+또는 `application.properties`에 로컬 점검용으로(**커밋 금지**):
 
 ```properties
 spring.jpa.show-sql=true

@@ -139,6 +139,7 @@ Status: `201 Created`
 | 400 | validation error | 요청 필드 형식/길이 검증 실패 |
 | 409 또는 공통 예외 정책에 따름 | `MEMBER_002` | 이미 사용 중인 이메일 |
 | 409 또는 공통 예외 정책에 따름 | `MEMBER_003` | 이미 사용 중인 username |
+| 403 | `AUTH_005` | `SIGNUP_ENABLED=false`로 가입이 비활성화됨 |
 
 ### 3-2. 로그인
 
@@ -479,7 +480,7 @@ Authorization: Bearer {accessToken}
 
 | 이름 | 예시/기본값 | 설명 |
 |---|---|---|
-| `JWT_SECRET` | 직접 설정 | HS256 서명 시크릿. 256비트 이상 권장, 커밋 금지 |
+| `JWT_SECRET` | 직접 설정 | HS256 서명 시크릿. 32바이트 미만이거나 `.env.example`의 예시 값이면 기동 거부, 커밋 금지 |
 | `JWT_ACCESS_EXPIRY_MS` | `900000` | Access Token 만료 시간, 15분 |
 | `JWT_REFRESH_EXPIRY_MS` | `604800000` | Refresh Token 만료 시간, 7일 |
 
