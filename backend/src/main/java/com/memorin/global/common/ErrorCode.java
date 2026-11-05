@@ -13,6 +13,7 @@ public enum ErrorCode {
     COMMON_003(HttpStatus.FORBIDDEN, "해당 요청에 대한 권한이 없습니다"),
     COMMON_004(HttpStatus.NOT_FOUND, "요청하신 경로를 찾을 수 없습니다"),
     COMMON_005(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않는 요청 메서드입니다"),
+    COMMON_006(HttpStatus.CONFLICT, "이미 처리되었거나 다른 데이터와 충돌하는 요청입니다"),
 
     // 인증 (auth)
     AUTH_001(HttpStatus.UNAUTHORIZED, "인증이 필요합니다"),
