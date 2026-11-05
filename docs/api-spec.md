@@ -139,6 +139,7 @@ Status: `201 Created`
 | 400 | validation error | 요청 필드 형식/길이 검증 실패 |
 | 409 또는 공통 예외 정책에 따름 | `MEMBER_002` | 이미 사용 중인 이메일 |
 | 409 또는 공통 예외 정책에 따름 | `MEMBER_003` | 이미 사용 중인 username |
+| 403 | `AUTH_005` | `SIGNUP_ENABLED=false`로 가입이 비활성화됨 |
 
 ### 3-2. 로그인
 
@@ -287,6 +288,10 @@ Status: `204 No Content` — 본문 없음. 전역 응답 봉투를 쓰지 않�
 해당 사용자의 Refresh Token 행을 삭제한다. 이후 `POST /auth/refresh`는 저장된 토큰을 찾지 못해 `AUTH_003`으로 거절된다.
 `fcmToken`과 `webPushEndpoint`는 선택값이며, FE는 로그아웃하는 현재 기기에 등록된 값을 함께 보낸다.
 서버는 현재 사용자 소유인 값만 멱등 삭제한다.
+
+본문이 없거나 두 값이 모두 비어 있으면 요청 기기를 특정할 수 없으므로 **사용자의 FCM 토큰과 Web Push 구독을 전부 삭제한다.**
+남겨 두면 로그아웃한 기기로 이 사용자의 알림이 계속 간다. Refresh Token이 사용자당 하나라 로그아웃이 이미
+모든 기기의 세션을 끝내므로, 다른 기기는 다시 로그인할 때 토큰을 재등록한다.
 
 #### ⚠️ Access Token은 즉시 무효화되지 않는다
 
@@ -475,7 +480,7 @@ Authorization: Bearer {accessToken}
 
 | 이름 | 예시/기본값 | 설명 |
 |---|---|---|
-| `JWT_SECRET` | 직접 설정 | HS256 서명 시크릿. 256비트 이상 권장, 커밋 금지 |
+| `JWT_SECRET` | 직접 설정 | HS256 서명 시크릿. 32바이트 미만이거나 `.env.example`의 예시 값이면 기동 거부, 커밋 금지 |
 | `JWT_ACCESS_EXPIRY_MS` | `900000` | Access Token 만료 시간, 15분 |
 | `JWT_REFRESH_EXPIRY_MS` | `604800000` | Refresh Token 만료 시간, 7일 |
 

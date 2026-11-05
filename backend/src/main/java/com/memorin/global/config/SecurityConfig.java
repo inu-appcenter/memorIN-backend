@@ -25,6 +25,10 @@ public class SecurityConfig {
 
         http
                 .cors(Customizer.withDefaults()) // CorsConfig의 CorsConfigurationSource 빈을 자동으로 사용
+                // CSRF는 쿠키를 자동으로 싣는 브라우저 요청을 노리므로, 쿠키 없이 Authorization 헤더로만
+                // 인증하는 지금 구조(STATELESS, CorsConfig allowCredentials=false)에서는 끈다.
+                // refresh 토큰 등을 쿠키로 옮기면 그 경로에 CSRF 보호(또는 SameSite=Strict + Origin 검사)를
+                // 다시 켜야 한다. CodeQL java/spring-disabled-csrf-protection 경고는 이 이유로 False positive 처리했다.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //세션을 만들지 않음(JWT)
@@ -48,7 +52,7 @@ public class SecurityConfig {
                         // SockJS 폴백은 핸드셰이크에 Authorization 헤더를 싣지 못한다.
                         // 토큰 없이 붙은 소켓은 CONNECT에서 거부되고, CONNECT를 아예 안 보내면
                         // WebSocketConfig의 setTimeToFirstMessage(30초)가 정리한다.
-                        .requestMatchers("/ws/**", "/*.html", "/error").permitAll()
+                        .requestMatchers("/ws/**", "/error").permitAll()
                         // API 문서. permitAll이어도 노출 여부는 springdoc.*.enabled가 결정한다
                         // (application-docker.properties, SWAGGER_ENABLED) — 꺼지면 엔드포인트
                         // 자체가 등록되지 않아 여기 도달하기 전에 404가 난다(#261).

@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-memorin_db}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-memorin_db}?logServerErrorDetail=false
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-memorin_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-memorin_pass}
       MINIO_ENDPOINT: http://minio:9000
@@ -103,7 +103,8 @@ services:
       MINIO_MAX_UPLOAD_SIZE_BYTES: ${MINIO_MAX_UPLOAD_SIZE_BYTES:-52428800}
       # TODO: 건희님 작업 이후 채우기
       # 서비스 배포 시에는 랜덤 256비트 문자열 사용
-      JWT_SECRET: ${JWT_SECRET}
+      # 비어 있으면 compose 단계에서 멈춘다. 예시 값·32바이트 미만은 백엔드가 기동을 거부한다.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET을 .env에 설정하세요 (예: openssl rand -base64 48)}
       JWT_ACCESS_EXPIRY_MS: ${JWT_ACCESS_EXPIRY_MS:-900000}
       JWT_REFRESH_EXPIRY_MS: ${JWT_REFRESH_EXPIRY_MS:-604800000}
       STORAGE_QUOTA_DEFAULT_LIMIT_BYTES: ${STORAGE_QUOTA_DEFAULT_LIMIT_BYTES:-1073741824}
@@ -123,6 +124,10 @@ services:
       # Swagger/OpenAPI 문서. 기본 꺼짐 — 셀프호스팅 배포에서 전체 API 명세가 인증 없이
       # 노출되는 걸 막는다(#261). 필요하면 true로 켠다.
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      # false면 POST /auth/signup을 403(AUTH_005)으로 막는다.
+      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
+      # SQL 로그. 기본 꺼짐 — N+1 점검처럼 잠깐 필요할 때만 true로 켠다.
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
       # 푸시 알림. 기본은 둘 다 꺼짐 — 켜지 않으면 알림은 DB에 저장만 되고 발송되지 않는다.
       # 서비스 계정 JSON은 이미지에 굽지 않고 secrets/ 볼륨으로 주입한다(아래 volumes).
       # FileInputStream으로 읽으므로 클래스패스 리소스가 아니라 실제 파일 경로여야 한다.

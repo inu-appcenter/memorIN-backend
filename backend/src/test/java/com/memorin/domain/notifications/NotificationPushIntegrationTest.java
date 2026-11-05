@@ -254,7 +254,8 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
         assertNotification(
             ids[0],
             NotificationType.COMMENT,
-            commentId
+            commentId,
+            ids[2]
         );
     }
 
@@ -378,6 +379,15 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
         NotificationType type,
         UUID referenceId
     ) {
+        assertNotification(recipientId, type, referenceId, null);
+    }
+
+    private void assertNotification(
+        UUID recipientId,
+        NotificationType type,
+        UUID referenceId,
+        UUID postId
+    ) {
         assertThat(
             notificationRepository.findNotifications(
                 recipientId,
@@ -389,6 +399,7 @@ class NotificationPushIntegrationTest extends PostgresTestSupport {
             .satisfies(notification -> {
                 assertThat(notification.getType()).isEqualTo(type);
                 assertThat(notification.getReferenceId()).isEqualTo(referenceId);
+                assertThat(notification.getPostId()).isEqualTo(postId);
                 assertThat(notification.isRead()).isFalse();
             });
     }

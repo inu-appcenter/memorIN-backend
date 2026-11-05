@@ -16,6 +16,7 @@ public record NotificationResponse(
     String title,
     String message,
     UUID referenceId,
+    UUID postId,
 
     boolean read,
     LocalDateTime createdAt
@@ -43,6 +44,7 @@ public record NotificationResponse(
             notification.getTitle(),
             notification.getMessage(),
             notification.getReferenceId(),
+            notification.getPostId(),
             notification.isRead(),
             notification.getCreatedAt()
         );

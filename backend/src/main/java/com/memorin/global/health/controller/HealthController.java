@@ -24,7 +24,7 @@ public class HealthController {
     private final DataSource dataSource;
     private final BuildProperties buildProperties;
 
-    @Value("${signup.enabled:${SIGNUP_ENABLED:true}}")
+    @Value("${signup.enabled:true}")
     private boolean signupEnabled;
 
     @Operation(
