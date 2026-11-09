@@ -29,6 +29,10 @@ updates:
       # 메이저 업데이트는 자동으로 받지 않는다. Spring Boot 4.x 이전은 #317에서 따로 다룬다.
       - dependency-name: "*"
         update-types: [version-update:semver-major]
+      # web-push 5.1.2는 Crypto-Key의 VAPID 공개키에 base64 패딩을 붙여 FCM이 403으로 거절한다
+      # (web-push-libs/webpush-java#216). 고쳐진 버전이 나오면 WebPushRequestHeaderTest로 확인하고 올린다.
+      - dependency-name: "nl.martijndwars:web-push"
+        versions: ["5.1.2"]
 
   - package-ecosystem: docker
     directory: /backend
