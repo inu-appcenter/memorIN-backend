@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                         .accessDeniedHandler(restAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // 이 경로와 /api/health는 JwtAuthenticationFilter.SKIP_PATHS에도 있어 잘못된 Bearer가
+                        // 붙어도 토큰 검증 없이 통과한다(#309). 목록을 바꾸면 둘 다 고친다.
                         .requestMatchers("/auth/signup", "/auth/login", "/auth/refresh").permitAll()
                         // /api/media/**는 JWT 필터 도입에 맞춰 permitAll에서 제외했다.
                         // Quota 검증 대상 userId를 토큰에서 받으므로 인증 없이 열어두면 남의 quota로 업로드가 가능해진다.
