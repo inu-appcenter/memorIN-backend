@@ -1221,13 +1221,15 @@ Status: `200 OK`
 {
   "success": true,
   "data": {
-    "items": [ { "id": "0198f2a3-...", "username": "friend_a", "displayName": "Friend A", "profileImageKey": "uploads/.../a.jpg" } ],
+    "items": [ { "id": "0198f2a3-...", "username": "friend_a", "displayName": "Friend A", "profileImageKey": "uploads/.../a.jpg", "profileImageUrl": "https://storage.example.com/...?X-Amz-Signature=..." } ],
     "nextCursor": "0198f2a2-...",
     "hasNext": false
   },
   "error": null
 }
 ```
+
+> `profileImageUrl`은 프로필 이미지의 presigned 다운로드 URL이다. 화면에는 이 값을 쓴다. 프로필 이미지가 없거나 URL 발급에 실패하면 `null`이다. `profileImageKey`는 기존 클라이언트 호환을 위해 남겨 둔 스토리지 키다.
 
 ### 9-6. 팔로잉 목록 조회
 
