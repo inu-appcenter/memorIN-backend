@@ -197,7 +197,7 @@ public class UserService {
 
         for (Follows follow : follows) {
             User user = follow.getFollower();
-            UserFollowResponse response = UserFollowResponse.from(user);
+            UserFollowResponse response = UserFollowResponse.from(user, resolveProfileImageUrl(user.getProfileImageKey()));
             items.add(response);
         }
 
@@ -235,7 +235,7 @@ public class UserService {
 
         for (Follows follow : follows) {
             User user = follow.getFollowing();
-            UserFollowResponse response = UserFollowResponse.from(user);
+            UserFollowResponse response = UserFollowResponse.from(user, resolveProfileImageUrl(user.getProfileImageKey()));
             items.add(response);
         }
 
