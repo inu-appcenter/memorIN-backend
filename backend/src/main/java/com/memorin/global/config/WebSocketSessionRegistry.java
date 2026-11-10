@@ -108,6 +108,11 @@ public class WebSocketSessionRegistry {
         return false;
     }
 
+    /** 이 STOMP 세션을 연 사용자. 연결이 인증되지 않았거나 이미 끊겼으면 {@code null}. */
+    public UUID userIdOf(String sessionId) {
+        return usersBySessionId.get(sessionId);
+    }
+
     public int activeCount() {
         return activeSessionIds.size();
     }
