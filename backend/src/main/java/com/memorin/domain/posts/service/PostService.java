@@ -219,15 +219,7 @@ public class PostService {
 
         List<PostMedia> media;
         if (request.attachments() != null) {
-            // attachments가 명시적으로 온 경우: 기존 미디어를 통째로 교체.
-            // 행을 지우면 버려진 MinIO 오브젝트를 나중에 찾을 수 없으므로, 키를 삭제 대기열에 먼저 남긴다.
-            // 정리 배치가 유예 기간 후 회수한다 (#259).
-            List<MediaDeletionQueue> replaced = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId).stream()
-                    .map(m -> MediaDeletionQueue.of(m.getFileKey()))
-                    .toList();
-            mediaDeletionQueueRepository.saveAll(replaced);
-            postMediaRepository.deleteAllByPostId(postId);
-            media = saveMedia(post, request.attachments(), requesterId);
+            media = replaceMedia(post, request.attachments(), requesterId);
         } else {
             media = postMediaRepository.findByPostIdOrderByOrderIndexAsc(postId);
         }
@@ -249,6 +241,48 @@ public class PostService {
     }
 
     // ---- private helpers ----
+
+    // attachments가 명시적으로 온 수정 요청: 요청 목록이 곧 수정 후 첨부 목록이다(#338).
+    // - 이 게시물에 이미 붙어 있던 fileKey는 다시 커밋하지 않고 그대로 두며 순서만 갱신한다.
+    //   (예약은 처음 커밋할 때 소비되므로 다시 커밋하면 실패한다. 크기·mimeType도 저장된 값을 유지한다.)
+    // - 새 fileKey만 pending 예약을 커밋한다.
+    // - 목록에서 빠진 기존 첨부만 행을 지우고 키를 삭제 대기열에 남긴다. 정리 배치가 유예 기간 후 회수한다(#259).
+    private List<PostMedia> replaceMedia(Post post, List<PostCreateRequest.AttachmentRequest> attachments, UUID requesterId) {
+        Set<String> requestedKeys = new HashSet<>();
+        for (PostCreateRequest.AttachmentRequest a : attachments) {
+            if (!requestedKeys.add(a.fileKey())) {
+                throw new BusinessException(ErrorCode.COMMON_002, "같은 첨부가 중복되었습니다: " + a.fileKey());
+            }
+        }
+
+        Map<String, PostMedia> existingByKey = new HashMap<>();
+        List<PostMedia> removed = new ArrayList<>();
+        for (PostMedia m : postMediaRepository.findByPostIdOrderByOrderIndexAsc(post.getId())) {
+            if (requestedKeys.contains(m.getFileKey()) && existingByKey.putIfAbsent(m.getFileKey(), m) == null) {
+                continue;
+            }
+            removed.add(m);
+        }
+        // 같은 키를 쓰는 행이 남아 있으면(중복 행 정리) 대기열에 넣어도 정리 배치가 살아 있는 참조를 보고 건너뛴다.
+        mediaDeletionQueueRepository.saveAll(removed.stream().map(m -> MediaDeletionQueue.of(m.getFileKey())).toList());
+        postMediaRepository.deleteAll(removed);
+
+        List<PostMedia> result = new ArrayList<>();
+        short order = 0;
+        for (PostCreateRequest.AttachmentRequest a : attachments) {
+            PostMedia kept = existingByKey.get(a.fileKey());
+            if (kept != null) {
+                kept.changeOrder(order++);
+                result.add(kept);
+                continue;
+            }
+            long verifiedBytes = mediaUploadCommitService.commitUpload(requesterId, a.fileKey());
+            result.add(postMediaRepository.save(PostMedia.of(
+                    post, a.fileKey(), a.mimeType(), verifiedBytes, order++, a.width(), a.height()
+            )));
+        }
+        return result;
+    }
 
     // 첨부마다 pending 예약을 커밋(statObject로 실제 크기 재검증)한 뒤 저장한다.
     // a.fileSizeBytes()(클라이언트 선언값)는 신뢰하지 않고 검증된 실제 크기를 쓴다.

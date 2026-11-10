@@ -3,7 +3,6 @@ package com.memorin.domain.post_media.repository;
 import com.memorin.domain.post_media.entity.PostMedia;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,10 +29,6 @@ public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
 
     // 목록(피드) 조회 시 게시물마다 따로 쿼리하지 않고 N+1 없이 한 번에 가져오기 위한 배치 조회.
     List<PostMedia> findByPostIdInOrderByOrderIndexAsc(Collection<UUID> postIds);
-
-    @Modifying
-    @Query("DELETE FROM PostMedia m WHERE m.post.id = :postId")
-    void deleteAllByPostId(@Param("postId") UUID postId);
 
     // 정리 배치 대상: 소프트 삭제된 지 cutoff보다 오래된 게시물의 미디어. 오래된 순으로 batch 크기만큼.
     // 배치가 행을 지우면 다음 주기엔 이 조회에 걸리지 않으므로 알아서 끝난다.
