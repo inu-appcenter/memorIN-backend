@@ -21,6 +21,8 @@ public class WebPushSubscriptionService {
     private final WebPushSubscriptionRepository subscriptionRepository;
 
     public void save(UUID userId, WebPushSubscriptionRequest request) {
+        WebPushEndpointPolicy.validate(request.endpoint());
+
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001));
 
@@ -28,6 +30,12 @@ public class WebPushSubscriptionService {
         if (subscription == null) {
             subscriptionRepository.save(new WebPushSubscription(user, request.endpoint(), request.p256dh(), request.auth()));
             return;
+        }
+
+        // 다른 사용자의 구독이면 넘기지 않는다(#311). endpoint만 알면 남의 푸시를 가로챌 수 있었다.
+        // 같은 브라우저를 쓰던 사용자가 로그아웃하면 구독이 지워지므로(AuthService.logout) 정상 흐름에서는 걸리지 않는다.
+        if (!subscription.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.COMMON_006, "다른 사용자가 이미 등록한 Web Push 구독입니다.");
         }
 
         subscription.update(user, request.endpoint(), request.p256dh(), request.auth());
