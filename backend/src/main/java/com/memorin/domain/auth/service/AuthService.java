@@ -5,6 +5,7 @@ import com.memorin.domain.auth.dto.LoginResponse;
 import com.memorin.domain.auth.dto.LogoutRequest;
 import com.memorin.domain.auth.dto.SignupRequest;
 import com.memorin.domain.auth.entity.RefreshToken;
+import com.memorin.domain.auth.event.UserSessionsRevoked;
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
 import com.memorin.domain.auth.repository.RefreshTokenRepository;
 import com.memorin.domain.fcm_token.service.FcmTokenService;
@@ -15,6 +16,7 @@ import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final FcmTokenService fcmTokenService;
     private final WebPushSubscriptionService webPushSubscriptionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // SIGNUP_ENABLED=false면 가입을 막는다. /api/health의 signupEnabled와 같은 값이다.
     @Value("${signup.enabled:true}")
@@ -115,6 +118,8 @@ public class AuthService {
     @Transactional
     public void logout(UUID userId, LogoutRequest request) {
         refreshTokenRepository.deleteById(userId);
+        // Refresh Token이 사용자당 하나라 로그아웃은 모든 기기의 세션을 끝낸다. 열린 웹소켓 세션도 커밋 후 끊는다(#304).
+        eventPublisher.publishEvent(new UserSessionsRevoked(userId));
 
         boolean hasFcmToken = request != null && hasText(request.fcmToken());
         boolean hasWebPushEndpoint = request != null && hasText(request.webPushEndpoint());

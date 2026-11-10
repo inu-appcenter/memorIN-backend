@@ -1,10 +1,12 @@
 package com.memorin.global.config;
 
 import com.memorin.domain.auth.jwt.JwtTokenProvider;
+import com.memorin.domain.auth.service.AuthService;
 import com.memorin.domain.chat_rooms.dto.request.CreateGroupRoomRequest;
 import com.memorin.domain.chat_rooms.service.ChatRoomService;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
+import com.memorin.domain.users.service.UserService;
 import com.memorin.support.PostgresTestSupport;
 import com.memorin.support.RawStompClient;
 import com.memorin.support.RawStompClient.Frame;
@@ -37,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>{@code /topic/rooms/{id}}로 직접 SEND해 senderId 위조</li>
  *   <li>강퇴 후에도 이미 맺은 구독으로 수신</li>
  * </ul>
- * 정상 흐름(로그인한 멤버의 연결·구독·송수신)이 그대로인지도 함께 본다.
+ * 정상 흐름(로그인한 멤버의 연결·구독·송수신)이 그대로인지, 강퇴·로그아웃·탈퇴 때 열린 세션이 끊기는지도 함께 본다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -61,6 +63,15 @@ class StompSecurityIntegrationTest extends PostgresTestSupport {
 
     @Autowired
     private SimpleBrokerMessageHandler simpleBroker;
+
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private WebSocketSessionRegistry sessionRegistry;
 
     private final List<RawStompClient> clients = new ArrayList<>();
 
@@ -227,5 +238,72 @@ class StompSecurityIntegrationTest extends PostgresTestSupport {
         sendText(owner, "after-kick");
         assertThat(owner.nextOf("MESSAGE", WAIT)).as("남은 멤버는 계속 받아야 한다").isNotNull();
         assertThat(member.nextOf("MESSAGE", QUIET)).as("강퇴당한 멤버에게 가면 안 된다").isNull();
+    }
+
+    // ---- 멤버십 변화 → 세션 종료 ----
+
+    private void awaitSessions(UUID userId, boolean expectOpen) throws InterruptedException {
+        long deadline = System.nanoTime() + WAIT.toNanos();
+        while (System.nanoTime() < deadline) {
+            if (sessionRegistry.isSubscribedToRoom(userId, roomId) == expectOpen) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        throw new AssertionError("세션 상태가 바뀌지 않았다. userId=" + userId);
+    }
+
+    @Test
+    void 강퇴하면_그_방을_구독하던_세션이_끊긴다() throws Exception {
+        RawStompClient owner = connected(ownerId);
+        RawStompClient member = connected(memberId);
+        owner.subscribe("sub-0", roomTopic());
+        member.subscribe("sub-0", roomTopic());
+        awaitSubscribers(roomTopic(), 2);
+        awaitSessions(memberId, true);
+
+        chatRoomService.kickMember(roomId, ownerId, memberId);
+
+        assertThat(member.awaitClosed(WAIT)).as("강퇴당한 멤버의 세션이 끊겨야 한다").isTrue();
+        assertThat(member.closeStatus().getCode()).isEqualTo(WebSocketSessionRegistry.REVOKED.getCode());
+        assertThat(owner.isOpen()).as("다른 멤버의 세션은 그대로").isTrue();
+
+        // 재연결해도 그 방은 다시 구독할 수 없다.
+        RawStompClient reconnected = connected(memberId);
+        reconnected.subscribe("sub-0", roomTopic());
+        Frame rejected = reconnected.next(WAIT);
+        assertThat(rejected).isNotNull();
+        assertThat(rejected.command()).isEqualTo("ERROR");
+    }
+
+    @Test
+    void 로그아웃하면_그_사용자의_세션이_모두_끊긴다() throws Exception {
+        RawStompClient first = connected(memberId);
+        RawStompClient second = connected(memberId);
+        RawStompClient owner = connected(ownerId);
+        first.subscribe("sub-0", roomTopic());
+        awaitSubscribers(roomTopic(), 1);
+
+        authService.logout(memberId, null);
+
+        assertThat(first.awaitClosed(WAIT)).isTrue();
+        assertThat(second.awaitClosed(WAIT)).as("방을 구독하지 않은 세션도 끊긴다").isTrue();
+        assertThat(owner.isOpen()).as("다른 사용자의 세션은 그대로").isTrue();
+    }
+
+    @Test
+    void 탈퇴하면_세션이_끊기고_다시_연결할_수_없다() throws Exception {
+        RawStompClient member = connected(memberId);
+        member.subscribe("sub-0", roomTopic());
+        awaitSubscribers(roomTopic(), 1);
+        String oldToken = token(memberId);
+
+        userService.withdraw(memberId);
+
+        assertThat(member.awaitClosed(WAIT)).isTrue();
+        RawStompClient again = open();
+        Frame frame = again.connect("CONNECT", oldToken);
+        assertThat(frame).isNotNull();
+        assertThat(frame.command()).as("탈퇴한 사용자의 토큰으로는 연결되지 않는다").isEqualTo("ERROR");
     }
 }

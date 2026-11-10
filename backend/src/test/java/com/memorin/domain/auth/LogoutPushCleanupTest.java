@@ -29,7 +29,7 @@ class LogoutPushCleanupTest {
         new JwtTokenProvider(SECRET, 60_000, 60_000, mock(UserRepository.class)),
         refreshTokenRepository,
         fcmTokenService,
-        webPushSubscriptionService
+        webPushSubscriptionService, mock(org.springframework.context.ApplicationEventPublisher.class)
     );
     private final UUID userId = UUID.randomUUID();
 
