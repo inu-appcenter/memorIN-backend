@@ -11,14 +11,15 @@ import com.memorin.domain.fcm_token.repository.FcmTokenRepository;
 import com.memorin.domain.web_push.repository.WebPushSubscriptionRepository;
 import com.memorin.domain.pending_upload.entity.PendingUpload;
 import com.memorin.domain.pending_upload.repository.PendingUploadRepository;
-import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
-import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
+import com.memorin.domain.auth.event.UserSessionsRevoked;
+import com.memorin.domain.chat_rooms.service.ChatRoomService;
 import com.memorin.global.common.ErrorCode;
 import com.memorin.global.exception.BusinessException;
 import com.memorin.global.media.service.PresignedDownloadService;
 import com.memorin.global.media.service.UserMediaDeletionService;
 import com.memorin.global.media.service.MediaUploadCommitService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,8 @@ public class UserService {
     private final FcmTokenRepository fcmTokenRepository;
     private final WebPushSubscriptionRepository webPushSubscriptionRepository;
     private final PendingUploadRepository pendingUploadRepository;
-    private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final ChatRoomService chatRoomService;
+    private final ApplicationEventPublisher eventPublisher;
     private final UserMediaDeletionService userMediaDeletionService;
     private final MediaUploadCommitService mediaUploadCommitService;
 
@@ -167,11 +169,12 @@ public class UserService {
 
         // The account can no longer authenticate, and leaving its rooms stops future delivery
         // attempts. Existing messages remain and identify only the anonymised user row.
-        for (ChatRoomMembers membership : chatRoomMemberRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(userId)) {
-            membership.leave();
-        }
+        // 나가기와 같은 경로를 탄다: 그룹 방장이면 방장이 넘어가고 멤버십 캐시도 무효화된다(#347, #304).
+        chatRoomService.leaveAllRooms(userId);
 
         user.withdraw();
+        // 이미 열린 웹소켓 세션은 토큰과 무관하게 살아 있으므로 커밋 후 끊는다.
+        eventPublisher.publishEvent(new UserSessionsRevoked(userId));
     }
 
     @Transactional(readOnly = true)
@@ -197,7 +200,7 @@ public class UserService {
 
         for (Follows follow : follows) {
             User user = follow.getFollower();
-            UserFollowResponse response = UserFollowResponse.from(user);
+            UserFollowResponse response = UserFollowResponse.from(user, resolveProfileImageUrl(user.getProfileImageKey()));
             items.add(response);
         }
 
@@ -235,7 +238,7 @@ public class UserService {
 
         for (Follows follow : follows) {
             User user = follow.getFollowing();
-            UserFollowResponse response = UserFollowResponse.from(user);
+            UserFollowResponse response = UserFollowResponse.from(user, resolveProfileImageUrl(user.getProfileImageKey()));
             items.add(response);
         }
 

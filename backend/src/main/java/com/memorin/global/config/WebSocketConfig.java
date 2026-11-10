@@ -10,10 +10,13 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.messaging.context.AuthenticationPrincipalArgumentResolver;
 import org.springframework.security.messaging.context.SecurityContextChannelInterceptor;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 
 import java.util.List;
 
@@ -37,13 +40,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     // 여기를 "*"로 열어두면 Sprint 1에서 나눠 놓은 dev/prod 오리진 구분이 무의미해진다. (§8)
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
     private final ChatDeliveryChannelInterceptor chatDeliveryChannelInterceptor;
+    private final WebSocketSessionRegistry sessionRegistry;
 
     public WebSocketConfig(@Value("${cors.allowed-origins}") List<String> allowedOrigins,
                            StompAuthChannelInterceptor stompAuthChannelInterceptor,
-                           ChatDeliveryChannelInterceptor chatDeliveryChannelInterceptor) {
+                           ChatDeliveryChannelInterceptor chatDeliveryChannelInterceptor,
+                           WebSocketSessionRegistry sessionRegistry) {
         this.allowedOrigins = allowedOrigins;
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
         this.chatDeliveryChannelInterceptor = chatDeliveryChannelInterceptor;
+        this.sessionRegistry = sessionRegistry;
     }
 
     // 하트비트 전용 스케줄러. 하트비트만 켜고 이 스케줄러를 안 주면 기동 시 실패한다.
@@ -83,7 +89,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setSendTimeLimit(10 * 1000)          // 10초 안에 못 보내면 세션을 끊는다
             .setSendBufferSizeLimit(512 * 1024)       // 세션당 미전송 버퍼 상한
             .setMessageSizeLimit(64 * 1024)           // 인바운드 프레임 크기 상한
-            .setTimeToFirstMessage(30 * 1000);        // 연결만 하고 CONNECT를 안 보내는 세션 정리
+            .setTimeToFirstMessage(30 * 1000)         // 연결만 하고 CONNECT를 안 보내는 세션 정리
+            // 강퇴·탈퇴·로그아웃 때 서버가 연결을 끊을 수 있도록 전송 계층 세션을 잡아 둔다(#304).
+            // STOMP 계층에는 세션을 끊는 공개 API가 없다.
+            .addDecoratorFactory(handler -> new WebSocketHandlerDecorator(handler) {
+                @Override
+                public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+                    sessionRegistry.onTransportOpened(session);
+                    super.afterConnectionEstablished(session);
+                }
+
+                @Override
+                public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
+                    sessionRegistry.onTransportClosed(session);
+                    super.afterConnectionClosed(session, closeStatus);
+                }
+            });
     }
 
     @Override

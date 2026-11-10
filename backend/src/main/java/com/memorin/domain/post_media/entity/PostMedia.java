@@ -92,4 +92,9 @@ public class PostMedia {
         return this.post;
     }
 
+    // 게시물 수정에서 기존 첨부를 그대로 두고 순서만 바꿀 때 쓴다.
+    public void changeOrder(short orderIndex) {
+        this.orderIndex = orderIndex;
+    }
+
 }
