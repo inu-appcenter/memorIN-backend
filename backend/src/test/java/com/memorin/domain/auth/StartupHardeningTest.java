@@ -81,7 +81,7 @@ class StartupHardeningTest {
             provider(VALID_SECRET),
             mock(RefreshTokenRepository.class),
             mock(FcmTokenService.class),
-            mock(WebPushSubscriptionService.class)
+            mock(WebPushSubscriptionService.class), mock(org.springframework.context.ApplicationEventPublisher.class)
         );
     }
 
