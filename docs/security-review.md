@@ -161,7 +161,7 @@ WebSocket 핸드셰이크도 **같은 프로퍼티**를 쓴다(`sprint4-architec
 | 경로 | 근거 |
 |---|---|
 | `/auth/signup` · `/auth/login` · `/auth/refresh` | 토큰을 얻기 전 호출해야 한다 |
-| `/ws/**` | **의도된 것.** 실제 인증은 STOMP CONNECT에서 한다. HTTP 필터는 핸드셰이크 1회만 지나가고 SockJS 폴백은 헤더를 못 싣는다. 토큰 없이 붙은 소켓은 CONNECT에서 거부되고, CONNECT를 안 보내면 `setTimeToFirstMessage(30초)`가 정리한다 |
+| `/ws/**` | **의도된 것.** 실제 인증은 STOMP 연결 프레임(`CONNECT`·`STOMP` 둘 다)에서 한다. HTTP 필터는 핸드셰이크 1회만 지나가고 SockJS 폴백은 헤더를 못 싣는다. 토큰 없이 붙은 소켓은 연결 프레임에서 거부되고, 연결 프레임 없이 보낸 SUBSCRIBE·SEND 등도 거부된다. 아무 프레임도 안 보내면 `setTimeToFirstMessage(30초)`가 정리한다. **정정(#304):** 이 점검 당시에는 `CONNECT`만 검사해 `STOMP` 프레임으로 토큰 없이 연결할 수 있었다 |
 | `/swagger-ui/**` · `/v3/api-docs/**` | §5 참조 — 근거는 있으나 선택 가능해야 한다 |
 | `/*.html` · `/error` | 정적 자원·오류 경로 |
 
@@ -203,8 +203,29 @@ BCrypt(`BCryptPasswordEncoder` 기본 강도 10). 최소 8자(`@Size(min = 8, ma
 
 ### 7-9. WebSocket 인가
 
-CONNECT 인증 + SUBSCRIBE 인가(#209)에 더해, PR #240이 **배달 시점**까지 확인한다.
-강퇴·나가기 후 이미 맺어진 구독으로 대화가 새던 창(#210)이 닫힌다.
+> **정정(#304, 2026-11).** 이 항목은 원래 "CONNECT 인증 + SUBSCRIBE 인가(#209)에 더해 PR #240이 배달 시점까지
+> 확인해 강퇴 후 수신 창(#210)이 닫힌다"고 적었으나, **실제로는 넷 다 우회됐다.** `STOMP` 프레임은 인증을 건너뛰었고,
+> 방 토픽이 아닌 구독(`/topic/**` 같은 패턴 포함)은 그대로 통과해 모든 방을 받을 수 있었고, `/topic/rooms/{id}`로
+> 직접 SEND하면 브로커가 검사 없이 뿌려 senderId를 위조할 수 있었고, 배달 필터는 브로커 메시지를
+> `StompHeaderAccessor`로 읽어 항상 통과시켰다. 단위 테스트는 실제 브로커와 다른 모양의 메시지로 통과하고 있었다.
+
+지금 동작(`StompAuthChannelInterceptor`, `ChatDeliveryChannelInterceptor`):
+
+| 프레임·시점 | 규칙 |
+|---|---|
+| `CONNECT`·`STOMP` | `Authorization: Bearer <access token>` 필수. 만료·위조·탈퇴 사용자는 거부 |
+| `SUBSCRIBE` | `/topic/rooms/{uuid}`(정규 표기)만, 그 방의 **활성** 멤버만. 그 밖의 목적지·패턴 목적지는 거부 |
+| `SEND` | `/app/`으로 시작하는 목적지만. 핸들러가 발신자 멤버십을 확인하고 senderId를 Principal에서 채운다 |
+| 그 밖의 프레임 | 인증된 세션에서만(`DISCONNECT` 제외) |
+| 배달 시점 | 받는 세션의 사용자를 **세션 ID**로 찾아 활성 멤버가 아니면 그 세션으로 보내지 않는다 |
+| 강퇴 | 커밋 후 그 사용자의 세션 중 그 방을 구독한 세션을 끊는다 |
+| 로그아웃·탈퇴 | 커밋 후 그 사용자의 세션을 모두 끊는다. 탈퇴는 나가기와 같은 경로로 방을 떠나 그룹 방장이면 승계된다 |
+
+멤버 판정은 `ChatRoomMembershipGate` 한 곳에서 하고 캐시한다. 조회 중 무효화가 끼면 결과를 버려 낡은 값이
+남지 않는다. 검증은 실제 브로커로 도는 `StompSecurityIntegrationTest`가 한다.
+
+남은 한계: 로그아웃은 refresh 토큰만 폐기하므로 access 토큰이 만료되기 전에는 그 토큰으로 다시 연결할 수 있다
+(HTTP API와 같은 조건이다).
 
 ---
 
