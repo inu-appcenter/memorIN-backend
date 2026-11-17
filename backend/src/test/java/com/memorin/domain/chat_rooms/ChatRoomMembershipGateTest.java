@@ -102,4 +102,23 @@ class ChatRoomMembershipGateTest {
         assertThat(gate.isActiveMember(userId, roomId)).isTrue();
         assertThat(gate.isActiveMember(otherUserId, roomId)).isFalse();
     }
+
+    // #304: DB를 읽는 사이에 강퇴가 커밋되고 무효화가 먼저 끝나는 경우.
+    // 예전에는 조회해 둔 낡은 true를 무효화 뒤에 다시 심어서, 다음 멤버십 변경 전까지 강퇴당한 사람이 계속 받았다.
+    @Test
+    void 조회_도중에_무효화되면_낡은_결과를_캐시에_되심지_않는다() {
+        given(repository.existsByRoom_IdAndUser_IdAndLeftAtIsNull(roomId, userId)).willAnswer(invocation -> {
+            // 이 조회는 강퇴 커밋 전의 DB를 봤다(true). 그 사이 강퇴가 커밋되고 무효화가 끝난다.
+            gate.invalidate(userId, roomId);
+            return true;
+        }).willReturn(false);
+
+        assertThat(gate.isActiveMember(userId, roomId))
+            .as("진행 중이던 조회 자체의 결과는 그대로 돌려준다")
+            .isTrue();
+        assertThat(gate.isActiveMember(userId, roomId))
+            .as("낡은 true가 캐시에 남으면 안 된다 — DB를 다시 읽어 강퇴를 반영해야 한다")
+            .isFalse();
+        verify(repository, times(2)).existsByRoom_IdAndUser_IdAndLeftAtIsNull(roomId, userId);
+    }
 }

@@ -53,6 +53,12 @@ public class PresignedDownloadService {
         PostMedia postMedia = postMediaRepository.findById(postMediaId)
                 .orElseThrow(() -> new PostMediaNotFoundException(postMediaId));
 
+        // 소프트 삭제된 게시물의 미디어는 정리 배치가 회수하기 전까지 행과 오브젝트가 남아 있다.
+        // 삭제한 글의 사진이 계속 열리지 않도록, 없는 미디어와 똑같이 404로 응답한다(#338).
+        if (postMedia.getPost().isDeleted()) {
+            throw new PostMediaNotFoundException(postMediaId);
+        }
+
         try {
             postAccessPolicy.assertReadable(postMedia.getPost(), requesterId);
         } catch (PostExceptions.PostAccessDeniedException e) {

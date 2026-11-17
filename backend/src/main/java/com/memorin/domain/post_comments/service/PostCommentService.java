@@ -78,7 +78,8 @@ public class PostCommentService {
                 recipientId, authorId, NotificationType.COMMENT,
                 parent != null ? "새 답글" : "새 댓글",
                 author.getDisplayName() + "님이 댓글을 남겼습니다.",
-                saved.getId()
+                saved.getId(),
+                post.getId()
             );
         }
 

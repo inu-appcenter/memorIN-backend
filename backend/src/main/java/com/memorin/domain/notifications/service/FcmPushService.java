@@ -44,6 +44,7 @@ public class FcmPushService {
                         .build())
                     .putData("type", event.type().name())
                     .putData("referenceId", event.referenceId() == null ? "" : event.referenceId().toString())
+                    .putData("postId", event.postId() == null ? "" : event.postId().toString())
                     .putData("actorId", event.actorId() == null ? "" : event.actorId().toString())
                     .build();
 

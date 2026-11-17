@@ -20,8 +20,8 @@ import java.util.UUID;
 // 검증하고 확정한다. 클라이언트가 선언한 contentLength는 여기서 전혀 신뢰하지 않고,
 // MinIO statObject로 확인한 실제 업로드 크기만 사용해 단일 파일 상한과 유저 전체 quota를
 // 다시 검증한다.
-// (presigned PUT은 서명이 body 크기를 강제하지 않아 클라이언트가 발급 시 선언한 값보다
-//  훨씬 큰 파일을 그대로 업로드할 수 있다 - 이 지점이 그걸 막는 검증 지점이다.)
+// (presigned PUT은 Content-Length를 서명하므로 선언한 크기와 다른 본문은 스토리지가 거절한다(#296).
+//  그래도 스토리지 쪽 검증에만 기대지 않도록, 실제 크기를 확정하는 최종 검증 지점은 여기로 유지한다.)
 @Service
 public class MediaUploadCommitService {
 

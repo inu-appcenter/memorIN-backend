@@ -1221,13 +1221,15 @@ Status: `200 OK`
 {
   "success": true,
   "data": {
-    "items": [ { "id": "0198f2a3-...", "username": "friend_a", "displayName": "Friend A", "profileImageKey": "uploads/.../a.jpg" } ],
+    "items": [ { "id": "0198f2a3-...", "username": "friend_a", "displayName": "Friend A", "profileImageKey": "uploads/.../a.jpg", "profileImageUrl": "https://storage.example.com/...?X-Amz-Signature=..." } ],
     "nextCursor": "0198f2a2-...",
     "hasNext": false
   },
   "error": null
 }
 ```
+
+> `profileImageUrl`은 프로필 이미지의 presigned 다운로드 URL이다. 화면에는 이 값을 쓴다. 프로필 이미지가 없거나 URL 발급에 실패하면 `null`이다. `profileImageKey`는 기존 클라이언트 호환을 위해 남겨 둔 스토리지 키다.
 
 ### 9-6. 팔로잉 목록 조회
 
@@ -1339,6 +1341,14 @@ beforeConnect: async () => {
 | 발행 (SEND) | `/app/chat.sharePost` | 게시물 공유 메시지 전송 |
 
 `roomId`는 UUID다. 발행 목적지에는 `roomId`가 들어가지 않고 **payload에 담는다.**
+
+위 표에 없는 목적지는 거부된다(#304). 구독은 `/topic/rooms/{roomId}`만(소문자 정규 UUID, `*`·`**` 같은 패턴 불가),
+SEND는 `/app/...`만 받는다. 거부되면 서버가 `ERROR` 프레임을 보내고 연결을 끊는다.
+`STOMP` 연결 프레임도 `CONNECT`와 같이 토큰을 요구하고, 연결 프레임 전에 보낸 다른 프레임은 거부된다.
+
+서버가 연결을 끊는 경우(종료 코드 1008 `session revoked`): 그 방에서 **강퇴**되면 그 방을 구독 중이던 연결,
+**로그아웃·탈퇴**하면 그 사용자의 모든 연결. 강퇴로 끊긴 클라이언트는 재연결 후 남은 방만 다시 구독해야 한다
+(강퇴된 방을 다시 구독하면 거부되어 또 끊긴다).
 
 #### 인가 — 인증과 별개다
 
@@ -1649,7 +1659,11 @@ NotificationService.save()
 두 발송 경로 모두 **기본 비활성**이다(`FIREBASE_ENABLED` · `WEB_PUSH_ENABLED`). 꺼도 알림은 DB에 저장되고
 조회 API로 보인다. 발송만 일어나지 않는다.
 
-수신자에게 인증된 STOMP 세션이 하나라도 있으면 WebSocket이 실시간 전달을 담당하므로 FCM·Web Push는 발송하지 않는다.
+푸시를 생략하는 경우는 MESSAGE 알림이면서 수신자가 그 채팅방 토픽(`/topic/rooms/{roomId}`)을 구독 중일 때뿐이다.
+그 밖의 알림은 STOMP 연결 여부와 관계없이 발송한다.
+
+FCM 토큰은 토큰 값 기준으로 유일하다(V19). 같은 기기에서 다른 사용자가 로그인해 같은 토큰을 등록하면
+소유권이 새 사용자로 넘어가고, 한 사용자의 여러 기기는 각자 토큰을 가진다.
 
 #### 목록 조회
 

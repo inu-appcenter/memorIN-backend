@@ -129,7 +129,7 @@ Redis에서 refresh:{memberId} 삭제 → 이후 재발급 불가
 | 경로 | 정책 |
 |---|---|
 | `POST /auth/signup`, `/auth/login`, `/auth/reissue` | permitAll |
-| `/ws/**`, `/test.html` (STOMP 테스트) | 당분간 permitAll — WebSocket 토큰 인증은 Sprint 1에서 별도 설계 |
+| `/ws/**` | permitAll — 핸드셰이크만 열고 인증은 STOMP CONNECT에서 한다 (`test.html`은 삭제됨) |
 | `POST /api/media/presigned-upload-url` | **authenticated** ← 현재 무인증으로 열려 있음, 필터 적용 시 최우선 보호 |
 | 그 외 전부 | authenticated |
 

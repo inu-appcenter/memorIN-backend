@@ -8,6 +8,8 @@ import com.memorin.global.exception.BusinessException;
 import com.memorin.global.exception.UserDetailsImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessagingException;
@@ -202,16 +204,105 @@ class StompAuthChannelInterceptorTest {
     void 잘못된_형식의_방_경로는_거부된다() {
         assertThatThrownBy(() -> send(subscribeFrame(ROOM_TOPIC + "not-a-uuid", true)))
             .isInstanceOf(MessagingException.class)
-            .hasMessageContaining("잘못된 구독 경로");
+            .hasMessageContaining("구독할 수 없는 경로");
     }
 
-    // 방 토픽이 아닌 목적지까지 막으면 알림 등 다른 구독이 죽는다.
-    @Test
-    void 방_토픽이_아닌_목적지는_그대로_통과한다() {
-        assertThatCode(() -> send(subscribeFrame("/topic/notifications", true)))
-            .doesNotThrowAnyException();
+    // #304: 예전에는 방 토픽이 아닌 목적지를 "관심 밖"이라며 그대로 통과시켰고, 이 테스트가 그 동작을
+    // 고정하고 있었다. /topic/** 같은 패턴 구독 한 번으로 모든 방의 대화를 받을 수 있었다.
+    // 이제는 /topic/rooms/{uuid} 외의 구독을 모두 거절한다.
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "/topic/notifications",
+        "/topic/**",
+        "/topic/rooms/*",
+        "/topic/rooms/**",
+        "/topic/rooms/{id}",
+        "/queue/anything",
+        "/user/queue/errors",
+        "/app/chat.sendText",
+    })
+    void 방_토픽이_아닌_목적지와_패턴_목적지는_거부된다(String destination) {
+        assertThatThrownBy(() -> send(subscribeFrame(destination, true)))
+            .isInstanceOf(MessagingException.class)
+            .hasMessageContaining("구독할 수 없는 경로");
 
         verify(chatRoomMemberRepository, never())
             .existsByRoom_IdAndUser_IdAndLeftAtIsNull(any(), eq(userId));
+    }
+
+    // UUID.fromString은 비정규 표기도 받아들인다. 정규 표기와 정확히 같을 때만 받는다.
+    @Test
+    void 비정규_UUID_표기는_거부된다() {
+        assertThatThrownBy(() -> send(subscribeFrame(ROOM_TOPIC + "1-1-1-1-1", true)))
+            .isInstanceOf(MessagingException.class);
+        assertThatThrownBy(() -> send(subscribeFrame(ROOM_TOPIC + roomId.toString().toUpperCase(), true)))
+            .isInstanceOf(MessagingException.class);
+    }
+
+    // ---- STOMP 프레임 (#304) ----
+
+    @Test
+    void STOMP_프레임도_CONNECT와_똑같이_토큰을_요구한다() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.STOMP);
+
+        assertThatThrownBy(() -> send(accessor))
+            .isInstanceOf(MessagingException.class)
+            .hasMessageContaining("Authorization");
+    }
+
+    @Test
+    void STOMP_프레임에_유효한_토큰이면_세션에_사용자가_붙는다() {
+        given(jwtTokenProvider.validateAccessToken("good")).willReturn(true);
+        given(jwtTokenProvider.getAuthentication("good")).willReturn(authentication);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.STOMP);
+        accessor.setNativeHeader("Authorization", "Bearer good");
+
+        send(accessor);
+
+        assertThat(accessor.getUser()).isSameAs(authentication);
+    }
+
+    // ---- SEND (#304) ----
+
+    private StompHeaderAccessor sendFrame(String destination, boolean authenticated) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setDestination(destination);
+        if (authenticated) {
+            accessor.setUser(authentication);
+        }
+        return accessor;
+    }
+
+    @Test
+    void 앱_목적지로의_SEND는_통과한다() {
+        assertThatCode(() -> send(sendFrame("/app/chat.sendText", true)))
+            .doesNotThrowAnyException();
+    }
+
+    // 브로커 목적지로 직접 보내면 simple broker가 MessageService를 거치지 않고 구독자에게 뿌린다.
+    // 본문의 senderId를 마음대로 적어 다른 사람인 척할 수 있었다.
+    @ParameterizedTest
+    @ValueSource(strings = {"/topic/rooms/00000000-0000-0000-0000-000000000001", "/queue/x", "/user/queue/x", "app/chat.sendText"})
+    void 브로커_목적지로의_직접_SEND는_거부된다(String destination) {
+        assertThatThrownBy(() -> send(sendFrame(destination, true)))
+            .isInstanceOf(MessagingException.class)
+            .hasMessageContaining("보낼 수 없는 경로");
+    }
+
+    @Test
+    void 인증되지_않은_세션의_SEND는_거부된다() {
+        assertThatThrownBy(() -> send(sendFrame("/app/chat.sendText", false)))
+            .isInstanceOf(MessagingException.class)
+            .hasMessageContaining("인증되지 않은");
+    }
+
+    @Test
+    void 인증되지_않은_세션의_UNSUBSCRIBE도_거부되고_DISCONNECT는_통과한다() {
+        StompHeaderAccessor unsubscribe = StompHeaderAccessor.create(StompCommand.UNSUBSCRIBE);
+        unsubscribe.setSubscriptionId("sub-0");
+        assertThatThrownBy(() -> send(unsubscribe)).isInstanceOf(MessagingException.class);
+
+        assertThatCode(() -> send(StompHeaderAccessor.create(StompCommand.DISCONNECT)))
+            .doesNotThrowAnyException();
     }
 }

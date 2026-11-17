@@ -69,11 +69,19 @@ public class PresignedUploadService {
 
         String objectKey = createObjectKey(request.fileName());
         // committed+pending 합산 검증 + pending 예약을 원자적으로 수행한다 (TOCTOU 방지).
-        // 실제 업로드 크기는 여기서 검증되지 않는다 - 클라이언트가 선언한 contentLength일 뿐이고,
-        // 게시물에 첨부로 커밋될 때 MinIO statObject로 재검증한 실제 크기가 최종 반영된다.
+        // 예약은 클라이언트가 선언한 contentLength 기준이고, 게시물에 첨부로 커밋될 때
+        // MinIO statObject로 재검증한 실제 크기가 최종 반영된다.
         storageQuotaService.reserveUpload(userId, objectKey, request.contentLength());
 
-        Map<String, String> requiredHeaders = Map.of("Content-Type", request.contentType());
+        // Content-Length를 서명 헤더에 넣어 선언한 크기와 다른 본문의 PUT은 스토리지가
+        // SignatureDoesNotMatch(403)로 거절하게 한다(#296). 그래서 업로드 본문 크기는
+        // 발급 시 선언한 contentLength와 정확히 같아야 한다.
+        // 브라우저 fetch는 Content-Length를 직접 넣을 수 없어 본문 크기로 자동 계산하고,
+        // 네이티브 HTTP 클라이언트도 파일 크기로 채우므로 값만 맞으면 따로 처리할 것이 없다.
+        Map<String, String> requiredHeaders = Map.of(
+                "Content-Type", request.contentType(),
+                "Content-Length", String.valueOf(request.contentLength())
+        );
 
         try {
             ensureBucketReady();

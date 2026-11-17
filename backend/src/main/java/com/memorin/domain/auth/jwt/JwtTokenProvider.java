@@ -35,6 +35,11 @@ public class JwtTokenProvider {
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
 
+    // HS256 키는 256비트(32바이트) 이상이어야 한다.
+    static final int MIN_SECRET_BYTES = 32;
+    // 공개 저장소의 예시 값. 이 값으로 기동하면 누구나 유효한 토큰을 직접 서명할 수 있다.
+    static final String EXAMPLE_SECRET = "changeme-in-production-use-256bit-secret";
+
     private final SecretKey secretKey;
     private final long accessExpiry;
     private final long refreshExpiry;
@@ -46,10 +51,25 @@ public class JwtTokenProvider {
             @Value("${jwt.refresh-expiry-ms}") long refreshExpiry,
             UserRepository userRepository
     ) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.secretKey = Keys.hmacShaKeyFor(validateSecret(secret));
         this.accessExpiry = accessExpiry;
         this.refreshExpiry = refreshExpiry;
         this.userRepository = userRepository;
+    }
+
+    // 예시 값이거나 짧은 시크릿이면 기동을 거부한다. 시크릿 값 자체는 메시지에 넣지 않는다.
+    static byte[] validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET이 비어 있습니다. 무작위 값을 설정하세요(예: openssl rand -base64 48).");
+        }
+        if (secret.trim().equalsIgnoreCase(EXAMPLE_SECRET) || secret.trim().toLowerCase().startsWith("changeme")) {
+            throw new IllegalStateException("JWT_SECRET이 .env.example의 예시 값입니다. 무작위 값을 설정하세요(예: openssl rand -base64 48).");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException("JWT_SECRET은 " + MIN_SECRET_BYTES + "바이트 이상이어야 합니다(현재 " + bytes.length + "바이트).");
+        }
+        return bytes;
     }
 
     //Access Token 생성

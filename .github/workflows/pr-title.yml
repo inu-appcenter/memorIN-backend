@@ -1,0 +1,26 @@
+name: PR 제목
+
+# PR 제목이 <type>: <설명> 형식인지 검사한다(frontend와 같은 규칙).
+# 제목만 바꿔도(edited) 다시 돌아야 해서 ci.yml과 분리했다. ci.yml에 넣으면 제목 수정마다 빌드·테스트가 다시 돈다.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    name: PR 제목 컨벤션 검사
+    runs-on: ubuntu-latest
+    steps:
+      - name: '형식 확인 (type: 설명)'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$TITLE" =~ ^(feat|fix|chore|refactor|docs|test|style|perf|release)(\([a-z0-9-]+\))?:\ .+ ]]; then
+            echo "::error::PR 제목이 컨벤션을 따르지 않습니다: \"$TITLE\""
+            echo "형식: <type>: <설명>  (예: feat: 팔로우 요청/수락 API 구현)"
+            echo "허용 타입: feat, fix, chore, refactor, docs, test, style, perf, release"
+            exit 1
+          fi
+          echo "OK: $TITLE"

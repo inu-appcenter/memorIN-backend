@@ -8,6 +8,7 @@ public record SignupRequest (
 
     @NotBlank // 빈 문자열, 공백만 있는 값 방지
     @Email // 이메일 형식과 일치하는지 검사
+    @Size(max = 320) // users.email VARCHAR(320)
     String email,
 
     @NotBlank

@@ -40,12 +40,18 @@ public class Notification {
     @Column(name = "title", nullable = false, length = 100)
     private String title;
 
-    @Column(name = "message", nullable = false, length = 500)
+    public static final int MESSAGE_MAX_LENGTH = 500;
+
+    @Column(name = "message", nullable = false, length = MESSAGE_MAX_LENGTH)
     private String message;
 
     // 게시물, 팔로우 등 관련 데이터의 id
     @Column(name = "reference_id", columnDefinition = "uuid")
     private UUID referenceId;
+
+    // 댓글(답글 포함) 알림이 달린 게시물의 id. 그 외 타입은 null
+    @Column(name = "post_id", columnDefinition = "uuid")
+    private UUID postId;
 
     @Column(name = "is_read", nullable = false)
     @ColumnDefault("false")
@@ -56,16 +62,31 @@ public class Notification {
     private LocalDateTime createdAt;
 
     public Notification(User user, User actor, NotificationType type, String title, String message, UUID referenceId) {
+        this(user, actor, type, title, message, referenceId, null);
+    }
+
+    public Notification(User user, User actor, NotificationType type, String title, String message, UUID referenceId, UUID postId) {
         this.user = user;
         this.actor = actor;
         this.type = type;
         this.title = title;
-        this.message = message;
+        this.message = truncate(message, MESSAGE_MAX_LENGTH);
         this.referenceId = referenceId;
+        this.postId = postId;
         this.read = false;
     }
 
     public void read() {
         this.read = true;
+    }
+
+    // 채팅 본문 등 길이 제한이 없는 값이 그대로 들어와도 VARCHAR(500)을 넘지 않게 자른다.
+    // PostgreSQL VARCHAR(n)은 문자(code point) 수로 세므로, 이모지 같은 서로게이트 쌍이 갈라지지 않게 code point 기준으로 자른다.
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.codePointCount(0, value.length()) <= maxLength) {
+            return value;
+        }
+        int end = value.offsetByCodePoints(0, maxLength - 1);
+        return value.substring(0, end) + "…";
     }
 }

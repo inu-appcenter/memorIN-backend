@@ -16,11 +16,9 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "fcm_tokens",
-    uniqueConstraints = { // 같은 FCM 토큰이 DB에 중복 저장되는 것을 방지
-        @UniqueConstraint(
-            columnNames = {"user_id", "device_type"}
-        )
-    }
+    // 토큰 하나 = 앱 설치 하나 = 소유자 한 명. 다른 사용자가 같은 토큰을 등록하면 소유권이 넘어간다(V19).
+    uniqueConstraints = @UniqueConstraint(name = "uq_fcm_tokens_token", columnNames = "token"),
+    indexes = @Index(name = "idx_fcm_tokens_user_id", columnList = "user_id")
 )
 public class FcmToken {
 
@@ -49,10 +47,6 @@ public class FcmToken {
     public FcmToken(User user, DeviceType deviceType, String token){
         this.user = user;
         this.deviceType = deviceType;
-        this.token = token;
-    }
-
-    public void update(String token){
         this.token = token;
     }
 }

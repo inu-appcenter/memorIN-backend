@@ -11,6 +11,7 @@ import com.memorin.domain.chat_rooms.dto.response.ChatRoomSummaryResponse;
 import com.memorin.domain.chat_rooms.entity.ChatRooms;
 import com.memorin.domain.chat_rooms.entity.Chat_type;
 import com.memorin.domain.chat_rooms.event.ChatRoomMembershipChanged;
+import com.memorin.domain.chat_rooms.event.ChatRoomMembershipChanged.Reason;
 import com.memorin.domain.chat_rooms.repository.ChatRoomsRepository;
 import com.memorin.domain.users.entity.User;
 import com.memorin.domain.users.repository.UserRepository;
@@ -109,7 +110,7 @@ public class ChatRoomService {
             ChatRoomMembers membership = existing.get();
             if (!membership.isActive()) {
                 membership.rejoin(); // uq_room_member 제약 때문에 새로 INSERT 불가 — 기존 행을 되살림
-                membershipChanged(userId, room.getId());
+                membershipChanged(userId, room.getId(), Reason.JOINED);
             }
             return;
         }
@@ -117,7 +118,7 @@ public class ChatRoomService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new BusinessException(ErrorCode.USER_001, "초대 대상을 찾을 수 없습니다." + userId));
         chatRoomMembersRepository.save(ChatRoomMembers.ofMember(room, user));
-        membershipChanged(userId, room.getId());
+        membershipChanged(userId, room.getId(), Reason.JOINED);
     }
 
     @Transactional
@@ -137,7 +138,7 @@ public class ChatRoomService {
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOM_MEMBERS_001, "채팅방의 멤버가 아닙니다." + targetUserId));
 
         target.leave();
-        membershipChanged(targetUserId, roomId);
+        membershipChanged(targetUserId, roomId, Reason.KICKED);
     }
 
     @Transactional
@@ -146,11 +147,31 @@ public class ChatRoomService {
             .orElseThrow(() -> new BusinessException(ErrorCode.CHAT_ROOMS_001, "채팅방을 찾을 수 없습니다." + roomId));
         ChatRoomMembers member = requireActiveMember(room, requesterId);
 
+        leave(room, member, Reason.LEFT);
+    }
+
+    /**
+     * 회원 탈퇴: 사용자가 들어가 있는 모든 방에서 {@link #leaveRoom}과 같은 경로로 나간다(#347).
+     *
+     * <p>예전에는 {@code UserService.withdraw}가 {@code membership.leave()}만 해서, 그룹 방장이 탈퇴하면
+     * 방장이 넘어가지 않아 남은 멤버 누구도 강퇴·이름 변경을 못 했다. {@link ChatRoomMembershipChanged}도
+     * 발행되지 않아 멤버십 캐시가 탈퇴한 사람을 계속 멤버로 봤다.
+     */
+    @Transactional
+    public void leaveAllRooms(UUID userId) {
+        for (ChatRoomMembers membership : chatRoomMembersRepository.findByUser_IdAndLeftAtIsNullOrderByJoinedAtDesc(userId)) {
+            leave(membership.getRoom(), membership, Reason.WITHDRAWN);
+        }
+    }
+
+    // 나가기와 탈퇴가 같은 규칙을 탄다: 나가고, 알리고, 그룹 방장이었으면 가장 먼저 들어온 활성 멤버에게 넘긴다.
+    private void leave(ChatRooms room, ChatRoomMembers member, Reason reason) {
         member.leave();
-        membershipChanged(requesterId, roomId);
+        membershipChanged(member.getUser().getId(), room.getId(), reason);
 
         if (member.isOwner() && room.getType() == Chat_type.GROUP) {
-            chatRoomMembersRepository.findByRoom_IdAndLeftAtIsNull(roomId).stream()
+            chatRoomMembersRepository.findByRoom_IdAndLeftAtIsNull(room.getId()).stream()
+                .filter(m -> m != member)
                 .min(Comparator.comparing(ChatRoomMembers::getJoinedAt))
                 .ifPresent(ChatRoomMembers::promoteToOwner);
         }
@@ -197,8 +218,8 @@ public class ChatRoomService {
     // 여기서 캐시를 직접 지우지 않는 이유는 트랜잭션 때문이다. 커밋 전에 지우면 그 직후
     // 도착한 메시지 배달이 DB를 다시 읽는데, 그 시점 DB에는 아직 변경이 보이지 않는다.
     // 낡은 값을 되심어 무효화가 없던 일이 된다.
-    private void membershipChanged(UUID userId, UUID roomId) {
-        eventPublisher.publishEvent(new ChatRoomMembershipChanged(userId, roomId));
+    private void membershipChanged(UUID userId, UUID roomId, Reason reason) {
+        eventPublisher.publishEvent(new ChatRoomMembershipChanged(userId, roomId, reason));
     }
 
     private ChatRooms getGroupRoomOrThrow(UUID roomId) {

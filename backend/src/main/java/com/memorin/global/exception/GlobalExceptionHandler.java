@@ -4,6 +4,7 @@ import com.memorin.global.common.ApiResponse;
 import com.memorin.global.common.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,12 +15,17 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.sql.SQLException;
+
 // 모든 컨트롤러의 예외를 한곳에서 받아 공통 응답 포맷으로 변환한다.
 // 컨트롤러/서비스에는 try-catch를 두지 않는다.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // PostgreSQL SQLState: unique_violation
+    private static final String UNIQUE_VIOLATION = "23505";
 
     // 등록되지 않은 경로 → 404 (Spring 6.1+에서는 NoHandlerFoundException이 아니라 NoResourceFoundException)
     @ExceptionHandler(NoResourceFoundException.class)
@@ -60,6 +66,28 @@ public class GlobalExceptionHandler {
     // 클라이언트 잘못으로 위장돼 로그에 남지 않는다.
     // 클라이언트 입력 문제는 서비스에서 적절한 ErrorCode를 담은 BusinessException으로 던진다.
     // 요청 형식 자체의 문제(타입 변환/파싱/필수값 누락)는 아래 전용 핸들러들이 이미 400으로 처리한다.
+
+    // DB 제약 위반 → unique 위반(동시 가입 등)은 409, 그 외(길이 초과, NOT NULL, FK)는 400.
+    // 예외 메시지에는 드라이버가 넣은 바인딩 값(이메일, 비밀번호 해시, 채팅 본문)이 들어갈 수 있으므로
+    // 메시지와 스택트레이스는 남기지 않고 SQLState만 남긴다.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        String sqlState = findSqlState(e);
+        log.warn("DB 제약 위반: sqlState={}", sqlState);
+
+        ErrorCode errorCode = UNIQUE_VIOLATION.equals(sqlState) ? ErrorCode.COMMON_006 : ErrorCode.COMMON_002;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(ApiResponse.fail(errorCode));
+    }
+
+    private static String findSqlState(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sqlException && sqlException.getSQLState() != null) {
+                return sqlException.getSQLState();
+            }
+        }
+        return null;
+    }
 
     // 위에서 잡지 못한 모든 예외 → 500. 원인 파악을 위해 스택트레이스를 남긴다.
     @ExceptionHandler(Exception.class)

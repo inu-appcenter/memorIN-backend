@@ -1,11 +1,15 @@
 package com.memorin.domain.chat_rooms;
 
+import com.memorin.domain.chat_room_members.entity.ChatRoomMembers;
+import com.memorin.domain.chat_room_members.repository.ChatRoomMemberRepository;
 import com.memorin.domain.chat_rooms.dto.request.CreateGroupRoomRequest;
+import com.memorin.domain.chat_rooms.dto.request.RenameRoomRequest;
 import com.memorin.domain.chat_rooms.dto.request.InviteMembersRequest;
 import com.memorin.domain.chat_rooms.dto.response.ChatRoomResponse;
 import com.memorin.domain.chat_rooms.service.ChatRoomMembershipGate;
 import com.memorin.domain.chat_rooms.service.ChatRoomService;
 import com.memorin.domain.users.entity.User;
+import com.memorin.domain.users.service.UserService;
 import com.memorin.support.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -43,6 +47,12 @@ class ChatRoomMembershipRevocationTest extends PostgresTestSupport {
 
     @Autowired
     private TransactionTemplate tx;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private ChatRoomMemberRepository chatRoomMemberRepository;
 
     @PersistenceContext
     private EntityManager em;
@@ -125,5 +135,38 @@ class ChatRoomMembershipRevocationTest extends PostgresTestSupport {
         assertThat(membershipGate.isActiveMember(ids[1], kept.roomId()))
             .as("강퇴는 그 방에만 적용돼야 한다")
             .isTrue();
+    }
+
+    // #347·#304: 예전 탈퇴는 membership.leave()만 해서 방장이 넘어가지 않았고(남은 멤버 누구도 강퇴·이름 변경 불가),
+    // ChatRoomMembershipChanged도 발행하지 않아 캐시가 탈퇴한 방장을 계속 멤버로 봤다.
+    @Test
+    void 그룹_방장이_탈퇴하면_가장_먼저_들어온_멤버가_방장이_되고_수신_자격이_사라진다() {
+        UUID[] first = persistOwnerAndMember(tag("wd"));
+        UUID ownerId = first[0];
+        UUID earlier = first[1];
+        UUID later = persistOwnerAndMember(tag("wd2"))[1];
+        ChatRoomResponse room = chatRoomService.createGroupRoom(
+            ownerId, new CreateGroupRoomRequest("승계 방", List.of(earlier)));
+        chatRoomService.inviteMembers(room.roomId(), ownerId, new InviteMembersRequest(List.of(later)));
+
+        assertThat(membershipGate.isActiveMember(ownerId, room.roomId())).isTrue();
+
+        userService.withdraw(ownerId);
+
+        assertThat(membershipGate.isActiveMember(ownerId, room.roomId()))
+            .as("탈퇴한 사람의 캐시된 수신 자격이 남으면 안 된다")
+            .isFalse();
+        tx.executeWithoutResult(status -> {
+            assertThat(role(room.roomId(), earlier).isOwner()).as("먼저 들어온 멤버가 방장").isTrue();
+            assertThat(role(room.roomId(), later).isOwner()).isFalse();
+            assertThat(role(room.roomId(), ownerId).isActive()).isFalse();
+        });
+        // 새 방장이 방장 권한을 실제로 쓸 수 있다.
+        chatRoomService.renameRoom(room.roomId(), earlier, new RenameRoomRequest("새 이름"));
+        chatRoomService.kickMember(room.roomId(), earlier, later);
+    }
+
+    private ChatRoomMembers role(UUID roomId, UUID userId) {
+        return chatRoomMemberRepository.findByRoom_IdAndUser_Id(roomId, userId).orElseThrow();
     }
 }

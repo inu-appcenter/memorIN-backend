@@ -140,6 +140,23 @@ class PresignedDownloadServiceTest {
     }
 
     @Test
+    void 삭제된_게시물의_미디어는_소유자에게도_NotFound를_던진다() throws Exception {
+        User owner = persistUser("6");
+        User stranger = persistUser("7");
+        Post post = persistPost(owner, VisibilityType.PUBLIC);
+        PostMedia media = persistMedia(post);
+        post.softDelete();
+        em.flush();
+        em.clear();
+
+        PresignedDownloadService service = service();
+        assertThatThrownBy(() -> service.createDownloadUrl(media.getId(), owner.getId()))
+                .isInstanceOf(PostMediaNotFoundException.class);
+        assertThatThrownBy(() -> service.createDownloadUrl(media.getId(), stranger.getId()))
+                .isInstanceOf(PostMediaNotFoundException.class);
+    }
+
+    @Test
     void 존재하지_않는_미디어는_NotFound를_던진다() throws Exception {
         PresignedDownloadService service = service();
         assertThatThrownBy(() -> service.createDownloadUrl(UUID.randomUUID(), UUID.randomUUID()))

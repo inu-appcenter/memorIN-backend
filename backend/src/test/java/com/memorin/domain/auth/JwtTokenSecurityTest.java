@@ -113,7 +113,7 @@ class JwtTokenSecurityTest {
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, 60_000, 60_000, userRepository);
         AuthService service = new AuthService(
             userRepository, passwordEncoder, provider, refreshTokenRepository,
-            fcmTokenService, webPushSubscriptionService
+            fcmTokenService, webPushSubscriptionService, mock(org.springframework.context.ApplicationEventPublisher.class)
         );
         UUID userId = UUID.randomUUID();
 
@@ -149,7 +149,7 @@ class JwtTokenSecurityTest {
             provider(),
             refreshTokenRepository,
             fcmTokenService,
-            webPushSubscriptionService
+            webPushSubscriptionService, mock(org.springframework.context.ApplicationEventPublisher.class)
         );
         UUID userId = UUID.randomUUID();
 
