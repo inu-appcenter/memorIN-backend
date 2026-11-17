@@ -1,5 +1,6 @@
 package com.memorin.domain.follows.controller;
 
+import com.memorin.domain.follows.dto.FollowRecommendationListResponse;
 import com.memorin.domain.follows.dto.FollowRequest;
 import com.memorin.domain.follows.service.FollowService;
 import com.memorin.domain.users.dto.UserFollowRequestPageResponse;
@@ -70,4 +71,19 @@ public class FollowController {
     ) {
         return ApiResponse.ok(followService.getFollowRequests(userDetails.getUserId(), cursor, size));
     }
+
+    @Operation(summary = "추천 친구 목록",
+        description = """
+        팔로우하지 않은 사용자 중 공통 친구 수와 최근 활동(최근 게시물 작성 시각)을 기준으로
+        점수를 매겨 추천 대상을 조회한다. 이미 팔로우 중이거나(ACCEPTED), 요청이 오간 상태(PENDING),
+        차단 관계(BLOCKED)인 사용자와 본인은 결과에서 제외된다.""")
+    @GetMapping("/recommend")
+    public ApiResponse<FollowRecommendationListResponse> recommend(
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer size,
+        @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        return ApiResponse.ok(followService.recommend(userDetails.getUserId(), cursor, size));
+    }
+
 }
