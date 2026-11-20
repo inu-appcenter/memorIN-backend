@@ -1,8 +1,9 @@
 <!--
 제목 규칙: <타입>: <한 줄 요약>   예) feat: 팔로우 요청/수락 API 구현
-타입 → feat | fix | refactor | docs | test | chore | perf
+타입 → feat | fix | refactor | docs | test | chore | perf | style | release
   feat=기능추가  fix=버그수정  refactor=동작변화없는구조개선
   docs=문서  test=테스트  chore=빌드/설정/의존성  perf=성능
+  style=포맷(동작 변화 없음)  release=develop → main 릴리스 PR 전용
 브랜치는 develop 대상으로 올립니다.
 -->
 

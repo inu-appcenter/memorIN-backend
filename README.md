@@ -96,9 +96,7 @@ docker-compose.yml     # 로컬 개발용 postgres · minio · backend · pgadmi
 
 ## 기여
 
-- 브랜치는 `develop`에서 만들고 `develop`으로 PR을 올립니다. `main`에는 `develop` → `main` 릴리스 PR로만 반영합니다.
-- PR 제목은 `<type>: <설명>` 형식입니다(`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `style`, `release`).
-- 새 DB 변경은 기존 마이그레이션을 고치지 않고 새 버전 파일로 추가합니다([`docs/db-migration-guide.md`](docs/db-migration-guide.md)).
+브랜치, PR 제목, 검사 항목, 마이그레이션 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 봅니다. 보안 문제는 [SECURITY.md](SECURITY.md)의 절차로 제보해 주세요.
 
 ## 라이선스
 
