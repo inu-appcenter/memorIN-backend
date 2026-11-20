@@ -90,13 +90,13 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-    implementation 'com.google.firebase:firebase-admin:9.11.0'
+    implementation 'com.google.firebase:firebase-admin:9.12.0'
     // 5.1.2는 Crypto-Key 헤더의 VAPID 공개키에 base64 패딩(=)을 붙여 FCM이 403으로 거절한다
     // (web-push-libs/webpush-java#216). 고쳐진 버전이 나오기 전까지 5.1.1로 고정한다(WebPushRequestHeaderTest).
     implementation 'nl.martijndwars:web-push:5.1.1'
     // web-push가 끌어오는 jose4j(0.7.x) 대신 최신을 쓴다. WebPushService가 JoseException을 직접 다루므로 명시한다.
     implementation 'org.bitbucket.b_c:jose4j:0.9.7'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.86'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.87'
 }
 
 tasks.named('test') {
